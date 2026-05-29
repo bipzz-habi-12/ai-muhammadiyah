@@ -116,6 +116,15 @@ function isDocumentQuestion(question: string) {
     "presentasi",
     "slide",
     "slides",
+    "excel",
+    "xlsx",
+    "spreadsheet",
+    "worksheet",
+    "sheet",
+    "tabel",
+    "table",
+    "statistik",
+    "data",
     "file",
     "berkas",
     "lampiran",
@@ -141,6 +150,14 @@ function isDocumentQuestion(question: string) {
     "halaman",
     "kutip",
     "kutipan",
+    "tren",
+    "trend",
+    "insight",
+    "wawasan",
+    "statistik",
+    "rata-rata",
+    "total",
+    "bandingkan",
   ];
 
   const mentionsDocument = documentWords.some((word) =>
@@ -166,7 +183,7 @@ function createShortPdfFallback(pdfContext: string) {
     "Yang bisa saya baca:",
     `- ${visibleText || "Tidak ada teks bermakna yang terbaca."}`,
     "",
-    "Kemungkinan dokumen berisi scan/gambar, teksnya tidak terseleksi, atau ekstraksinya belum lengkap. Silakan upload PDF, Word (.docx), atau PowerPoint (.pptx) dengan teks yang bisa diseleksi agar analisisnya lebih akurat.",
+    "Kemungkinan dokumen berisi scan/gambar, teksnya tidak terseleksi, data tabelnya kosong, atau ekstraksinya belum lengkap. Silakan upload PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx) dengan teks/data yang bisa dibaca agar analisisnya lebih akurat.",
   ].join("\n");
 }
 
@@ -218,6 +235,7 @@ function createPdfAnalysisPrompt(pdfContext: string, question: string) {
     "- Answer based only on the provided document text. Do not invent facts outside the document context.",
     "- If the document context is unclear, mention which part is unclear, then summarize or answer what can still be inferred from the provided text.",
     "- For summary requests, use clear bullet points and keep the structure easy to scan.",
+    "- If the document is a spreadsheet, pay attention to worksheet names, table rows, trends, totals, averages, comparisons, and useful study insights.",
     "- If the user asks for information that is not present in the document text, say that it is not found in the provided document context.",
     "",
     "DOCUMENT TEXT:",

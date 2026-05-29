@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import mammoth from "mammoth";
 import { parseOffice, type OfficeContentNode } from "officeparser";
 import PDFParser from "pdf2json";
+import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
 
-type SupportedDocumentType = "pdf" | "docx" | "pptx";
+type SupportedDocumentType = "pdf" | "docx" | "pptx" | "xlsx";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -105,6 +106,14 @@ function getDocumentType(file: File): SupportedDocumentType | null {
     return "pptx";
   }
 
+  if (
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    fileName.endsWith(".xlsx")
+  ) {
+    return "xlsx";
+  }
+
   return null;
 }
 
@@ -169,6 +178,56 @@ async function extractTextFromPptx(buffer: Buffer) {
     : normalizeDocumentText(presentation.toText());
 }
 
+function formatSpreadsheetCell(value: unknown) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/\|/g, "/")
+    .trim();
+}
+
+function extractTextFromXlsx(buffer: Buffer) {
+  const workbook = XLSX.read(buffer, {
+    type: "buffer",
+    cellDates: true,
+  });
+
+  const worksheetTexts = workbook.SheetNames.map((sheetName) => {
+    const worksheet = workbook.Sheets[sheetName];
+
+    if (!worksheet) {
+      return "";
+    }
+
+    // Convert the worksheet to simple rows so the AI receives readable table data.
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, {
+      header: 1,
+      blankrows: false,
+      defval: "",
+      raw: false,
+    });
+
+    const readableRows = rows
+      .map((row) => row.map(formatSpreadsheetCell))
+      .map((row) => {
+        while (row.length && !row.at(-1)) {
+          row.pop();
+        }
+
+        return row;
+      })
+      .filter((row) => row.some(Boolean))
+      .map((row) => `| ${row.join(" | ")} |`);
+
+    if (!readableRows.length) {
+      return "";
+    }
+
+    return [`Worksheet: ${sheetName}`, ...readableRows].join("\n");
+  }).filter(Boolean);
+
+  return normalizeDocumentText(worksheetTexts.join("\n\n"));
+}
+
 function getEmptyDocumentMessage(documentType: SupportedDocumentType) {
   if (documentType === "pdf") {
     return "PDF berhasil dibuka, tetapi tidak ada teks yang bisa dibaca. Kemungkinan PDF ini hasil scan atau berisi gambar, sehingga perlu OCR terlebih dahulu.";
@@ -176,6 +235,10 @@ function getEmptyDocumentMessage(documentType: SupportedDocumentType) {
 
   if (documentType === "pptx") {
     return "PowerPoint berhasil dibuka, tetapi tidak ada teks slide yang bisa dibaca. Mohon upload file .pptx yang berisi teks, bukan hanya gambar.";
+  }
+
+  if (documentType === "xlsx") {
+    return "Excel berhasil dibuka, tetapi tidak ada data tabel yang bisa dibaca. Mohon upload file .xlsx yang berisi data pada worksheet.";
   }
 
   return "Dokumen Word berhasil dibuka, tetapi tidak ada teks yang bisa dibaca. Mohon upload dokumen .docx yang berisi teks.";
@@ -194,7 +257,11 @@ function getExtractionFailureMessage(documentType: SupportedDocumentType | null)
     return "Gagal membaca teks dari PowerPoint. Pastikan file .pptx tidak rusak dan bukan file lama .ppt.";
   }
 
-  return "Gagal membaca dokumen. Mohon upload file PDF, Word (.docx), atau PowerPoint (.pptx).";
+  if (documentType === "xlsx") {
+    return "Gagal membaca data dari Excel. Pastikan file .xlsx tidak rusak dan bukan file lama .xls.";
+  }
+
+  return "Gagal membaca dokumen. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx).";
 }
 
 export async function POST(request: Request) {
@@ -217,7 +284,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Format belum didukung. Mohon upload file PDF, Word (.docx), atau PowerPoint (.pptx).",
+            "Format belum didukung. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx).",
         },
         { status: 400 },
       );
@@ -230,8 +297,10 @@ export async function POST(request: Request) {
       text = await extractTextFromPdf(buffer);
     } else if (documentType === "docx") {
       text = await extractTextFromDocx(buffer);
-    } else {
+    } else if (documentType === "pptx") {
       text = await extractTextFromPptx(buffer);
+    } else {
+      text = extractTextFromXlsx(buffer);
     }
 
     if (!text) {

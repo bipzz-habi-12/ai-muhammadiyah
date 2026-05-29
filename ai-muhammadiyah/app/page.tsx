@@ -13,7 +13,7 @@ type ConversationGroup = {
 };
 
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
-type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Dokumen";
+type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Excel" | "Dokumen";
 
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 
@@ -33,7 +33,7 @@ const modelOptions: { value: SelectedModel; label: string }[] = [
 ];
 
 const supportedDocumentAccept =
-  "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx";
+  "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx";
 
 const conversationGroups: ConversationGroup[] = [
   {
@@ -116,6 +116,10 @@ function getUploadedDocumentType(fileName: string): UploadedDocumentType {
 
   if (fileName.endsWith(".pptx")) {
     return "PowerPoint";
+  }
+
+  if (fileName.endsWith(".xlsx")) {
+    return "Excel";
   }
 
   return "PDF";
@@ -235,9 +239,12 @@ export default function Home() {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       file.type ===
         "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       fileName.endsWith(".pdf") ||
       fileName.endsWith(".docx") ||
-      fileName.endsWith(".pptx");
+      fileName.endsWith(".pptx") ||
+      fileName.endsWith(".xlsx");
 
     setUploadedFileName(file.name);
     setUploadedDocumentType(getUploadedDocumentType(fileName));
@@ -249,7 +256,7 @@ export default function Home() {
     if (!isSupportedDocument) {
       setDocumentStatus("error");
       setDocumentError(
-        "Format belum didukung. Mohon upload file PDF, Word (.docx), atau PowerPoint (.pptx).",
+        "Format belum didukung. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx).",
       );
       event.target.value = "";
       return;
@@ -267,7 +274,7 @@ export default function Home() {
       const data = (await response.json()) as {
         error?: string;
         fileName?: string;
-        fileType?: "pdf" | "docx" | "pptx";
+        fileType?: "pdf" | "docx" | "pptx" | "xlsx";
         text?: string;
       };
 
@@ -281,7 +288,9 @@ export default function Home() {
           ? "Word"
           : data.fileType === "pptx"
             ? "PowerPoint"
-            : "PDF",
+            : data.fileType === "xlsx"
+              ? "Excel"
+              : "PDF",
       );
       documentTextRef.current = data.text ?? "";
       setDocumentText(documentTextRef.current);
@@ -527,7 +536,7 @@ export default function Home() {
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]">
             <span className="text-xl text-[#008d54]">+</span>
-            Upload PDF / Word / PowerPoint
+            Upload PDF / Word / PowerPoint / Excel
             <input
               type="file"
               accept={supportedDocumentAccept}
@@ -724,8 +733,8 @@ export default function Home() {
             <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-[#d3e8dc] focus-within:ring-[#95d6b9] sm:gap-3 sm:px-4">
               <label
                 className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-[#4f665c] transition hover:bg-[#eef8f1]"
-                title="Lampirkan PDF, Word, atau PowerPoint"
-                aria-label="Lampirkan PDF, Word, atau PowerPoint"
+                title="Lampirkan PDF, Word, PowerPoint, atau Excel"
+                aria-label="Lampirkan PDF, Word, PowerPoint, atau Excel"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">+</span>
                 <input
