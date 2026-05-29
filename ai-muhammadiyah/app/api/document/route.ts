@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import mammoth from "mammoth";
+import { parseOffice, type OfficeContentNode } from "officeparser";
 import PDFParser from "pdf2json";
 
 export const runtime = "nodejs";
 
-type SupportedDocumentType = "pdf" | "docx";
+type SupportedDocumentType = "pdf" | "docx" | "pptx";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -96,6 +97,14 @@ function getDocumentType(file: File): SupportedDocumentType | null {
     return "docx";
   }
 
+  if (
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    fileName.endsWith(".pptx")
+  ) {
+    return "pptx";
+  }
+
   return null;
 }
 
@@ -125,9 +134,48 @@ async function extractTextFromDocx(buffer: Buffer) {
   return normalizeDocumentText(result.value);
 }
 
+function getTextFromOfficeNode(node: OfficeContentNode): string {
+  if (node.children?.length) {
+    return node.children.map(getTextFromOfficeNode).filter(Boolean).join("\n");
+  }
+
+  return node.text?.trim() ?? "";
+}
+
+async function extractTextFromPptx(buffer: Buffer) {
+  const presentation = await parseOffice(buffer, {
+    fileType: "pptx",
+    newlineDelimiter: "\n",
+    ignoreNotes: false,
+    putNotesAtLast: false,
+    extractAttachments: false,
+    ocr: false,
+  });
+
+  const slideTexts = presentation.content
+    .filter((node) => node.type === "slide")
+    .map((slide, index) => {
+      const metadata = slide.metadata as { slideNumber?: number } | undefined;
+      const slideNumber = metadata?.slideNumber ?? index + 1;
+      const slideText = normalizeDocumentText(getTextFromOfficeNode(slide));
+
+      return slideText ? `Slide ${slideNumber}:\n${slideText}` : "";
+    })
+    .filter(Boolean);
+
+  // Keep slide numbers in the context so the AI can answer slide-specific questions.
+  return slideTexts.length
+    ? slideTexts.join("\n\n")
+    : normalizeDocumentText(presentation.toText());
+}
+
 function getEmptyDocumentMessage(documentType: SupportedDocumentType) {
   if (documentType === "pdf") {
     return "PDF berhasil dibuka, tetapi tidak ada teks yang bisa dibaca. Kemungkinan PDF ini hasil scan atau berisi gambar, sehingga perlu OCR terlebih dahulu.";
+  }
+
+  if (documentType === "pptx") {
+    return "PowerPoint berhasil dibuka, tetapi tidak ada teks slide yang bisa dibaca. Mohon upload file .pptx yang berisi teks, bukan hanya gambar.";
   }
 
   return "Dokumen Word berhasil dibuka, tetapi tidak ada teks yang bisa dibaca. Mohon upload dokumen .docx yang berisi teks.";
@@ -142,7 +190,11 @@ function getExtractionFailureMessage(documentType: SupportedDocumentType | null)
     return "Gagal membaca teks dari dokumen Word. Pastikan file .docx tidak rusak dan bukan file lama .doc.";
   }
 
-  return "Gagal membaca dokumen. Mohon upload file PDF atau Word (.docx).";
+  if (documentType === "pptx") {
+    return "Gagal membaca teks dari PowerPoint. Pastikan file .pptx tidak rusak dan bukan file lama .ppt.";
+  }
+
+  return "Gagal membaca dokumen. Mohon upload file PDF, Word (.docx), atau PowerPoint (.pptx).";
 }
 
 export async function POST(request: Request) {
@@ -163,16 +215,24 @@ export async function POST(request: Request) {
 
     if (!documentType) {
       return NextResponse.json(
-        { error: "Format belum didukung. Mohon upload file PDF atau Word (.docx)." },
+        {
+          error:
+            "Format belum didukung. Mohon upload file PDF, Word (.docx), atau PowerPoint (.pptx).",
+        },
         { status: 400 },
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const text =
-      documentType === "pdf"
-        ? await extractTextFromPdf(buffer)
-        : await extractTextFromDocx(buffer);
+    let text = "";
+
+    if (documentType === "pdf") {
+      text = await extractTextFromPdf(buffer);
+    } else if (documentType === "docx") {
+      text = await extractTextFromDocx(buffer);
+    } else {
+      text = await extractTextFromPptx(buffer);
+    }
 
     if (!text) {
       return NextResponse.json(

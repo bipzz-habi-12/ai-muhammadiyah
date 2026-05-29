@@ -110,6 +110,12 @@ function isDocumentQuestion(question: string) {
     "dokumen",
     "document",
     "pdf",
+    "ppt",
+    "pptx",
+    "powerpoint",
+    "presentasi",
+    "slide",
+    "slides",
     "file",
     "berkas",
     "lampiran",
@@ -160,7 +166,7 @@ function createShortPdfFallback(pdfContext: string) {
     "Yang bisa saya baca:",
     `- ${visibleText || "Tidak ada teks bermakna yang terbaca."}`,
     "",
-    "Kemungkinan dokumen berisi scan/gambar, teksnya tidak terseleksi, atau ekstraksinya belum lengkap. Silakan upload PDF atau Word (.docx) dengan teks yang bisa diseleksi agar analisisnya lebih akurat.",
+    "Kemungkinan dokumen berisi scan/gambar, teksnya tidak terseleksi, atau ekstraksinya belum lengkap. Silakan upload PDF, Word (.docx), atau PowerPoint (.pptx) dengan teks yang bisa diseleksi agar analisisnya lebih akurat.",
   ].join("\n");
 }
 

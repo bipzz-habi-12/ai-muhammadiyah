@@ -13,7 +13,7 @@ type ConversationGroup = {
 };
 
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
-type UploadedDocumentType = "PDF" | "Word" | "Dokumen";
+type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Dokumen";
 
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 
@@ -31,6 +31,9 @@ const modelOptions: { value: SelectedModel; label: string }[] = [
   { value: "smart", label: "Smart Model" },
   { value: "document", label: "Document Model" },
 ];
+
+const supportedDocumentAccept =
+  "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx";
 
 const conversationGroups: ConversationGroup[] = [
   {
@@ -104,6 +107,18 @@ function getRecentChatHistory(messages: Message[]) {
       role: message.role,
       text: truncateMessageText(message.text),
     }));
+}
+
+function getUploadedDocumentType(fileName: string): UploadedDocumentType {
+  if (fileName.endsWith(".docx")) {
+    return "Word";
+  }
+
+  if (fileName.endsWith(".pptx")) {
+    return "PowerPoint";
+  }
+
+  return "PDF";
 }
 
 function SparkIcon({ className = "" }: { className?: string }) {
@@ -218,11 +233,14 @@ export default function Home() {
       file.type === "application/pdf" ||
       file.type ===
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
       fileName.endsWith(".pdf") ||
-      fileName.endsWith(".docx");
+      fileName.endsWith(".docx") ||
+      fileName.endsWith(".pptx");
 
     setUploadedFileName(file.name);
-    setUploadedDocumentType(fileName.endsWith(".docx") ? "Word" : "PDF");
+    setUploadedDocumentType(getUploadedDocumentType(fileName));
     documentTextRef.current = "";
     setDocumentText("");
     setDocumentError("");
@@ -230,7 +248,9 @@ export default function Home() {
 
     if (!isSupportedDocument) {
       setDocumentStatus("error");
-      setDocumentError("Format belum didukung. Mohon upload file PDF atau Word (.docx).");
+      setDocumentError(
+        "Format belum didukung. Mohon upload file PDF, Word (.docx), atau PowerPoint (.pptx).",
+      );
       event.target.value = "";
       return;
     }
@@ -247,7 +267,7 @@ export default function Home() {
       const data = (await response.json()) as {
         error?: string;
         fileName?: string;
-        fileType?: "pdf" | "docx";
+        fileType?: "pdf" | "docx" | "pptx";
         text?: string;
       };
 
@@ -256,7 +276,13 @@ export default function Home() {
       }
 
       setUploadedFileName(data.fileName ?? file.name);
-      setUploadedDocumentType(data.fileType === "docx" ? "Word" : "PDF");
+      setUploadedDocumentType(
+        data.fileType === "docx"
+          ? "Word"
+          : data.fileType === "pptx"
+            ? "PowerPoint"
+            : "PDF",
+      );
       documentTextRef.current = data.text ?? "";
       setDocumentText(documentTextRef.current);
       setDocumentStatus("loaded");
@@ -501,10 +527,10 @@ export default function Home() {
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]">
             <span className="text-xl text-[#008d54]">+</span>
-            Upload PDF / Word
+            Upload PDF / Word / PowerPoint
             <input
               type="file"
-              accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+              accept={supportedDocumentAccept}
               onChange={handleDocumentUpload}
               className="hidden"
             />
@@ -560,7 +586,7 @@ export default function Home() {
                     Lampirkan
                     <input
                       type="file"
-                      accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+                      accept={supportedDocumentAccept}
                       onChange={handleDocumentUpload}
                       className="hidden"
                     />
@@ -698,13 +724,13 @@ export default function Home() {
             <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-[#d3e8dc] focus-within:ring-[#95d6b9] sm:gap-3 sm:px-4">
               <label
                 className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-[#4f665c] transition hover:bg-[#eef8f1]"
-                title="Lampirkan PDF atau Word"
-                aria-label="Lampirkan PDF atau Word"
+                title="Lampirkan PDF, Word, atau PowerPoint"
+                aria-label="Lampirkan PDF, Word, atau PowerPoint"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">+</span>
                 <input
                   type="file"
-                  accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+                  accept={supportedDocumentAccept}
                   onChange={handleDocumentUpload}
                   className="hidden"
                 />
