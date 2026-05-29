@@ -8,6 +8,8 @@ type GenerateChatReplyResult = {
   provider: "mock" | "openrouter";
 };
 
+type SelectedModel = "auto" | "fast" | "smart" | "document";
+
 export const islamicAiIdentitySystemPrompt = [
   "You are AI Muhammadiyah, a modern Islamic education assistant for Muhammadiyah learning communities.",
   "Speak politely, professionally, warmly, and naturally. Use Islamic greetings such as Assalamualaikum only when appropriate, without forcing them into every reply.",
@@ -18,9 +20,40 @@ export const islamicAiIdentitySystemPrompt = [
   "Keep answers concise unless the user asks for detailed explanations.",
   "Answer in the user's language when possible, and use simple Indonesian by default.",
 ].join("\n");
-const openRouterModel = process.env.OPENROUTER_MODEL ?? "openrouter/free";
+
+const openRouterDefaultModel = process.env.OPENROUTER_MODEL ?? "openrouter/free";
+
+const openRouterModelMap: Record<SelectedModel, string> = {
+  auto: openRouterDefaultModel,
+  fast: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  smart: "moonshotai/kimi-k2.6:free",
+  document: "qwen/qwen3-coder:free",
+};
+
+// Later replacement point:
+// fast -> GPT Mini or Gemini Flash
+// smart -> GPT 5.5 or Gemini Pro
+// document -> GPT 5.5 or Gemini Pro with a larger context window
 const maxPdfContextLength = 12000;
 const minUsefulPdfContextLength = 120;
+
+function normalizeSelectedModel(selectedModel?: string): SelectedModel {
+  if (
+    selectedModel === "fast" ||
+    selectedModel === "smart" ||
+    selectedModel === "document"
+  ) {
+    return selectedModel;
+  }
+
+  return "auto";
+}
+
+function resolveOpenRouterModel(selectedModel?: string) {
+  const normalizedModel = normalizeSelectedModel(selectedModel);
+
+  return openRouterModelMap[normalizedModel] ?? openRouterDefaultModel;
+}
 
 function getLatestUserMessage(messages: ChatMessage[]) {
   return messages.findLast((message) => message.role === "user")?.text ?? "";
@@ -73,6 +106,24 @@ function createRateLimitFallback(pdfContext: string) {
     "Chat tidak rusak, tetapi jawaban AI perlu dicoba lagi beberapa saat lagi.",
     "",
     "Silakan kirim ulang pertanyaan nanti, atau gunakan model OpenRouter lain dengan limit yang lebih longgar.",
+  ].join("\n");
+}
+
+function createModelUnavailableFallback(pdfContext: string) {
+  const hasPdfContext = Boolean(preparePdfContext(pdfContext));
+
+  if (hasPdfContext) {
+    return [
+      "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
+      "",
+      "PDF sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih Auto / Free Model.",
+    ].join("\n");
+  }
+
+  return [
+    "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
+    "",
+    "Silakan coba lagi sebentar lagi, atau pilih Auto / Free Model.",
   ].join("\n");
 }
 
@@ -146,50 +197,68 @@ function getRateLimitInfo(response: Response) {
   };
 }
 
-async function generateOpenRouterReply(messages: ChatMessage[], pdfContext = "") {
+async function generateOpenRouterReply(
+  messages: ChatMessage[],
+  pdfContext = "",
+  selectedModel?: string,
+) {
   const messagesForOpenRouter = createOpenRouterMessages(messages, pdfContext);
+  const openRouterModel = resolveOpenRouterModel(selectedModel);
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": "http://localhost:3000",
-      "X-Title": "AI Muhammadiyah",
-    },
-    body: JSON.stringify({
-      model: openRouterModel,
-      messages: messagesForOpenRouter,
-      max_tokens: 350,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    const rateLimitInfo = getRateLimitInfo(response);
-
-    console.error("OpenRouter error:", {
-      status: response.status,
-      model: openRouterModel,
-      rateLimitInfo,
-      errorText,
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "AI Muhammadiyah",
+      },
+      body: JSON.stringify({
+        model: openRouterModel,
+        messages: messagesForOpenRouter,
+        max_tokens: 350,
+      }),
     });
 
-    if (response.status === 429) {
-      return createRateLimitFallback(pdfContext);
+    if (!response.ok) {
+      const errorText = await response.text();
+      const rateLimitInfo = getRateLimitInfo(response);
+
+      console.error("OpenRouter error:", {
+        status: response.status,
+        model: openRouterModel,
+        rateLimitInfo,
+        errorText,
+      });
+
+      if (response.status === 429) {
+        return createRateLimitFallback(pdfContext);
+      }
+
+      return createModelUnavailableFallback(pdfContext);
     }
 
-    throw new Error("OpenRouter request failed");
+    const data = await response.json();
+
+    return (
+      data.choices?.[0]?.message?.content ??
+      createModelUnavailableFallback(pdfContext)
+    );
+  } catch (error) {
+    console.error("OpenRouter request failed:", {
+      model: openRouterModel,
+      error,
+    });
+
+    return createModelUnavailableFallback(pdfContext);
   }
-
-  const data = await response.json();
-
-  return data.choices?.[0]?.message?.content ?? "Maaf, AI belum memberikan jawaban.";
 }
 
 export async function generateChatReply(
   messages: ChatMessage[],
   pdfContext = "",
+  selectedModel?: string,
 ): Promise<GenerateChatReplyResult> {
   const preparedPdfContext = preparePdfContext(pdfContext);
 
@@ -207,7 +276,11 @@ export async function generateChatReply(
     };
   }
 
-  const reply = await generateOpenRouterReply(messages, preparedPdfContext);
+  const reply = await generateOpenRouterReply(
+    messages,
+    preparedPdfContext,
+    selectedModel,
+  );
 
   return {
     reply,

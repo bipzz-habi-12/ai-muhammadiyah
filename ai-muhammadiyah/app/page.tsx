@@ -14,6 +14,15 @@ type ConversationGroup = {
 
 type PdfStatus = "idle" | "loading" | "loaded" | "error";
 
+type SelectedModel = "auto" | "fast" | "smart" | "document";
+
+const modelOptions: { value: SelectedModel; label: string }[] = [
+  { value: "auto", label: "Auto / Free Model" },
+  { value: "fast", label: "Fast Model" },
+  { value: "smart", label: "Smart Model" },
+  { value: "document", label: "Document Model" },
+];
+
 const conversationGroups: ConversationGroup[] = [
   {
     label: "HARI INI",
@@ -163,6 +172,7 @@ export default function Home() {
   const [pdfText, setPdfText] = useState("");
   const [pdfStatus, setPdfStatus] = useState<PdfStatus>("idle");
   const [isSending, setIsSending] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
   const pdfTextRef = useRef("");
 
   async function handlePdfUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -232,6 +242,7 @@ export default function Home() {
         body: JSON.stringify({
           messages: nextMessages,
           pdfContext: currentPdfContext,
+          selectedModel,
         }),
       });
 
@@ -389,13 +400,20 @@ export default function Home() {
             <div className="min-w-0 text-lg font-bold sm:text-xl">
               <span>AI-mu</span>
               <span className="mx-2 text-[#4f665c]">·</span>
-              <button
-                type="button"
-                className="inline-flex min-w-0 items-center gap-2 font-semibold text-[#38534a]"
+              <select
+                value={selectedModel}
+                onChange={(event) =>
+                  setSelectedModel(event.target.value as SelectedModel)
+                }
+                aria-label="Pilih model AI"
+                className="max-w-[190px] rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-[#eef8f1] focus:ring-[#95d6b9] sm:max-w-none sm:text-base"
               >
-                <span className="truncate">ChatGPT 5.5</span>
-                <span aria-hidden="true" className="text-[#4f665c]">⌄</span>
-              </button>
+                {modelOptions.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
