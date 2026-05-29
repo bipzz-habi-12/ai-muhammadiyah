@@ -3,6 +3,7 @@ import { generateChatReply, type ChatMessage } from "@/lib/ai/chat";
 
 type ChatRequestBody = {
   messages?: ChatMessage[];
+  pdfContext?: string;
 };
 
 function isChatMessage(message: unknown): message is ChatMessage {
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ChatRequestBody;
     const messages = body.messages ?? [];
+    const pdfContext = body.pdfContext ?? "";
 
     if (!Array.isArray(messages) || !messages.every(isChatMessage)) {
       return NextResponse.json(
@@ -30,7 +32,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await generateChatReply(messages);
+    if (typeof pdfContext !== "string") {
+      return NextResponse.json(
+        { error: "Konteks PDF tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    const result = await generateChatReply(messages, pdfContext);
 
     return NextResponse.json(result);
   } catch (error) {

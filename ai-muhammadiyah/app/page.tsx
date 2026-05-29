@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type Message = {
   role: "user" | "ai";
@@ -11,6 +11,8 @@ type ConversationGroup = {
   label: string;
   items: string[];
 };
+
+type PdfStatus = "idle" | "loading" | "loaded" | "error";
 
 const conversationGroups: ConversationGroup[] = [
   {
@@ -158,26 +160,57 @@ export default function Home() {
 
   const [input, setInput] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [pdfText, setPdfText] = useState("");
+  const [pdfStatus, setPdfStatus] = useState<PdfStatus>("idle");
   const [isSending, setIsSending] = useState(false);
+  const pdfTextRef = useRef("");
 
-  function preparePdfForAnalysis(file: File) {
-    // This is where future AI document analysis can start.
-    console.log("PDF ready for analysis:", file.name);
-  }
-
-  function handlePdfUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePdfUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
     setUploadedFileName(file.name);
-    preparePdfForAnalysis(file);
+    pdfTextRef.current = "";
+    setPdfText("");
+    setPdfStatus("loading");
+
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+
+      const response = await fetch("/api/pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("PDF extraction failed");
+      }
+
+      const data = (await response.json()) as {
+        fileName?: string;
+        text?: string;
+      };
+
+      setUploadedFileName(data.fileName ?? file.name);
+      pdfTextRef.current = data.text ?? "";
+      setPdfText(pdfTextRef.current);
+      setPdfStatus("loaded");
+    } catch (error) {
+      console.error(error);
+      setPdfStatus("error");
+    } finally {
+      // Allows uploading the same file again after an error or update.
+      event.target.value = "";
+    }
   }
 
   async function sendMessage() {
     if (!input.trim() || isSending) return;
 
     const userText = input.trim();
+    const currentPdfContext = pdfTextRef.current || pdfText;
     const nextMessages: Message[] = [
       ...messages,
       {
@@ -198,6 +231,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           messages: nextMessages,
+          pdfContext: currentPdfContext,
         }),
       });
 
@@ -306,6 +340,11 @@ export default function Home() {
             <div className="mb-4 rounded-2xl bg-white p-3 text-sm text-[#4f665c] ring-1 ring-[#d8eadf]">
               <p className="font-semibold text-[#008d54]">PDF terupload</p>
               <p className="mt-1 break-words text-[#18392e]">{uploadedFileName}</p>
+              <p className="mt-2 text-xs font-semibold text-[#4f665c]">
+                {pdfStatus === "loading" && "Membaca teks PDF..."}
+                {pdfStatus === "loaded" && "PDF siap dianalisis AI"}
+                {pdfStatus === "error" && "PDF belum bisa dibaca"}
+              </p>
             </div>
           )}
 
@@ -386,7 +425,12 @@ export default function Home() {
           </label>
 
           {uploadedFileName && (
-            <p className="mt-2 truncate text-sm text-[#4f665c]">{uploadedFileName}</p>
+            <p className="mt-2 truncate text-sm text-[#4f665c]">
+              {uploadedFileName}
+              {pdfStatus === "loading" && " - membaca PDF..."}
+              {pdfStatus === "loaded" && " - PDF siap"}
+              {pdfStatus === "error" && " - gagal dibaca"}
+            </p>
           )}
         </div>
 
@@ -618,6 +662,9 @@ export default function Home() {
             {uploadedFileName && (
               <p className="mx-auto mt-2 max-w-3xl truncate px-3 text-sm text-[#4f665c]">
                 {uploadedFileName}
+                {pdfStatus === "loading" && " - membaca PDF..."}
+                {pdfStatus === "loaded" && " - PDF siap dianalisis"}
+                {pdfStatus === "error" && " - gagal dibaca"}
               </p>
             )}
           </div>
