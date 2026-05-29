@@ -34,8 +34,8 @@ const openRouterModelMap: Record<SelectedModel, string> = {
 // fast -> GPT Mini or Gemini Flash
 // smart -> GPT 5.5 or Gemini Pro
 // document -> GPT 5.5 or Gemini Pro with a larger context window
-const maxPdfContextLength = 12000;
-const minUsefulPdfContextLength = 120;
+const maxDocumentContextLength = 12000;
+const minUsefulDocumentContextLength = 120;
 
 function normalizeSelectedModel(selectedModel?: string): SelectedModel {
   if (
@@ -66,24 +66,24 @@ function preparePdfContext(pdfContext: string) {
     return "";
   }
 
-  // Keep the prompt beginner-friendly and avoid sending a very large PDF at once.
-  return trimmedContext.slice(0, maxPdfContextLength);
+  // Keep the prompt beginner-friendly and avoid sending a very large document at once.
+  return trimmedContext.slice(0, maxDocumentContextLength);
 }
 
 function isPdfContextTooShort(pdfContext: string) {
-  return pdfContext.length > 0 && pdfContext.length < minUsefulPdfContextLength;
+  return pdfContext.length > 0 && pdfContext.length < minUsefulDocumentContextLength;
 }
 
 function createShortPdfFallback(pdfContext: string) {
-  const visibleText = pdfContext.trim().slice(0, minUsefulPdfContextLength);
+  const visibleText = pdfContext.trim().slice(0, minUsefulDocumentContextLength);
 
   return [
-    "Teks PDF berhasil diterima, tetapi hasil ekstraksinya terlalu pendek untuk dianalisis dengan yakin.",
+    "Teks dokumen berhasil diterima, tetapi hasil ekstraksinya terlalu pendek untuk dianalisis dengan yakin.",
     "",
     "Yang bisa saya baca:",
     `- ${visibleText || "Tidak ada teks bermakna yang terbaca."}`,
     "",
-    "Kemungkinan PDF berisi scan/gambar, teksnya tidak terseleksi, atau ekstraksinya belum lengkap. Silakan upload PDF dengan teks yang bisa diseleksi agar analisisnya lebih akurat.",
+    "Kemungkinan dokumen berisi scan/gambar, teksnya tidak terseleksi, atau ekstraksinya belum lengkap. Silakan upload PDF atau Word (.docx) dengan teks yang bisa diseleksi agar analisisnya lebih akurat.",
   ].join("\n");
 }
 
@@ -94,7 +94,7 @@ function createRateLimitFallback(pdfContext: string) {
     return [
       "Maaf, model AI gratis dari OpenRouter sedang terkena batas penggunaan sementara.",
       "",
-      "PDF sudah berhasil diupload dan teksnya sudah berhasil diekstrak, tetapi analisis AI perlu dicoba lagi beberapa saat lagi.",
+      "Dokumen sudah berhasil diupload dan teksnya sudah berhasil diekstrak, tetapi analisis AI perlu dicoba lagi beberapa saat lagi.",
       "",
       "Silakan kirim ulang pertanyaan yang sama nanti, atau gunakan model OpenRouter lain dengan limit yang lebih longgar.",
     ].join("\n");
@@ -116,7 +116,7 @@ function createModelUnavailableFallback(pdfContext: string) {
     return [
       "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
       "",
-      "PDF sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih Auto / Free Model.",
+      "Dokumen sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih Auto / Free Model.",
     ].join("\n");
   }
 
@@ -129,15 +129,15 @@ function createModelUnavailableFallback(pdfContext: string) {
 
 function createPdfAnalysisPrompt(pdfContext: string, question: string) {
   return [
-    "PDF ANALYSIS INSTRUCTIONS:",
-    "- The uploaded PDF text is already provided below inside this message.",
-    "- Do not say that you cannot access, open, view, read, or receive the PDF.",
-    "- Answer based only on the provided PDF text. Do not invent facts outside the PDF context.",
-    "- If the PDF context is unclear, mention which part is unclear, then summarize or answer what can still be inferred from the provided text.",
+    "DOCUMENT ANALYSIS INSTRUCTIONS:",
+    "- The uploaded document text is already provided below inside this message.",
+    "- Do not say that you cannot access, open, view, read, or receive the document.",
+    "- Answer based only on the provided document text. Do not invent facts outside the document context.",
+    "- If the document context is unclear, mention which part is unclear, then summarize or answer what can still be inferred from the provided text.",
     "- For summary requests, use clear bullet points and keep the structure easy to scan.",
-    "- If the user asks for information that is not present in the PDF text, say that it is not found in the provided PDF context.",
+    "- If the user asks for information that is not present in the document text, say that it is not found in the provided document context.",
     "",
-    "PDF TEXT:",
+    "DOCUMENT TEXT:",
     pdfContext,
     "",
     "USER QUESTION:",
@@ -159,7 +159,7 @@ function createMockReply(messages: ChatMessage[], pdfContext = "") {
   }
 
   if (hasPdfContext) {
-    return `Assalamualaikum. PDF sudah terbaca, jadi AI bisa memakai isi PDF sebagai konteks untuk menjawab: "${latestMessage}".`;
+    return `Assalamualaikum. Dokumen sudah terbaca, jadi AI bisa memakai isi dokumen sebagai konteks untuk menjawab: "${latestMessage}".`;
   }
 
   return `Assalamualaikum. Ini respon contoh untuk: "${latestMessage}". Nanti bagian ini bisa diganti dengan GPT atau Gemini saat API key sudah tersedia.`;

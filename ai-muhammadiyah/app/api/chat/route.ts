@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     if (typeof pdfContext !== "string") {
       return NextResponse.json(
-        { error: "Konteks PDF tidak valid." },
+        { error: "Konteks dokumen tidak valid." },
         { status: 400 },
       );
     }

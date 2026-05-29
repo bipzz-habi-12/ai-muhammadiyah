@@ -12,7 +12,8 @@ type ConversationGroup = {
   items: string[];
 };
 
-type PdfStatus = "idle" | "loading" | "loaded" | "error";
+type DocumentStatus = "idle" | "loading" | "loaded" | "error";
+type UploadedDocumentType = "PDF" | "Word" | "Dokumen";
 
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 
@@ -169,47 +170,75 @@ export default function Home() {
 
   const [input, setInput] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
-  const [pdfText, setPdfText] = useState("");
-  const [pdfStatus, setPdfStatus] = useState<PdfStatus>("idle");
+  const [uploadedDocumentType, setUploadedDocumentType] =
+    useState<UploadedDocumentType>("Dokumen");
+  const [documentText, setDocumentText] = useState("");
+  const [documentStatus, setDocumentStatus] = useState<DocumentStatus>("idle");
+  const [documentError, setDocumentError] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
-  const pdfTextRef = useRef("");
+  const documentTextRef = useRef("");
 
-  async function handlePdfUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
+    const fileName = file.name.toLowerCase();
+    const isSupportedDocument =
+      file.type === "application/pdf" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      fileName.endsWith(".pdf") ||
+      fileName.endsWith(".docx");
+
     setUploadedFileName(file.name);
-    pdfTextRef.current = "";
-    setPdfText("");
-    setPdfStatus("loading");
+    setUploadedDocumentType(fileName.endsWith(".docx") ? "Word" : "PDF");
+    documentTextRef.current = "";
+    setDocumentText("");
+    setDocumentError("");
+    setDocumentStatus("loading");
+
+    if (!isSupportedDocument) {
+      setDocumentStatus("error");
+      setDocumentError("Format belum didukung. Mohon upload file PDF atau Word (.docx).");
+      event.target.value = "";
+      return;
+    }
 
     try {
       const formData = new FormData();
-      formData.append("pdf", file);
+      formData.append("document", file);
 
-      const response = await fetch("/api/pdf", {
+      const response = await fetch("/api/document", {
         method: "POST",
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error("PDF extraction failed");
-      }
-
       const data = (await response.json()) as {
+        error?: string;
         fileName?: string;
+        fileType?: "pdf" | "docx";
         text?: string;
       };
 
+      if (!response.ok) {
+        throw new Error(data.error ?? "Dokumen belum bisa dibaca.");
+      }
+
       setUploadedFileName(data.fileName ?? file.name);
-      pdfTextRef.current = data.text ?? "";
-      setPdfText(pdfTextRef.current);
-      setPdfStatus("loaded");
+      setUploadedDocumentType(data.fileType === "docx" ? "Word" : "PDF");
+      documentTextRef.current = data.text ?? "";
+      setDocumentText(documentTextRef.current);
+      setDocumentStatus("loaded");
     } catch (error) {
       console.error(error);
-      setPdfStatus("error");
+      setDocumentStatus("error");
+      setDocumentError(
+        error instanceof Error
+          ? error.message
+          : "Dokumen belum bisa dibaca. Silakan coba file lain.",
+      );
     } finally {
       // Allows uploading the same file again after an error or update.
       event.target.value = "";
@@ -220,7 +249,7 @@ export default function Home() {
     if (!input.trim() || isSending) return;
 
     const userText = input.trim();
-    const currentPdfContext = pdfTextRef.current || pdfText;
+    const currentDocumentContext = documentTextRef.current || documentText;
     const nextMessages: Message[] = [
       ...messages,
       {
@@ -241,7 +270,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           messages: nextMessages,
-          pdfContext: currentPdfContext,
+          pdfContext: currentDocumentContext,
           selectedModel,
         }),
       });
@@ -349,12 +378,17 @@ export default function Home() {
         <div className="border-t border-[#d9e9df] px-5 py-4">
           {uploadedFileName && (
             <div className="mb-4 rounded-2xl bg-white p-3 text-sm text-[#4f665c] ring-1 ring-[#d8eadf]">
-              <p className="font-semibold text-[#008d54]">PDF terupload</p>
+              <p className="font-semibold text-[#008d54]">
+                {uploadedDocumentType} terupload
+              </p>
               <p className="mt-1 break-words text-[#18392e]">{uploadedFileName}</p>
               <p className="mt-2 text-xs font-semibold text-[#4f665c]">
-                {pdfStatus === "loading" && "Membaca teks PDF..."}
-                {pdfStatus === "loaded" && "PDF siap dianalisis AI"}
-                {pdfStatus === "error" && "PDF belum bisa dibaca"}
+                {documentStatus === "loading" &&
+                  `Membaca teks ${uploadedDocumentType}...`}
+                {documentStatus === "loaded" &&
+                  `${uploadedDocumentType} siap dianalisis AI`}
+                {documentStatus === "error" &&
+                  (documentError || `${uploadedDocumentType} belum bisa dibaca`)}
               </p>
             </div>
           )}
@@ -433,11 +467,11 @@ export default function Home() {
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]">
             <span className="text-xl text-[#008d54]">+</span>
-            Upload PDF
+            Upload PDF / Word
             <input
               type="file"
-              accept="application/pdf"
-              onChange={handlePdfUpload}
+              accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+              onChange={handleDocumentUpload}
               className="hidden"
             />
           </label>
@@ -445,9 +479,11 @@ export default function Home() {
           {uploadedFileName && (
             <p className="mt-2 truncate text-sm text-[#4f665c]">
               {uploadedFileName}
-              {pdfStatus === "loading" && " - membaca PDF..."}
-              {pdfStatus === "loaded" && " - PDF siap"}
-              {pdfStatus === "error" && " - gagal dibaca"}
+              {documentStatus === "loading" &&
+                ` - membaca ${uploadedDocumentType}...`}
+              {documentStatus === "loaded" && ` - ${uploadedDocumentType} siap`}
+              {documentStatus === "error" &&
+                ` - ${documentError || "gagal dibaca"}`}
             </p>
           )}
         </div>
@@ -490,8 +526,8 @@ export default function Home() {
                     Lampirkan
                     <input
                       type="file"
-                      accept="application/pdf"
-                      onChange={handlePdfUpload}
+                      accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+                      onChange={handleDocumentUpload}
                       className="hidden"
                     />
                   </label>
@@ -628,14 +664,14 @@ export default function Home() {
             <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-[#d3e8dc] focus-within:ring-[#95d6b9] sm:gap-3 sm:px-4">
               <label
                 className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-[#4f665c] transition hover:bg-[#eef8f1]"
-                title="Lampirkan PDF"
-                aria-label="Lampirkan PDF"
+                title="Lampirkan PDF atau Word"
+                aria-label="Lampirkan PDF atau Word"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">+</span>
                 <input
                   type="file"
-                  accept="application/pdf"
-                  onChange={handlePdfUpload}
+                  accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+                  onChange={handleDocumentUpload}
                   className="hidden"
                 />
               </label>
@@ -680,9 +716,12 @@ export default function Home() {
             {uploadedFileName && (
               <p className="mx-auto mt-2 max-w-3xl truncate px-3 text-sm text-[#4f665c]">
                 {uploadedFileName}
-                {pdfStatus === "loading" && " - membaca PDF..."}
-                {pdfStatus === "loaded" && " - PDF siap dianalisis"}
-                {pdfStatus === "error" && " - gagal dibaca"}
+                {documentStatus === "loading" &&
+                  ` - membaca ${uploadedDocumentType}...`}
+                {documentStatus === "loaded" &&
+                  ` - ${uploadedDocumentType} siap dianalisis`}
+                {documentStatus === "error" &&
+                  ` - ${documentError || "gagal dibaca"}`}
               </p>
             )}
           </div>
