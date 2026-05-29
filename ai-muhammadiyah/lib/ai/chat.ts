@@ -54,6 +54,28 @@ function createShortPdfFallback(pdfContext: string) {
   ].join("\n");
 }
 
+function createRateLimitFallback(pdfContext: string) {
+  const hasPdfContext = Boolean(preparePdfContext(pdfContext));
+
+  if (hasPdfContext) {
+    return [
+      "Maaf, model AI gratis dari OpenRouter sedang terkena batas penggunaan sementara.",
+      "",
+      "PDF sudah berhasil diupload dan teksnya sudah berhasil diekstrak, tetapi analisis AI perlu dicoba lagi beberapa saat lagi.",
+      "",
+      "Silakan kirim ulang pertanyaan yang sama nanti, atau gunakan model OpenRouter lain dengan limit yang lebih longgar.",
+    ].join("\n");
+  }
+
+  return [
+    "Maaf, model AI gratis dari OpenRouter sedang terkena batas penggunaan sementara.",
+    "",
+    "Chat tidak rusak, tetapi jawaban AI perlu dicoba lagi beberapa saat lagi.",
+    "",
+    "Silakan kirim ulang pertanyaan nanti, atau gunakan model OpenRouter lain dengan limit yang lebih longgar.",
+  ].join("\n");
+}
+
 function createPdfAnalysisPrompt(pdfContext: string, question: string) {
   return [
     "PDF ANALYSIS INSTRUCTIONS:",
@@ -115,6 +137,15 @@ function createOpenRouterMessages(messages: ChatMessage[], pdfContext: string) {
   ];
 }
 
+function getRateLimitInfo(response: Response) {
+  return {
+    limit: response.headers.get("x-ratelimit-limit"),
+    remaining: response.headers.get("x-ratelimit-remaining"),
+    reset: response.headers.get("x-ratelimit-reset"),
+    retryAfter: response.headers.get("retry-after"),
+  };
+}
+
 async function generateOpenRouterReply(messages: ChatMessage[], pdfContext = "") {
   const messagesForOpenRouter = createOpenRouterMessages(messages, pdfContext);
 
@@ -135,7 +166,19 @@ async function generateOpenRouterReply(messages: ChatMessage[], pdfContext = "")
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("OpenRouter error:", response.status, errorText);
+    const rateLimitInfo = getRateLimitInfo(response);
+
+    console.error("OpenRouter error:", {
+      status: response.status,
+      model: openRouterModel,
+      rateLimitInfo,
+      errorText,
+    });
+
+    if (response.status === 429) {
+      return createRateLimitFallback(pdfContext);
+    }
+
     throw new Error("OpenRouter request failed");
   }
 
