@@ -8,10 +8,19 @@ type GenerateChatReplyResult = {
   provider: "mock" | "openrouter";
 };
 
-const systemPrompt =
-  "You are AI Muhammadiyah, a friendly Islamic education assistant. Answer clearly, politely, and in simple Indonesian.";
+export const islamicAiIdentitySystemPrompt = [
+  "You are AI Muhammadiyah, a modern Islamic education assistant for Muhammadiyah learning communities.",
+  "Speak politely, professionally, warmly, and naturally. Use Islamic greetings such as Assalamualaikum only when appropriate, without forcing them into every reply.",
+  "Focus on education, akhlak, useful knowledge, helpfulness, motivation, productivity, and adab reminders.",
+  "Support Islamic study help and school learning with a balanced Muhammadiyah educational tone: thoughtful, evidence-aware, practical, and respectful.",
+  "Avoid extreme, sectarian, unsafe, or unsupported religious claims. Do not present uncertain Islamic rulings as absolute.",
+  "When a question depends on detailed fiqh, local fatwa, or a sensitive Islamic ruling and you are unsure, encourage the user to consult qualified scholars or trusted Muhammadiyah authorities.",
+  "Keep answers concise unless the user asks for detailed explanations.",
+  "Answer in the user's language when possible, and use simple Indonesian by default.",
+].join("\n");
 const openRouterModel = process.env.OPENROUTER_MODEL ?? "openrouter/free";
 const maxPdfContextLength = 12000;
+const minUsefulPdfContextLength = 120;
 
 function getLatestUserMessage(messages: ChatMessage[]) {
   return messages.findLast((message) => message.role === "user")?.text ?? "";
@@ -28,12 +37,52 @@ function preparePdfContext(pdfContext: string) {
   return trimmedContext.slice(0, maxPdfContextLength);
 }
 
+function isPdfContextTooShort(pdfContext: string) {
+  return pdfContext.length > 0 && pdfContext.length < minUsefulPdfContextLength;
+}
+
+function createShortPdfFallback(pdfContext: string) {
+  const visibleText = pdfContext.trim().slice(0, minUsefulPdfContextLength);
+
+  return [
+    "Teks PDF berhasil diterima, tetapi hasil ekstraksinya terlalu pendek untuk dianalisis dengan yakin.",
+    "",
+    "Yang bisa saya baca:",
+    `- ${visibleText || "Tidak ada teks bermakna yang terbaca."}`,
+    "",
+    "Kemungkinan PDF berisi scan/gambar, teksnya tidak terseleksi, atau ekstraksinya belum lengkap. Silakan upload PDF dengan teks yang bisa diseleksi agar analisisnya lebih akurat.",
+  ].join("\n");
+}
+
+function createPdfAnalysisPrompt(pdfContext: string, question: string) {
+  return [
+    "PDF ANALYSIS INSTRUCTIONS:",
+    "- The uploaded PDF text is already provided below inside this message.",
+    "- Do not say that you cannot access, open, view, read, or receive the PDF.",
+    "- Answer based only on the provided PDF text. Do not invent facts outside the PDF context.",
+    "- If the PDF context is unclear, mention which part is unclear, then summarize or answer what can still be inferred from the provided text.",
+    "- For summary requests, use clear bullet points and keep the structure easy to scan.",
+    "- If the user asks for information that is not present in the PDF text, say that it is not found in the provided PDF context.",
+    "",
+    "PDF TEXT:",
+    pdfContext,
+    "",
+    "USER QUESTION:",
+    question,
+  ].join("\n");
+}
+
 function createMockReply(messages: ChatMessage[], pdfContext = "") {
   const latestMessage = getLatestUserMessage(messages);
-  const hasPdfContext = Boolean(preparePdfContext(pdfContext));
+  const preparedPdfContext = preparePdfContext(pdfContext);
+  const hasPdfContext = Boolean(preparedPdfContext);
 
   if (!latestMessage) {
     return "Assalamualaikum. Silakan tulis pertanyaan terlebih dahulu.";
+  }
+
+  if (isPdfContextTooShort(preparedPdfContext)) {
+    return createShortPdfFallback(preparedPdfContext);
   }
 
   if (hasPdfContext) {
@@ -50,7 +99,7 @@ function createOpenRouterMessages(messages: ChatMessage[], pdfContext: string) {
   );
 
   return [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: islamicAiIdentitySystemPrompt },
     ...messages.map((message, index) => {
       const role = message.role === "ai" ? "assistant" : "user";
       const shouldAttachPdfContext =
@@ -59,16 +108,7 @@ function createOpenRouterMessages(messages: ChatMessage[], pdfContext: string) {
       return {
         role,
         content: shouldAttachPdfContext
-          ? [
-              "The user uploaded a PDF. Use the PDF text below as the document context for this question.",
-              "If the answer is not found in the PDF text, say that clearly.",
-              "",
-              "PDF TEXT:",
-              preparedPdfContext,
-              "",
-              "USER QUESTION:",
-              message.text,
-            ].join("\n")
+          ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
           : message.text,
       };
     }),
@@ -108,14 +148,23 @@ export async function generateChatReply(
   messages: ChatMessage[],
   pdfContext = "",
 ): Promise<GenerateChatReplyResult> {
+  const preparedPdfContext = preparePdfContext(pdfContext);
+
+  if (isPdfContextTooShort(preparedPdfContext)) {
+    return {
+      reply: createShortPdfFallback(preparedPdfContext),
+      provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "mock",
+    };
+  }
+
   if (!process.env.OPENROUTER_API_KEY) {
     return {
-      reply: createMockReply(messages, pdfContext),
+      reply: createMockReply(messages, preparedPdfContext),
       provider: "mock",
     };
   }
 
-  const reply = await generateOpenRouterReply(messages, pdfContext);
+  const reply = await generateOpenRouterReply(messages, preparedPdfContext);
 
   return {
     reply,
