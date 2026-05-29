@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { generateChatReply, type ChatMessage } from "@/lib/ai/chat";
 
 type ChatRequestBody = {
+  history?: ChatMessage[];
   messages?: ChatMessage[];
   pdfContext?: string;
   selectedModel?: string;
 };
+
+const maxRecentChatMessages = 10;
+const maxMessageTextLength = 2000;
 
 function isChatMessage(message: unknown): message is ChatMessage {
   if (!message || typeof message !== "object") {
@@ -20,16 +24,37 @@ function isChatMessage(message: unknown): message is ChatMessage {
   );
 }
 
+function truncateMessageText(text: string) {
+  const trimmedText = text.trim();
+
+  if (trimmedText.length <= maxMessageTextLength) {
+    return trimmedText;
+  }
+
+  return `${trimmedText.slice(0, maxMessageTextLength)}\n[Pesan dipotong agar memori chat tetap ringan.]`;
+}
+
+function createSafeHistory(history: ChatMessage[]) {
+  // The browser already limits memory, but the API repeats the limit for safety.
+  return history
+    .filter((message) => message.text.trim())
+    .slice(-maxRecentChatMessages)
+    .map((message) => ({
+      role: message.role,
+      text: truncateMessageText(message.text),
+    }));
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ChatRequestBody;
-    const messages = body.messages ?? [];
+    const rawHistory = body.history ?? body.messages ?? [];
     const pdfContext = body.pdfContext ?? "";
     const selectedModel = body.selectedModel ?? "auto";
 
-    if (!Array.isArray(messages) || !messages.every(isChatMessage)) {
+    if (!Array.isArray(rawHistory) || !rawHistory.every(isChatMessage)) {
       return NextResponse.json(
-        { error: "Format pesan tidak valid." },
+        { error: "Format riwayat chat tidak valid." },
         { status: 400 },
       );
     }
@@ -48,7 +73,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await generateChatReply(messages, pdfContext, selectedModel);
+    const safeHistory = createSafeHistory(rawHistory);
+    const result = await generateChatReply(safeHistory, pdfContext, selectedModel);
 
     return NextResponse.json(result);
   } catch (error) {

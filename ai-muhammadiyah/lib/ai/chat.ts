@@ -21,6 +21,16 @@ export const islamicAiIdentitySystemPrompt = [
   "Answer in the user's language when possible, and use simple Indonesian by default.",
 ].join("\n");
 
+const contextPrioritySystemPrompt = [
+  "CONTEXT PRIORITY RULES:",
+  "1. If the user asks about personal information, names, preferences, or previous conversation, answer from the conversation memory first.",
+  "2. If the user asks about the uploaded document, answer from the document context.",
+  "3. If both conversation memory and document context are relevant, combine both clearly.",
+  "4. Do not use the uploaded document for every question just because it exists.",
+  "5. For questions like 'siapa nama saya?', use the chat history and do not search the document.",
+  "6. For document requests like 'ringkas dokumen ini', prioritize the uploaded document text.",
+].join("\n");
+
 const openRouterDefaultModel = process.env.OPENROUTER_MODEL ?? "openrouter/free";
 
 const openRouterModelMap: Record<SelectedModel, string> = {
@@ -34,6 +44,8 @@ const openRouterModelMap: Record<SelectedModel, string> = {
 // fast -> GPT Mini or Gemini Flash
 // smart -> GPT 5.5 or Gemini Pro
 // document -> GPT 5.5 or Gemini Pro with a larger context window
+const maxRecentChatMessages = 10;
+const maxMessageTextLength = 2000;
 const maxDocumentContextLength = 12000;
 const minUsefulDocumentContextLength = 120;
 
@@ -59,6 +71,27 @@ function getLatestUserMessage(messages: ChatMessage[]) {
   return messages.findLast((message) => message.role === "user")?.text ?? "";
 }
 
+function truncateMessageText(text: string) {
+  const trimmedText = text.trim();
+
+  if (trimmedText.length <= maxMessageTextLength) {
+    return trimmedText;
+  }
+
+  return `${trimmedText.slice(0, maxMessageTextLength)}\n[Pesan dipotong agar memori chat tetap ringan.]`;
+}
+
+function prepareChatHistory(messages: ChatMessage[]) {
+  // Keep only recent conversation memory so follow-up questions work without huge prompts.
+  return messages
+    .filter((message) => message.text.trim())
+    .slice(-maxRecentChatMessages)
+    .map((message) => ({
+      role: message.role,
+      text: truncateMessageText(message.text),
+    }));
+}
+
 function preparePdfContext(pdfContext: string) {
   const trimmedContext = pdfContext.trim();
 
@@ -68,6 +101,50 @@ function preparePdfContext(pdfContext: string) {
 
   // Keep the prompt beginner-friendly and avoid sending a very large document at once.
   return trimmedContext.slice(0, maxDocumentContextLength);
+}
+
+function isDocumentQuestion(question: string) {
+  const normalizedQuestion = question.toLowerCase();
+
+  const documentWords = [
+    "dokumen",
+    "document",
+    "pdf",
+    "file",
+    "berkas",
+    "lampiran",
+    "upload",
+    "unggah",
+    "teks ini",
+    "dokumen ini",
+    "pdf ini",
+  ];
+
+  const documentTaskWords = [
+    "ringkas",
+    "rangkum",
+    "summary",
+    "simpulkan",
+    "analisis",
+    "analisa",
+    "jelaskan isi",
+    "apa isi",
+    "poin penting",
+    "kesimpulan",
+    "bab",
+    "halaman",
+    "kutip",
+    "kutipan",
+  ];
+
+  const mentionsDocument = documentWords.some((word) =>
+    normalizedQuestion.includes(word),
+  );
+  const asksDocumentTask = documentTaskWords.some((word) =>
+    normalizedQuestion.includes(word),
+  );
+
+  return mentionsDocument || asksDocumentTask;
 }
 
 function isPdfContextTooShort(pdfContext: string) {
@@ -148,17 +225,18 @@ function createPdfAnalysisPrompt(pdfContext: string, question: string) {
 function createMockReply(messages: ChatMessage[], pdfContext = "") {
   const latestMessage = getLatestUserMessage(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
-  const hasPdfContext = Boolean(preparedPdfContext);
+  const shouldUsePdfContext =
+    Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
 
   if (!latestMessage) {
     return "Assalamualaikum. Silakan tulis pertanyaan terlebih dahulu.";
   }
 
-  if (isPdfContextTooShort(preparedPdfContext)) {
+  if (shouldUsePdfContext && isPdfContextTooShort(preparedPdfContext)) {
     return createShortPdfFallback(preparedPdfContext);
   }
 
-  if (hasPdfContext) {
+  if (shouldUsePdfContext) {
     return `Assalamualaikum. Dokumen sudah terbaca, jadi AI bisa memakai isi dokumen sebagai konteks untuk menjawab: "${latestMessage}".`;
   }
 
@@ -166,17 +244,21 @@ function createMockReply(messages: ChatMessage[], pdfContext = "") {
 }
 
 function createOpenRouterMessages(messages: ChatMessage[], pdfContext: string) {
+  const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
-  const latestUserIndex = messages.findLastIndex(
+  const latestUserIndex = recentMessages.findLastIndex(
     (message) => message.role === "user",
   );
 
   return [
     { role: "system", content: islamicAiIdentitySystemPrompt },
-    ...messages.map((message, index) => {
+    { role: "system", content: contextPrioritySystemPrompt },
+    ...recentMessages.map((message, index) => {
       const role = message.role === "ai" ? "assistant" : "user";
       const shouldAttachPdfContext =
-        Boolean(preparedPdfContext) && index === latestUserIndex;
+        Boolean(preparedPdfContext) &&
+        index === latestUserIndex &&
+        isDocumentQuestion(message.text);
 
       return {
         role,
@@ -260,9 +342,13 @@ export async function generateChatReply(
   pdfContext = "",
   selectedModel?: string,
 ): Promise<GenerateChatReplyResult> {
+  const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
+  const latestMessage = getLatestUserMessage(recentMessages);
+  const shouldUsePdfContext =
+    Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
 
-  if (isPdfContextTooShort(preparedPdfContext)) {
+  if (shouldUsePdfContext && isPdfContextTooShort(preparedPdfContext)) {
     return {
       reply: createShortPdfFallback(preparedPdfContext),
       provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "mock",
@@ -271,13 +357,13 @@ export async function generateChatReply(
 
   if (!process.env.OPENROUTER_API_KEY) {
     return {
-      reply: createMockReply(messages, preparedPdfContext),
+      reply: createMockReply(recentMessages, preparedPdfContext),
       provider: "mock",
     };
   }
 
   const reply = await generateOpenRouterReply(
-    messages,
+    recentMessages,
     preparedPdfContext,
     selectedModel,
   );

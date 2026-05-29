@@ -17,6 +17,14 @@ type UploadedDocumentType = "PDF" | "Word" | "Dokumen";
 
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 
+const maxRecentChatMessages = 10;
+const maxMessageTextLength = 2000;
+
+const welcomeMessage: Message = {
+  role: "ai",
+  text: "Assalamualaikum! Saya AI Muhammadiyah.",
+};
+
 const modelOptions: { value: SelectedModel; label: string }[] = [
   { value: "auto", label: "Auto / Free Model" },
   { value: "fast", label: "Fast Model" },
@@ -76,6 +84,27 @@ const quickPrompts = [
     description: "Sebelum belajar & bekerja",
   },
 ];
+
+function truncateMessageText(text: string) {
+  const trimmedText = text.trim();
+
+  if (trimmedText.length <= maxMessageTextLength) {
+    return trimmedText;
+  }
+
+  return `${trimmedText.slice(0, maxMessageTextLength)}\n[Pesan dipotong agar memori chat tetap ringan.]`;
+}
+
+function getRecentChatHistory(messages: Message[]) {
+  // Keep only recent, useful messages so the browser state and API prompt stay small.
+  return messages
+    .filter((message) => message.text.trim())
+    .slice(-maxRecentChatMessages)
+    .map((message) => ({
+      role: message.role,
+      text: truncateMessageText(message.text),
+    }));
+}
 
 function SparkIcon({ className = "" }: { className?: string }) {
   return (
@@ -161,12 +190,7 @@ function Icon({
 }
 
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "ai",
-      text: "Assalamualaikum! Saya AI Muhammadiyah.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
 
   const [input, setInput] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
@@ -178,6 +202,11 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
   const documentTextRef = useRef("");
+
+  function resetMemory() {
+    setMessages([welcomeMessage]);
+    setInput("");
+  }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -250,13 +279,13 @@ export default function Home() {
 
     const userText = input.trim();
     const currentDocumentContext = documentTextRef.current || documentText;
-    const nextMessages: Message[] = [
+    const nextMessages = getRecentChatHistory([
       ...messages,
       {
         role: "user",
         text: userText,
       },
-    ];
+    ]);
 
     setMessages(nextMessages);
     setInput("");
@@ -269,7 +298,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: nextMessages,
+          history: nextMessages,
           pdfContext: currentDocumentContext,
           selectedModel,
         }),
@@ -281,23 +310,27 @@ export default function Home() {
 
       const data = await response.json();
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          text: data.reply,
-        },
-      ]);
+      setMessages((prev) =>
+        getRecentChatHistory([
+          ...prev,
+          {
+            role: "ai",
+            text: data.reply,
+          },
+        ]),
+      );
     } catch (error) {
       console.error(error);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          text: "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
-        },
-      ]);
+      setMessages((prev) =>
+        getRecentChatHistory([
+          ...prev,
+          {
+            role: "ai",
+            text: "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
+          },
+        ]),
+      );
     } finally {
       setIsSending(false);
     }
@@ -328,6 +361,7 @@ export default function Home() {
         <div className="px-4">
           <button
             type="button"
+            onClick={resetMemory}
             className="flex h-[62px] w-full items-center gap-4 rounded-[28px] bg-white px-6 text-left text-lg font-bold shadow-[0_2px_10px_rgba(15,55,35,0.16)] ring-1 ring-[#d8eadf] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(15,55,35,0.14)]"
           >
             <span className="text-3xl font-light text-[#008d54]">+</span>
