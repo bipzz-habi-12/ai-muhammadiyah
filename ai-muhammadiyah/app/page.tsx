@@ -3,6 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import {
+  normalizeUsageSnapshot,
+  tierLabels,
+  type UsageSnapshot,
+} from "@/lib/usage/limits";
 
 type Message = {
   id?: string;
@@ -224,6 +229,21 @@ function getFriendlyChatError(error: unknown) {
   return error.message;
 }
 
+async function fetchUsageSnapshot() {
+  const response = await fetch("/api/usage", {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = (await response.json()) as unknown;
+
+  if (!response.ok) {
+    const errorData = data as { error?: string };
+    throw new Error(errorData.error ?? "Status penggunaan belum bisa dimuat.");
+  }
+
+  return normalizeUsageSnapshot(data);
+}
+
 function getEmailInitials(email: string) {
   const cleanEmail = email.trim();
 
@@ -415,6 +435,8 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
+  const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
+  const [usageError, setUsageError] = useState("");
   const documentTextRef = useRef("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const userInitials = getEmailInitials(userEmail);
@@ -425,6 +447,14 @@ export default function Home() {
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeConversationId,
   );
+  const currentTierLabel = usageSnapshot
+    ? tierLabels[usageSnapshot.tier]
+    : "Memuat";
+  const allowedModels = usageSnapshot?.allowedModels ?? ["auto", "fast"];
+  const hasMessageQuota =
+    !usageSnapshot || usageSnapshot.remainingMessagesToday > 0;
+  const hasUploadQuota =
+    !usageSnapshot || usageSnapshot.remainingUploadsToday > 0;
 
   const loadConversations = useCallback(async () => {
     setHistoryError("");
@@ -447,6 +477,28 @@ export default function Home() {
     setIsLoadingConversations(false);
   }, [supabase]);
 
+  const loadUsage = useCallback(async () => {
+    try {
+      setUsageError("");
+      const snapshot = await fetchUsageSnapshot();
+      setUsageSnapshot(snapshot);
+
+      setSelectedModel((currentModel) =>
+        snapshot && !snapshot.allowedModels.includes(currentModel)
+          ? "auto"
+          : currentModel,
+      );
+    } catch (error) {
+      console.error(error);
+      setUsageSnapshot(null);
+      setUsageError(
+        error instanceof Error
+          ? error.message
+          : "Status penggunaan belum bisa dimuat.",
+      );
+    }
+  }, []);
+
   useEffect(() => {
     async function loadUser() {
       const {
@@ -459,11 +511,11 @@ export default function Home() {
       }
 
       setUserEmail(user.email ?? "");
-      await loadConversations();
+      await Promise.all([loadConversations(), loadUsage()]);
     }
 
     loadUser();
-  }, [loadConversations, router, supabase]);
+  }, [loadConversations, loadUsage, router, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -626,6 +678,15 @@ export default function Home() {
 
     if (!file) return;
 
+    if (!hasUploadQuota) {
+      setDocumentStatus("error");
+      setDocumentError(
+        "Limit upload dokumen harian paket kamu sudah habis. Silakan coba lagi besok atau upgrade paket.",
+      );
+      event.target.value = "";
+      return;
+    }
+
     const fileName = file.name.toLowerCase();
     const isSupportedDocument =
       file.type === "application/pdf" ||
@@ -681,6 +742,7 @@ export default function Home() {
       documentTextRef.current = data.text ?? "";
       setDocumentText(documentTextRef.current);
       setDocumentStatus("loaded");
+      await loadUsage();
     } catch (error) {
       console.error(error);
       setDocumentStatus("error");
@@ -696,7 +758,7 @@ export default function Home() {
   }
 
   async function sendMessage() {
-    if (!input.trim() || isSending) return;
+    if (!input.trim() || isSending || !hasMessageQuota) return;
 
     const userText = input.trim();
     const currentDocumentContext = documentTextRef.current || documentText;
@@ -904,6 +966,7 @@ export default function Home() {
             ],
       );
     } finally {
+      await loadUsage();
       setIsAwaitingFirstChunk(false);
       setIsSending(false);
     }
@@ -1066,6 +1129,31 @@ export default function Home() {
         </nav>
 
         <div className="border-t border-[#d9e9df] px-5 py-4">
+          <div className="mb-4 rounded-2xl bg-white p-3 text-sm ring-1 ring-[#d8eadf]">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-semibold text-[#008d54]">{currentTierLabel}</p>
+              <p className="font-bold text-[#18392e]">
+                {usageSnapshot
+                  ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
+                  : "--"}
+              </p>
+            </div>
+            <p className="mt-1 text-xs font-semibold text-[#4f665c]">
+              Sisa pesan hari ini
+            </p>
+            {usageSnapshot && (
+              <p className="mt-1 text-xs text-[#4f665c]">
+                Upload dokumen: {usageSnapshot.remainingUploadsToday}/
+                {usageSnapshot.dailyUploadLimit}
+              </p>
+            )}
+            {usageError && (
+              <p className="mt-2 text-xs font-semibold text-[#8a3b2b]">
+                {usageError}
+              </p>
+            )}
+          </div>
+
           {uploadedFileName && (
             <div className="mb-4 rounded-2xl bg-white p-3 text-sm text-[#4f665c] ring-1 ring-[#d8eadf]">
               <p className="font-semibold text-[#008d54]">
@@ -1139,7 +1227,11 @@ export default function Home() {
                 className="max-w-[190px] rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-[#eef8f1] focus:ring-[#95d6b9] sm:max-w-none sm:text-base"
               >
                 {modelOptions.map((model) => (
-                  <option key={model.value} value={model.value}>
+                  <option
+                    key={model.value}
+                    value={model.value}
+                    disabled={!allowedModels.includes(model.value)}
+                  >
                     {model.label}
                   </option>
                 ))}
@@ -1148,6 +1240,14 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden text-right text-sm sm:block">
+              <p className="font-bold text-[#18392e]">{currentTierLabel}</p>
+              <p className="text-[#4f665c]">
+                {usageSnapshot
+                  ? `${usageSnapshot.remainingMessagesToday} pesan tersisa`
+                  : "Memuat kuota"}
+              </p>
+            </div>
             <button
               type="button"
               className="hidden rounded-full bg-white px-5 py-3 font-bold text-[#06140d] shadow-[0_2px_9px_rgba(15,55,35,0.14)] ring-1 ring-[#d8eadf] transition hover:-translate-y-0.5 sm:block"
@@ -1161,6 +1261,15 @@ export default function Home() {
         </header>
 
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
+          <div className="mb-3 flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-[#d8eadf]">
+            <span className="font-bold text-[#18392e]">{currentTierLabel}</span>
+            <span className="font-semibold text-[#4f665c]">
+              {usageSnapshot
+                ? `${usageSnapshot.remainingMessagesToday} pesan tersisa`
+                : "Memuat kuota"}
+            </span>
+          </div>
+
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
@@ -1293,7 +1402,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={sendMessage}
-                    disabled={isSending || !input.trim()}
+                    disabled={isSending || !input.trim() || !hasMessageQuota}
                     aria-label="Kirim pesan"
                     title="Kirim pesan"
                     className="grid h-14 w-14 place-items-center rounded-full bg-[#95d6b9] text-white transition hover:bg-[#009252] disabled:cursor-not-allowed disabled:bg-[#c9ded3]"
@@ -1415,7 +1524,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={sendMessage}
-                disabled={isSending || !input.trim()}
+                disabled={isSending || !input.trim() || !hasMessageQuota}
                 aria-label="Kirim pesan"
                 title="Kirim pesan"
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#95d6b9] text-white transition hover:bg-[#009252] disabled:cursor-not-allowed disabled:bg-[#c9ded3]"

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
+import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { estimateTokenUsage, getLimitErrorMessage } from "@/lib/usage/limits";
 
 type ChatRequestBody = {
   history?: ChatMessage[];
@@ -47,6 +49,15 @@ function createSafeHistory(history: ChatMessage[]) {
 
 export async function POST(request: Request) {
   try {
+    const supabase = await createSupabaseAuthServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Belum login." }, { status: 401 });
+    }
+
     const body = (await request.json()) as ChatRequestBody;
     const rawHistory = body.history ?? body.messages ?? [];
     const pdfContext = body.pdfContext ?? "";
@@ -74,18 +85,91 @@ export async function POST(request: Request) {
     }
 
     const safeHistory = createSafeHistory(rawHistory);
+    const latestUserMessage =
+      safeHistory.findLast((message) => message.role === "user")?.text ?? "";
+    const estimatedInputTokens = estimateTokenUsage(
+      latestUserMessage,
+      pdfContext,
+    );
+    const { data: limitCheck, error: limitError } = await supabase.rpc(
+      "check_usage_limits",
+      {
+        p_action: "message",
+        p_model_used: selectedModel,
+        p_estimated_tokens: estimatedInputTokens,
+      },
+    );
+
+    if (limitError) {
+      console.error("Usage limit check failed:", limitError);
+
+      return NextResponse.json(
+        { error: "Limit penggunaan belum bisa dicek." },
+        { status: 500 },
+      );
+    }
+
+    const canUse = Boolean(limitCheck?.allowed);
+
+    if (!canUse) {
+      return NextResponse.json(
+        { error: getLimitErrorMessage(limitCheck?.reason) },
+        { status: 429 },
+      );
+    }
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        let streamedReply = "";
+
         try {
-          await streamChatReply(
+          const chatResult = await streamChatReply(
             safeHistory,
             pdfContext,
             selectedModel,
             (chunk) => {
+              streamedReply += chunk;
               controller.enqueue(encoder.encode(chunk));
             },
           );
+
+          const finalReply = chatResult.reply || streamedReply;
+          const estimatedTotalTokens = estimateTokenUsage(
+            latestUserMessage,
+            pdfContext,
+            finalReply,
+          );
+          const { data: usageData, error: usageError } = await supabase.rpc(
+            "increment_usage",
+            {
+              p_action: "message",
+              p_model_used: selectedModel,
+              p_document_count: 0,
+              p_estimated_tokens: estimatedTotalTokens,
+              p_metadata: {
+                has_document_context: Boolean(pdfContext.trim()),
+                streamed_reply_length: finalReply.length,
+              },
+              p_user_id: user.id,
+            },
+          );
+
+          if (usageError) {
+            console.error("Chat usage increment failed:", {
+              userId: user.id,
+              selectedModel,
+              estimatedTotalTokens,
+              error: usageError,
+            });
+          } else {
+            console.info("Chat usage increment succeeded:", {
+              userId: user.id,
+              selectedModel,
+              estimatedTotalTokens,
+              usage: usageData,
+            });
+          }
         } catch (error) {
           console.error("AI chat stream failed:", error);
           controller.enqueue(

@@ -3,6 +3,7 @@ import mammoth from "mammoth";
 import { parseOffice, type OfficeContentNode } from "officeparser";
 import PDFParser from "pdf2json";
 import * as XLSX from "xlsx";
+import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import {
   createDocumentStoragePath,
   createSupabaseServerClient,
@@ -10,6 +11,7 @@ import {
   hasAnySupabaseStorageConfig,
   isSupabaseStorageConfigured,
 } from "@/lib/supabase/server";
+import { estimateTokenUsage, getLimitErrorMessage } from "@/lib/usage/limits";
 
 export const runtime = "nodejs";
 
@@ -384,6 +386,15 @@ export async function POST(request: Request) {
   let documentType: SupportedDocumentType | null = null;
 
   try {
+    const usageSupabase = await createSupabaseAuthServerClient();
+    const {
+      data: { user },
+    } = await usageSupabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Belum login." }, { status: 401 });
+    }
+
     const uploadedDocument = await getUploadedDocument(request);
 
     if ("error" in uploadedDocument) {
@@ -405,6 +416,31 @@ export async function POST(request: Request) {
             "Format belum didukung. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx).",
         },
         { status: 400 },
+      );
+    }
+
+    const { data: limitCheck, error: limitError } = await usageSupabase.rpc(
+      "check_usage_limits",
+      {
+        p_action: "document_upload",
+        p_model_used: "document",
+        p_estimated_tokens: 0,
+      },
+    );
+
+    if (limitError) {
+      console.error("Document usage limit check failed:", limitError);
+
+      return NextResponse.json(
+        { error: "Limit upload belum bisa dicek." },
+        { status: 500 },
+      );
+    }
+
+    if (!limitCheck?.allowed) {
+      return NextResponse.json(
+        { error: getLimitErrorMessage(limitCheck?.reason) },
+        { status: 429 },
       );
     }
 
@@ -432,6 +468,23 @@ export async function POST(request: Request) {
         { error: getEmptyDocumentMessage(documentType) },
         { status: 422 },
       );
+    }
+
+    const { error: usageError } = await usageSupabase.rpc("increment_usage", {
+      p_action: "document_upload",
+      p_model_used: "document",
+      p_document_count: 1,
+      p_estimated_tokens: estimateTokenUsage(text),
+      p_metadata: {
+        file_name: uploadedDocument.fileName,
+        file_type: documentType,
+        mime_type: uploadedDocument.mimeType,
+        file_size_bytes: buffer.byteLength,
+      },
+    });
+
+    if (usageError) {
+      console.error("Document usage increment failed:", usageError);
     }
 
     return NextResponse.json({
