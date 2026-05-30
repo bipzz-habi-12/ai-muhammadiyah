@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateChatReply, type ChatMessage } from "@/lib/ai/chat";
+import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
 
 type ChatRequestBody = {
   history?: ChatMessage[];
@@ -74,9 +74,39 @@ export async function POST(request: Request) {
     }
 
     const safeHistory = createSafeHistory(rawHistory);
-    const result = await generateChatReply(safeHistory, pdfContext, selectedModel);
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          await streamChatReply(
+            safeHistory,
+            pdfContext,
+            selectedModel,
+            (chunk) => {
+              controller.enqueue(encoder.encode(chunk));
+            },
+          );
+        } catch (error) {
+          console.error("AI chat stream failed:", error);
+          controller.enqueue(
+            encoder.encode(
+              "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
+            ),
+          );
+        } finally {
+          controller.close();
+        }
+      },
+    });
 
-    return NextResponse.json(result);
+    return new Response(stream, {
+      headers: {
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (error) {
     console.error(error);
 

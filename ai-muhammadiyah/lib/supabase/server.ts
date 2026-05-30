@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseProjectUrl } from "./config";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -33,7 +34,7 @@ export function createSupabaseServerClient() {
 
   // Server-only client: this uses the service role key, so never import it in
   // client components or expose it to the browser.
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createClient(getSupabaseProjectUrl(), supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

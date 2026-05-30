@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Message = {
   role: "user" | "ai";
@@ -108,6 +110,39 @@ function getRecentChatHistory(messages: Message[]) {
       role: message.role,
       text: truncateMessageText(message.text),
     }));
+}
+
+function getFriendlyChatError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Maaf, chat AI sedang bermasalah. Silakan coba lagi.";
+  }
+
+  if (
+    error.message === "Chat API request failed" ||
+    error.message === "Chat stream is unavailable" ||
+    error.message === "Chat stream returned an empty reply"
+  ) {
+    return "Maaf, chat AI sedang bermasalah. Silakan coba lagi.";
+  }
+
+  return error.message;
+}
+
+function getEmailInitials(email: string) {
+  const cleanEmail = email.trim();
+
+  if (!cleanEmail) {
+    return "AM";
+  }
+
+  const [namePart] = cleanEmail.split("@");
+  const namePieces = namePart.split(/[._-]+/).filter(Boolean);
+
+  if (namePieces.length >= 2) {
+    return `${namePieces[0][0]}${namePieces[1][0]}`.toUpperCase();
+  }
+
+  return cleanEmail.slice(0, 2).toUpperCase();
 }
 
 function getUploadedDocumentType(fileName: string): UploadedDocumentType {
@@ -233,9 +268,13 @@ function Icon({
 }
 
 export default function Home() {
+  const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
 
   const [input, setInput] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploadedDocumentType, setUploadedDocumentType] =
     useState<UploadedDocumentType>("Dokumen");
@@ -243,12 +282,43 @@ export default function Home() {
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>("idle");
   const [documentError, setDocumentError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
   const documentTextRef = useRef("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const userInitials = getEmailInitials(userEmail);
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      setUserEmail(user.email ?? "");
+    }
+
+    loadUser();
+  }, [router, supabase]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isSending]);
 
   function resetMemory() {
     setMessages([welcomeMessage]);
     setInput("");
+  }
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
   }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -341,8 +411,17 @@ export default function Home() {
     setMessages(nextMessages);
     setInput("");
     setIsSending(true);
+    setIsAwaitingFirstChunk(true);
 
     try {
+      setMessages([
+        ...nextMessages,
+        {
+          role: "ai",
+          text: "",
+        },
+      ]);
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -356,33 +435,100 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error("Chat API request failed");
+        const errorData = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+
+        throw new Error(errorData?.error ?? "Chat API request failed");
       }
 
-      const data = await response.json();
+      if (!response.body) {
+        throw new Error("Chat stream is unavailable");
+      }
 
-      setMessages((prev) =>
-        getRecentChatHistory([
-          ...prev,
-          {
-            role: "ai",
-            text: data.reply,
-          },
-        ]),
-      );
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let streamedReply = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+
+        if (!chunk) {
+          continue;
+        }
+
+        streamedReply += chunk;
+        setIsAwaitingFirstChunk(false);
+        setMessages((prev) => {
+          const updatedMessages = [...prev];
+          const lastMessage = updatedMessages.at(-1);
+
+          if (lastMessage?.role === "ai") {
+            updatedMessages[updatedMessages.length - 1] = {
+              ...lastMessage,
+              text: streamedReply,
+            };
+          }
+
+          return updatedMessages;
+        });
+      }
+
+      const finalChunk = decoder.decode();
+
+      if (finalChunk) {
+        streamedReply += finalChunk;
+        setIsAwaitingFirstChunk(false);
+        setMessages((prev) => {
+          const updatedMessages = [...prev];
+          const lastMessage = updatedMessages.at(-1);
+
+          if (lastMessage?.role === "ai") {
+            updatedMessages[updatedMessages.length - 1] = {
+              ...lastMessage,
+              text: streamedReply,
+            };
+          }
+
+          return updatedMessages;
+        });
+      }
+
+      if (!streamedReply.trim()) {
+        throw new Error("Chat stream returned an empty reply");
+      }
+
+      setMessages((prev) => getRecentChatHistory(prev));
     } catch (error) {
       console.error(error);
 
       setMessages((prev) =>
-        getRecentChatHistory([
-          ...prev,
-          {
-            role: "ai",
-            text: "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
-          },
-        ]),
+        getRecentChatHistory(
+          prev.at(-1)?.role === "ai"
+            ? [
+                ...prev.slice(0, -1),
+                {
+                  role: "ai",
+                  text: getFriendlyChatError(error),
+                },
+              ]
+            : [
+                ...prev,
+                {
+                  role: "ai",
+                  text: "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
+                },
+              ],
+        ),
       );
     } finally {
+      setIsAwaitingFirstChunk(false);
       setIsSending(false);
     }
   }
@@ -480,17 +626,21 @@ export default function Home() {
 
           <div className="flex items-center gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-lg font-bold text-[#008d54]">
-              A
+              {userInitials}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-lg font-bold">Akun Anggota</p>
-              <p className="truncate text-sm text-[#4f665c]">Paket Tajdid</p>
+              <p className="truncate text-sm text-[#4f665c]">
+                {userEmail || "Memuat akun..."}
+              </p>
             </div>
             <button
               type="button"
-              aria-label="Pengaturan akun"
-              title="Pengaturan akun"
-              className="grid h-10 w-10 place-items-center rounded-full text-[#566d62] transition hover:bg-white"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              aria-label="Keluar"
+              title="Keluar"
+              className="grid h-10 w-10 place-items-center rounded-full text-[#566d62] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -502,8 +652,10 @@ export default function Home() {
                 strokeLinejoin="round"
                 strokeWidth="2"
               >
-                <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
-                <path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1a2.1 2.1 0 0 1-3 3l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V22a2.1 2.1 0 0 1-4.2 0v-.2a1.8 1.8 0 0 0-1.2-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2.1 2.1 0 0 1-3-3l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H2a2.1 2.1 0 0 1 0-4.2h.2a1.8 1.8 0 0 0 1.7-1.2 1.8 1.8 0 0 0-.4-2l-.1-.1a2.1 2.1 0 0 1 3-3l.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1.1-1.7V2a2.1 2.1 0 0 1 4.2 0v.2a1.8 1.8 0 0 0 1.2 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2.1 2.1 0 0 1 3 3l-.1.1a1.8 1.8 0 0 0-.4 2c.3.7.9 1.1 1.7 1.1h.2a2.1 2.1 0 0 1 0 4.2h-.2a1.8 1.8 0 0 0-1.9 1.2Z" />
+                <path d="M10 17l5-5-5-5" />
+                <path d="M15 12H3" />
+                <path d="M21 19V5a2 2 0 0 0-2-2h-5" />
+                <path d="M14 21h5a2 2 0 0 0 2-2" />
               </svg>
             </button>
           </div>
@@ -544,7 +696,7 @@ export default function Home() {
               Bagikan
             </button>
             <div className="grid h-12 w-12 place-items-center rounded-full bg-[#009252] text-xl font-bold text-white">
-              A
+              {userInitials}
             </div>
           </div>
         </header>
@@ -713,33 +865,36 @@ export default function Home() {
           {messages.length > 1 && (
             <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end space-y-4">
               {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={
-                    message.role === "user"
-                      ? "flex justify-end animate-[messageIn_0.25s_ease-out]"
-                      : "flex justify-start animate-[messageIn_0.25s_ease-out]"
-                  }
-                >
+                message.role === "ai" && !message.text ? null : (
                   <div
+                    key={index}
                     className={
                       message.role === "user"
-                        ? "max-w-[85%] rounded-[24px] rounded-br-md bg-[#009252] px-5 py-3 text-sm leading-relaxed text-white shadow-lg shadow-emerald-900/15 sm:max-w-xl sm:text-base"
-                        : "max-w-[85%] rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#18392e] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-xl sm:text-base"
+                        ? "flex justify-end animate-[messageIn_0.25s_ease-out]"
+                        : "flex justify-start animate-[messageIn_0.25s_ease-out]"
                     }
                   >
-                    {message.text}
+                    <div
+                      className={
+                        message.role === "user"
+                          ? "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#009252] px-5 py-3 text-sm leading-relaxed text-white shadow-lg shadow-emerald-900/15 sm:max-w-xl sm:text-base"
+                          : "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#18392e] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-xl sm:text-base"
+                      }
+                    >
+                      {message.text}
+                    </div>
                   </div>
-                </div>
+                )
               ))}
 
-              {isSending && (
+              {isSending && isAwaitingFirstChunk && (
                 <div className="flex justify-start animate-[messageIn_0.25s_ease-out]">
                   <div className="max-w-[85%] rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#4f665c] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-xl sm:text-base">
                     Sedang menjawab...
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
