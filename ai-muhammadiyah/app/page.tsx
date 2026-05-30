@@ -19,6 +19,7 @@ type SelectedModel = "auto" | "fast" | "smart" | "document";
 
 const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
+const maxDocumentUploadBytes = 25 * 1024 * 1024;
 
 const welcomeMessage: Message = {
   role: "ai",
@@ -123,6 +124,29 @@ function getUploadedDocumentType(fileName: string): UploadedDocumentType {
   }
 
   return "PDF";
+}
+
+async function extractDocumentFromLocalUpload(file: File) {
+  const formData = new FormData();
+  formData.append("document", file);
+
+  const response = await fetch("/api/document", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = (await response.json()) as {
+    error?: string;
+    fileName?: string;
+    fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+    text?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Dokumen belum bisa dibaca.");
+  }
+
+  return data;
 }
 
 function SparkIcon({ className = "" }: { className?: string }) {
@@ -262,25 +286,17 @@ export default function Home() {
       return;
     }
 
+    if (file.size > maxDocumentUploadBytes) {
+      setDocumentStatus("error");
+      setDocumentError(
+        "Ukuran dokumen terlalu besar. Mohon upload file maksimal 25 MB agar bisa dibaca dengan stabil.",
+      );
+      event.target.value = "";
+      return;
+    }
+
     try {
-      const formData = new FormData();
-      formData.append("document", file);
-
-      const response = await fetch("/api/document", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        fileName?: string;
-        fileType?: "pdf" | "docx" | "pptx" | "xlsx";
-        text?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Dokumen belum bisa dibaca.");
-      }
+      const data = await extractDocumentFromLocalUpload(file);
 
       setUploadedFileName(data.fileName ?? file.name);
       setUploadedDocumentType(

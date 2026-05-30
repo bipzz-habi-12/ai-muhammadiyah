@@ -3,10 +3,29 @@ import mammoth from "mammoth";
 import { parseOffice, type OfficeContentNode } from "officeparser";
 import PDFParser from "pdf2json";
 import * as XLSX from "xlsx";
+import {
+  createDocumentStoragePath,
+  createSupabaseServerClient,
+  getSupabaseStorageBucket,
+  hasAnySupabaseStorageConfig,
+  isSupabaseStorageConfigured,
+} from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 type SupportedDocumentType = "pdf" | "docx" | "pptx" | "xlsx";
+type UploadedDocumentResult =
+  | {
+      fileName: string;
+      mimeType?: string;
+      buffer: Buffer;
+    }
+  | {
+      error: string;
+      status: number;
+    };
+
+const maxDocumentUploadBytes = 25 * 1024 * 1024;
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -83,38 +102,135 @@ function normalizeDocumentText(text: string) {
     .trim();
 }
 
-function getDocumentType(file: File): SupportedDocumentType | null {
-  const fileName = file.name.toLowerCase();
+function getDocumentType(
+  fileName: string,
+  mimeType?: string,
+): SupportedDocumentType | null {
+  const normalizedFileName = fileName.toLowerCase();
 
-  if (file.type === "application/pdf" || fileName.endsWith(".pdf")) {
+  if (mimeType === "application/pdf" || normalizedFileName.endsWith(".pdf")) {
     return "pdf";
   }
 
   if (
-    file.type ===
+    mimeType ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    fileName.endsWith(".docx")
+    normalizedFileName.endsWith(".docx")
   ) {
     return "docx";
   }
 
   if (
-    file.type ===
+    mimeType ===
       "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-    fileName.endsWith(".pptx")
+    normalizedFileName.endsWith(".pptx")
   ) {
     return "pptx";
   }
 
   if (
-    file.type ===
+    mimeType ===
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-    fileName.endsWith(".xlsx")
+    normalizedFileName.endsWith(".xlsx")
   ) {
     return "xlsx";
   }
 
   return null;
+}
+
+async function uploadDocumentBackupToStorage(
+  fileName: string,
+  mimeType: string | undefined,
+  buffer: Buffer,
+) {
+  if (!hasAnySupabaseStorageConfig()) {
+    console.info("Supabase document backup skipped: storage is not configured.");
+    return;
+  }
+
+  if (!isSupabaseStorageConfigured()) {
+    console.warn(
+      "Supabase document backup skipped: storage config is incomplete.",
+    );
+    return;
+  }
+
+  let supabase: ReturnType<typeof createSupabaseServerClient>;
+  let bucket = "";
+  let path = "";
+
+  try {
+    supabase = createSupabaseServerClient();
+    bucket = getSupabaseStorageBucket();
+    path = createDocumentStoragePath(fileName);
+  } catch (error) {
+    console.warn("Supabase document backup path skipped:", getErrorMessage(error));
+    return;
+  }
+
+  console.info("Supabase document backup path generated:", {
+    bucket,
+    path,
+    fileSize: buffer.byteLength,
+  });
+
+  const { error: bucketError } = await supabase.storage.getBucket(bucket);
+
+  if (bucketError) {
+    console.warn("Supabase document backup skipped: bucket not available.", {
+      bucket,
+      path,
+      fileSize: buffer.byteLength,
+      error: bucketError.message,
+    });
+    return;
+  }
+
+  // The server receives the multipart file once, persists that same buffer to
+  // Supabase Storage with the service role key, then extracts text from the
+  // in-memory buffer below. No signed upload URL or browser storage token needed.
+  const { error } = await supabase.storage.from(bucket).upload(path, buffer, {
+    contentType: mimeType || "application/octet-stream",
+    upsert: false,
+  });
+
+  if (error) {
+    console.warn("Supabase document backup upload failed:", {
+      bucket,
+      path,
+      fileSize: buffer.byteLength,
+      error: error.message,
+    });
+  }
+}
+
+async function getUploadedDocument(
+  request: Request,
+): Promise<UploadedDocumentResult> {
+  const formData = await request.formData();
+  const file = formData.get("document");
+
+  if (!(file instanceof File)) {
+    return {
+      error: "File dokumen tidak ditemukan.",
+      status: 400,
+    };
+  }
+
+  if (file.size > maxDocumentUploadBytes) {
+    return {
+      error:
+        "Ukuran dokumen terlalu besar. Mohon upload file maksimal 25 MB agar bisa dibaca dengan stabil.",
+      status: 413,
+    };
+  }
+
+  return {
+    fileName: file.name,
+    mimeType: file.type,
+    buffer: Buffer.from(await file.arrayBuffer()),
+  };
 }
 
 function extractTextFromPdf(buffer: Buffer) {
@@ -268,17 +384,19 @@ export async function POST(request: Request) {
   let documentType: SupportedDocumentType | null = null;
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("document");
+    const uploadedDocument = await getUploadedDocument(request);
 
-    if (!(file instanceof File)) {
+    if ("error" in uploadedDocument) {
       return NextResponse.json(
-        { error: "File dokumen tidak ditemukan." },
-        { status: 400 },
+        { error: uploadedDocument.error },
+        { status: uploadedDocument.status },
       );
     }
 
-    documentType = getDocumentType(file);
+    documentType = getDocumentType(
+      uploadedDocument.fileName,
+      uploadedDocument.mimeType,
+    );
 
     if (!documentType) {
       return NextResponse.json(
@@ -290,7 +408,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = uploadedDocument.buffer;
+    await uploadDocumentBackupToStorage(
+      uploadedDocument.fileName,
+      uploadedDocument.mimeType,
+      buffer,
+    );
+
     let text = "";
 
     if (documentType === "pdf") {
@@ -311,7 +435,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      fileName: file.name,
+      fileName: uploadedDocument.fileName,
       fileType: documentType,
       text,
     });
