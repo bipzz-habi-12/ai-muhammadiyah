@@ -177,12 +177,12 @@ export default function OtpForm({ initialEmail = "" }: OtpFormProps) {
       </button>
 
       <p className="text-center text-sm text-[#4f665c]">
-        Sudah terverifikasi?{" "}
+        Ingin memakai email lain?{" "}
         <Link
           href="/login"
           className="font-bold text-[#008d54] transition hover:text-[#06140d]"
         >
-          Masuk di sini
+          Kembali ke login
         </Link>
       </p>
     </form>

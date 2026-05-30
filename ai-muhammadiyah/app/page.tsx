@@ -1,23 +1,56 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Message = {
+  id?: string;
   role: "user" | "ai";
   text: string;
-};
-
-type ConversationGroup = {
-  label: string;
-  items: string[];
+  createdAt?: string;
+  model?: SelectedModel;
+  documentMetadata?: DocumentMetadata | null;
 };
 
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
 type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Excel" | "Dokumen";
 
 type SelectedModel = "auto" | "fast" | "smart" | "document";
+
+type DocumentMetadata = {
+  fileName: string;
+  fileType: UploadedDocumentType;
+  status: Exclude<DocumentStatus, "idle">;
+};
+
+type Conversation = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  model: SelectedModel;
+  documentMetadata: DocumentMetadata | null;
+};
+
+type ConversationRow = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  selected_model: string | null;
+  document_metadata: DocumentMetadata | null;
+};
+
+type MessageRow = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+  selected_model: string | null;
+  document_metadata: DocumentMetadata | null;
+};
 
 const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
@@ -37,36 +70,6 @@ const modelOptions: { value: SelectedModel; label: string }[] = [
 
 const supportedDocumentAccept =
   "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx";
-
-const conversationGroups: ConversationGroup[] = [
-  {
-    label: "HARI INI",
-    items: [
-      "Konsep Tajdid menurut KH Ahmad...",
-      "Rencana pengajian RT bulan depan",
-    ],
-  },
-  {
-    label: "KEMARIN",
-    items: [
-      "Esai tentang pendidikan inklusif",
-      "Ringkasan rapat Pimpinan Cabang",
-    ],
-  },
-  {
-    label: "7 HARI LALU",
-    items: [
-      "Doa untuk orang tua",
-      "Belajar bahasa Arab dasar",
-    ],
-  },
-  {
-    label: "30 HARI LALU",
-    items: [
-      "Adab bermedia sosial",
-    ],
-  },
-];
 
 const quickPrompts = [
   {
@@ -110,6 +113,99 @@ function getRecentChatHistory(messages: Message[]) {
       role: message.role,
       text: truncateMessageText(message.text),
     }));
+}
+
+function normalizeSelectedModel(value?: string | null): SelectedModel {
+  if (
+    value === "fast" ||
+    value === "smart" ||
+    value === "document" ||
+    value === "auto"
+  ) {
+    return value;
+  }
+
+  return "auto";
+}
+
+function mapConversationRow(row: ConversationRow): Conversation {
+  return {
+    id: row.id,
+    title: row.title,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    model: normalizeSelectedModel(row.selected_model),
+    documentMetadata: row.document_metadata,
+  };
+}
+
+function mapMessageRow(row: MessageRow): Message {
+  return {
+    id: row.id,
+    role: row.role === "assistant" ? "ai" : "user",
+    text: row.content,
+    createdAt: row.created_at,
+    model: normalizeSelectedModel(row.selected_model),
+    documentMetadata: row.document_metadata,
+  };
+}
+
+function createConversationTitle(text: string) {
+  const normalizedText = text.replace(/\s+/g, " ").trim();
+
+  if (!normalizedText) {
+    return "Obrolan baru";
+  }
+
+  return normalizedText.length > 48
+    ? `${normalizedText.slice(0, 48)}...`
+    : normalizedText;
+}
+
+function getConversationGroupLabel(dateValue: string) {
+  const date = new Date(dateValue);
+  const today = new Date();
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const startOfDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+  const dayDifference = Math.floor(
+    (startOfToday.getTime() - startOfDate.getTime()) / 86_400_000,
+  );
+
+  if (dayDifference <= 0) {
+    return "HARI INI";
+  }
+
+  if (dayDifference === 1) {
+    return "KEMARIN";
+  }
+
+  if (dayDifference <= 7) {
+    return "7 HARI LALU";
+  }
+
+  return "30 HARI LALU";
+}
+
+function groupConversations(conversations: Conversation[]) {
+  const groups = new Map<string, Conversation[]>();
+
+  for (const conversation of conversations) {
+    const label = getConversationGroupLabel(conversation.updatedAt);
+    groups.set(label, [...(groups.get(label) ?? []), conversation]);
+  }
+
+  return Array.from(groups.entries()).map(([label, items]) => ({
+    label,
+    items,
+  }));
 }
 
 function getFriendlyChatError(error: unknown) {
@@ -260,6 +356,35 @@ function Icon({
     );
   }
 
+  if (name === "check") {
+    return (
+      <svg {...common}>
+        <path d="m20 6-11 11-5-5" />
+      </svg>
+    );
+  }
+
+  if (name === "edit") {
+    return (
+      <svg {...common}>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+      </svg>
+    );
+  }
+
+  if (name === "trash") {
+    return (
+      <svg {...common}>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v5" />
+        <path d="M14 11v5" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />
@@ -271,10 +396,16 @@ export default function Home() {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
-
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState("");
   const [input, setInput] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const [renamingConversationId, setRenamingConversationId] = useState("");
+  const [renameValue, setRenameValue] = useState("");
+  const [chatSearch, setChatSearch] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploadedDocumentType, setUploadedDocumentType] =
     useState<UploadedDocumentType>("Dokumen");
@@ -287,6 +418,34 @@ export default function Home() {
   const documentTextRef = useRef("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const userInitials = getEmailInitials(userEmail);
+  const filteredConversations = conversations.filter((conversation) =>
+    conversation.title.toLowerCase().includes(chatSearch.toLowerCase().trim()),
+  );
+  const conversationGroups = groupConversations(filteredConversations);
+  const activeConversation = conversations.find(
+    (conversation) => conversation.id === activeConversationId,
+  );
+
+  const loadConversations = useCallback(async () => {
+    setHistoryError("");
+    setIsLoadingConversations(true);
+
+    const { data, error } = await supabase
+      .from("conversations")
+      .select("id,title,created_at,updated_at,selected_model,document_metadata")
+      .order("updated_at", { ascending: false })
+      .limit(40);
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Riwayat obrolan belum bisa dimuat.");
+      setIsLoadingConversations(false);
+      return;
+    }
+
+    setConversations(((data ?? []) as ConversationRow[]).map(mapConversationRow));
+    setIsLoadingConversations(false);
+  }, [supabase]);
 
   useEffect(() => {
     async function loadUser() {
@@ -300,18 +459,159 @@ export default function Home() {
       }
 
       setUserEmail(user.email ?? "");
+      await loadConversations();
     }
 
     loadUser();
-  }, [router, supabase]);
+  }, [loadConversations, router, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isSending]);
 
+  function getCurrentDocumentMetadata(): DocumentMetadata | null {
+    if (!uploadedFileName || documentStatus === "idle") {
+      return null;
+    }
+
+    return {
+      fileName: uploadedFileName,
+      fileType: uploadedDocumentType,
+      status: documentStatus,
+    };
+  }
+
+  function resetDocumentState() {
+    setUploadedFileName("");
+    setUploadedDocumentType("Dokumen");
+    documentTextRef.current = "";
+    setDocumentText("");
+    setDocumentStatus("idle");
+    setDocumentError("");
+  }
+
   function resetMemory() {
+    setActiveConversationId("");
     setMessages([welcomeMessage]);
     setInput("");
+    resetDocumentState();
+    setRenamingConversationId("");
+    setRenameValue("");
+  }
+
+  async function loadConversation(conversation: Conversation) {
+    if (isSending) return;
+
+    setHistoryError("");
+    setActiveConversationId(conversation.id);
+    setSelectedModel(conversation.model);
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select(
+        "id,conversation_id,role,content,created_at,selected_model,document_metadata",
+      )
+      .eq("conversation_id", conversation.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Pesan obrolan belum bisa dimuat.");
+      return;
+    }
+
+    const loadedMessages = ((data ?? []) as MessageRow[]).map(mapMessageRow);
+    setMessages(loadedMessages.length ? loadedMessages : [welcomeMessage]);
+
+    const latestDocumentMetadata =
+      [...loadedMessages].reverse().find((message) => message.documentMetadata)
+        ?.documentMetadata ?? conversation.documentMetadata;
+
+    if (latestDocumentMetadata) {
+      setUploadedFileName(latestDocumentMetadata.fileName);
+      setUploadedDocumentType(latestDocumentMetadata.fileType);
+      setDocumentStatus(latestDocumentMetadata.status);
+      setDocumentError("");
+      documentTextRef.current = "";
+      setDocumentText("");
+    } else {
+      resetDocumentState();
+    }
+  }
+
+  async function createConversation(userText: string) {
+    const title = createConversationTitle(userText);
+    const documentMetadata = getCurrentDocumentMetadata();
+    const { data, error } = await supabase
+      .from("conversations")
+      .insert({
+        title,
+        selected_model: selectedModel,
+        document_metadata: documentMetadata,
+      })
+      .select("id,title,created_at,updated_at,selected_model,document_metadata")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const conversation = mapConversationRow(data as ConversationRow);
+    setConversations((prev) => [conversation, ...prev]);
+    setActiveConversationId(conversation.id);
+
+    return conversation;
+  }
+
+  async function renameConversation(conversationId: string) {
+    const title = renameValue.trim();
+
+    if (!title) {
+      setRenamingConversationId("");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("conversations")
+      .update({ title })
+      .eq("id", conversationId);
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Nama obrolan belum bisa diubah.");
+      return;
+    }
+
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, title }
+          : conversation,
+      ),
+    );
+    setRenamingConversationId("");
+    setRenameValue("");
+  }
+
+  async function deleteConversation(conversationId: string) {
+    const { error } = await supabase
+      .from("conversations")
+      .delete()
+      .eq("id", conversationId);
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Obrolan belum bisa dihapus.");
+      return;
+    }
+
+    setConversations((prev) =>
+      prev.filter((conversation) => conversation.id !== conversationId),
+    );
+
+    if (activeConversationId === conversationId) {
+      resetMemory();
+    }
   }
 
   async function handleLogout() {
@@ -400,13 +700,18 @@ export default function Home() {
 
     const userText = input.trim();
     const currentDocumentContext = documentTextRef.current || documentText;
-    const nextMessages = getRecentChatHistory([
+    const documentMetadata = getCurrentDocumentMetadata();
+    let conversation = activeConversation;
+    const nextMessages: Message[] = [
       ...messages,
       {
         role: "user",
         text: userText,
+        model: selectedModel,
+        documentMetadata,
       },
-    ]);
+    ];
+    const aiHistory = getRecentChatHistory(nextMessages);
 
     setMessages(nextMessages);
     setInput("");
@@ -414,11 +719,28 @@ export default function Home() {
     setIsAwaitingFirstChunk(true);
 
     try {
+      conversation ??= await createConversation(userText);
+      const currentConversation = conversation;
+
+      const { error: userMessageError } = await supabase.from("messages").insert({
+        conversation_id: currentConversation.id,
+        role: "user",
+        content: userText,
+        selected_model: selectedModel,
+        document_metadata: documentMetadata,
+      });
+
+      if (userMessageError) {
+        throw userMessageError;
+      }
+
       setMessages([
         ...nextMessages,
         {
           role: "ai",
           text: "",
+          model: selectedModel,
+          documentMetadata,
         },
       ]);
 
@@ -428,7 +750,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          history: nextMessages,
+          history: aiHistory,
           pdfContext: currentDocumentContext,
           selectedModel,
         }),
@@ -504,28 +826,82 @@ export default function Home() {
         throw new Error("Chat stream returned an empty reply");
       }
 
-      setMessages((prev) => getRecentChatHistory(prev));
+      const { error: assistantMessageError } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: currentConversation.id,
+          role: "assistant",
+          content: streamedReply,
+          selected_model: selectedModel,
+          document_metadata: documentMetadata,
+        });
+
+      if (assistantMessageError) {
+        throw assistantMessageError;
+      }
+
+      const updatedAt = new Date().toISOString();
+      await supabase
+        .from("conversations")
+        .update({
+          selected_model: selectedModel,
+          document_metadata: documentMetadata,
+          updated_at: updatedAt,
+        })
+        .eq("id", currentConversation.id);
+
+      setConversations((prev) =>
+        prev
+          .map((item) =>
+            item.id === currentConversation.id
+              ? {
+                  ...item,
+                  model: selectedModel,
+                  documentMetadata,
+                  updatedAt,
+                }
+              : item,
+          )
+          .sort(
+            (first, second) =>
+              new Date(second.updatedAt).getTime() -
+              new Date(first.updatedAt).getTime(),
+          ),
+      );
     } catch (error) {
       console.error(error);
+      const errorText = getFriendlyChatError(error);
+
+      if (conversation?.id) {
+        await supabase.from("messages").insert({
+          conversation_id: conversation.id,
+          role: "assistant",
+          content: errorText,
+          selected_model: selectedModel,
+          document_metadata: documentMetadata,
+        });
+      }
 
       setMessages((prev) =>
-        getRecentChatHistory(
-          prev.at(-1)?.role === "ai"
-            ? [
-                ...prev.slice(0, -1),
-                {
-                  role: "ai",
-                  text: getFriendlyChatError(error),
-                },
-              ]
-            : [
-                ...prev,
-                {
-                  role: "ai",
-                  text: "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
-                },
-              ],
-        ),
+        prev.at(-1)?.role === "ai"
+          ? [
+              ...prev.slice(0, -1),
+              {
+                role: "ai",
+                text: errorText,
+                model: selectedModel,
+                documentMetadata,
+              },
+            ]
+          : [
+              ...prev,
+              {
+                role: "ai",
+                text: errorText,
+                model: selectedModel,
+                documentMetadata,
+              },
+            ],
       );
     } finally {
       setIsAwaitingFirstChunk(false);
@@ -580,26 +956,109 @@ export default function Home() {
             <circle cx="11" cy="11" r="7" />
             <path d="m16.5 16.5 4 4" />
           </svg>
-          <span className="text-lg">Cari obrolan</span>
+          <input
+            value={chatSearch}
+            onChange={(event) => setChatSearch(event.target.value)}
+            placeholder="Cari obrolan"
+            className="min-w-0 flex-1 bg-transparent text-lg outline-none placeholder:text-[#536b60]"
+          />
         </div>
 
         <nav className="mt-9 flex-1 overflow-y-auto px-5 pb-6">
+          {isLoadingConversations && (
+            <p className="text-sm font-semibold text-[#4f665c]">
+              Memuat riwayat...
+            </p>
+          )}
+
+          {historyError && (
+            <p className="mb-4 rounded-2xl bg-white p-3 text-sm font-semibold text-[#8a3b2b] ring-1 ring-[#efd1c8]">
+              {historyError}
+            </p>
+          )}
+
+          {!isLoadingConversations && conversationGroups.length === 0 && (
+            <p className="text-sm font-semibold text-[#4f665c]">
+              Belum ada riwayat obrolan.
+            </p>
+          )}
+
           {conversationGroups.map((group) => (
             <div key={group.label} className="mb-8">
               <h2 className="mb-5 text-sm font-bold tracking-wide text-[#4f665c]">
                 {group.label}
               </h2>
 
-              <div className="space-y-5">
-                {group.items.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className="flex w-full items-center gap-3 text-left text-lg text-[#18392e] transition hover:text-[#008d54]"
+              <div className="space-y-3">
+                {group.items.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    className={
+                      conversation.id === activeConversationId
+                        ? "rounded-2xl bg-white p-2 shadow-sm ring-1 ring-[#d8eadf]"
+                        : "rounded-2xl p-2 transition hover:bg-white/70"
+                    }
                   >
-                    <Icon name="chat" className="h-5 w-5 shrink-0 text-[#566d62]" />
-                    <span className="truncate">{item}</span>
-                  </button>
+                    {renamingConversationId === conversation.id ? (
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          renameConversation(conversation.id);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <input
+                          value={renameValue}
+                          onChange={(event) => setRenameValue(event.target.value)}
+                          autoFocus
+                          className="min-w-0 flex-1 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#95d6b9]"
+                        />
+                        <button
+                          type="submit"
+                          className="grid h-9 w-9 place-items-center rounded-full bg-[#009252] text-white"
+                          aria-label="Simpan nama"
+                          title="Simpan nama"
+                        >
+                          <Icon name="check" className="h-4 w-4" />
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadConversation(conversation)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left text-base text-[#18392e] transition hover:text-[#008d54]"
+                        >
+                          <Icon
+                            name="chat"
+                            className="h-5 w-5 shrink-0 text-[#566d62]"
+                          />
+                          <span className="truncate">{conversation.title}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRenamingConversationId(conversation.id);
+                            setRenameValue(conversation.title);
+                          }}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
+                          aria-label="Ubah nama obrolan"
+                          title="Ubah nama obrolan"
+                        >
+                          <Icon name="edit" className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteConversation(conversation.id)}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a3b2b] transition hover:bg-[#fff1ed]"
+                          aria-label="Hapus obrolan"
+                          title="Hapus obrolan"
+                        >
+                          <Icon name="trash" className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -702,6 +1161,30 @@ export default function Home() {
         </header>
 
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+            <button
+              type="button"
+              onClick={resetMemory}
+              className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf]"
+            >
+              + Obrolan baru
+            </button>
+            {conversations.slice(0, 8).map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => loadConversation(conversation)}
+                className={
+                  conversation.id === activeConversationId
+                    ? "max-w-[220px] shrink-0 truncate rounded-full bg-[#009252] px-4 py-2 text-sm font-bold text-white"
+                    : "max-w-[220px] shrink-0 truncate rounded-full bg-white px-4 py-2 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf]"
+                }
+              >
+                {conversation.title}
+              </button>
+            ))}
+          </div>
+
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]">
             <span className="text-xl text-[#008d54]">+</span>
             Upload PDF / Word / PowerPoint / Excel

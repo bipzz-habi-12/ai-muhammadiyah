@@ -18,6 +18,28 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Supabase Chat History
+
+Persistent chat history needs the Supabase schema in
+`supabase/migrations/20260530000000_chat_history.sql`.
+
+Apply it with one of these options:
+
+```bash
+supabase db push
+```
+
+Or open the Supabase dashboard, go to SQL Editor, paste the migration contents,
+and run it once for the project.
+
+The migration creates:
+
+- `conversations`, owned by `auth.users.id`
+- `messages`, linked to `conversations`
+- indexes for recent sidebar history and message loading
+- Row Level Security policies so authenticated users can only read, create,
+  update, or delete their own conversations and messages
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

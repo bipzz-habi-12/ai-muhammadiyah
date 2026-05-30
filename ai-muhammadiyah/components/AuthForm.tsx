@@ -23,8 +23,12 @@ const isDevelopment = process.env.NODE_ENV === "development";
 function getFriendlyAuthError(message: string) {
   const normalizedMessage = message.toLowerCase();
 
-  if (normalizedMessage.includes("invalid login credentials")) {
-    return "Email atau password belum sesuai. Mohon periksa kembali.";
+  if (
+    normalizedMessage.includes("invalid login credentials") ||
+    normalizedMessage.includes("signup disabled") ||
+    normalizedMessage.includes("user not found")
+  ) {
+    return "Email belum terdaftar. Silakan daftar terlebih dahulu.";
   }
 
   if (normalizedMessage.includes("email not confirmed")) {
@@ -33,10 +37,6 @@ function getFriendlyAuthError(message: string) {
 
   if (normalizedMessage.includes("already registered")) {
     return "Email ini sudah terdaftar. Silakan masuk lewat halaman login.";
-  }
-
-  if (normalizedMessage.includes("password")) {
-    return "Password minimal 6 karakter dan tidak boleh kosong.";
   }
 
   if (normalizedMessage.includes("email")) {
@@ -66,17 +66,6 @@ function logAuthError(context: string, error: SupabaseAuthError) {
   });
 }
 
-function getRedirectPath() {
-  const params = new URLSearchParams(window.location.search);
-  const redirectTo = params.get("redirectTo");
-
-  if (!redirectTo || !redirectTo.startsWith("/")) {
-    return "/";
-  }
-
-  return redirectTo;
-}
-
 function redirectToChat(router: ReturnType<typeof useRouter>, reason: string) {
   const redirectPath = "/";
 
@@ -97,11 +86,12 @@ function redirectToChat(router: ReturnType<typeof useRouter>, reason: string) {
 function redirectToOtpVerification(
   router: ReturnType<typeof useRouter>,
   email: string,
+  reason: string,
 ) {
   const redirectPath = `/verify-otp?email=${encodeURIComponent(email)}`;
 
   console.log("[Supabase Auth] redirect target", {
-    reason: "registration OTP sent",
+    reason,
     redirectPath,
   });
 
@@ -119,7 +109,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const isLogin = mode === "login";
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -131,91 +120,40 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
-        const loginResponse = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        const { data, error } = loginResponse;
-
-        console.log("[Supabase Auth] login response", {
-          userId: data.user?.id,
-          userEmail: data.user?.email,
-          hasSession: Boolean(data.session),
-          error,
-        });
-
-        if (error) {
-          logAuthError("login error", error);
-          setErrorMessage(getAuthErrorMessage(error));
-          return;
-        }
-
-        const redirectPath = getRedirectPath();
-        console.log("[Supabase Auth] redirect target", {
-          reason: "login succeeded",
-          redirectPath,
-        });
-
-        console.log("[Supabase Auth] redirect response", {
-          action: "router.replace",
-          redirectPath,
-        });
-
-        router.replace(redirectPath);
-        router.refresh();
-        return;
-      }
-
+      const normalizedEmail = email.trim().toLowerCase();
       const otpResponse = await supabase.auth.signInWithOtp({
-        email,
+        email: normalizedEmail,
         options: {
-          shouldCreateUser: true,
+          shouldCreateUser: !isLogin,
         },
       });
       const { data, error } = otpResponse;
+      const authAction = isLogin ? "login" : "registration";
 
-      console.log("[Supabase Auth] registration OTP response", {
+      console.log(`[Supabase Auth] ${authAction} OTP response`, {
         userId: data.user?.id,
         userEmail: data.user?.email,
         hasSession: Boolean(data.session),
         error,
       });
 
-      const sessionResponse = await supabase.auth.getSession();
-      console.log("[Supabase Auth] session response", {
-        userId: sessionResponse.data.session?.user.id,
-        userEmail: sessionResponse.data.session?.user.email,
-        hasSession: Boolean(sessionResponse.data.session),
-        error: sessionResponse.error,
-      });
-
       if (error) {
-        logAuthError("registration OTP error", error);
+        logAuthError(`${authAction} OTP error`, error);
         setErrorMessage(getAuthErrorMessage(error));
         return;
       }
 
       if (data.session) {
-        redirectToChat(router, "registration OTP returned a session");
+        redirectToChat(router, `${authAction} OTP returned a session`);
         return;
       }
 
-      if (sessionResponse.data.session) {
-        redirectToChat(router, "session exists after signup");
-        return;
-      }
-
-      if (sessionResponse.error) {
-        logAuthError("session error after signup", sessionResponse.error);
-        setErrorMessage(getAuthErrorMessage(sessionResponse.error));
-        return;
-      }
-
-      setSuccessMessage(
-        "Kode OTP telah dikirim ke email.",
+      setSuccessMessage("Kode OTP telah dikirim ke email.");
+      redirectToOtpVerification(
+        router,
+        normalizedEmail,
+        `${authAction} OTP sent`,
       );
-      redirectToOtpVerification(router, email);
     } finally {
       setIsLoading(false);
     }
@@ -239,25 +177,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
         />
       </div>
 
-      {isLogin && (
-        <div>
-          <label htmlFor="password" className="text-sm font-bold text-[#18392e]">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Minimal 6 karakter"
-            autoComplete="current-password"
-            minLength={6}
-            required
-            className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-[#18392e] outline-none ring-1 ring-[#d3e8dc] transition focus:ring-2 focus:ring-[#95d6b9]"
-          />
-        </div>
-      )}
-
       {errorMessage && (
         <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-red-100">
           {errorMessage}
@@ -275,13 +194,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         disabled={isLoading}
         className="h-[52px] w-full rounded-full bg-[#009252] px-6 font-bold text-white shadow-lg shadow-emerald-900/10 transition hover:bg-[#087447] disabled:cursor-not-allowed disabled:bg-[#95d6b9]"
       >
-        {isLoading
-          ? isLogin
-            ? "Masuk..."
-            : "Mengirim OTP..."
-          : isLogin
-            ? "Masuk"
-            : "Kirim OTP"}
+        {isLoading ? "Mengirim OTP..." : "Kirim OTP"}
       </button>
 
       <p className="text-center text-sm text-[#4f665c]">

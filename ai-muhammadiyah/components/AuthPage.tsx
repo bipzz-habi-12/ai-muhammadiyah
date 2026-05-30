@@ -44,7 +44,7 @@ export default function AuthPage({ mode, initialEmail = "" }: AuthPageProps) {
               {isOtp
                 ? "Verifikasi OTP"
                 : isLogin
-                  ? "Masuk ke AI-mu"
+                  ? "Masuk dengan OTP"
                   : "Daftar akun AI-mu"}
             </h1>
           </div>
@@ -54,8 +54,8 @@ export default function AuthPage({ mode, initialEmail = "" }: AuthPageProps) {
           {isOtp
             ? "Masukkan kode 6 digit dari email."
             : isLogin
-              ? "Lanjutkan obrolan, upload dokumen, pilih model, dan gunakan memori AI-mu dengan aman."
-              : "Buat akun agar sesi chat AI-mu tetap tersimpan di perangkat ini."}
+              ? "Masukkan email terdaftar untuk menerima kode masuk."
+              : "Masukkan email aktif untuk menerima kode pendaftaran."}
         </p>
 
         {isOtp ? <OtpForm initialEmail={initialEmail} /> : <AuthForm mode={mode} />}
