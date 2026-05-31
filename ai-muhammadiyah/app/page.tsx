@@ -2,6 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  emptyUserMemory,
+  loadUserMemory,
+  sanitizeUserMemory,
+  updateUserMemory,
+  type UserMemory,
+} from "@/lib/memory/user-memory";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   normalizeUsageSnapshot,
@@ -376,6 +383,15 @@ function Icon({
     );
   }
 
+  if (name === "user") {
+    return (
+      <svg {...common}>
+        <path d="M20 21a8 8 0 0 0-16 0" />
+        <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
+      </svg>
+    );
+  }
+
   if (name === "check") {
     return (
       <svg {...common}>
@@ -419,6 +435,7 @@ export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState("");
   const [input, setInput] = useState("");
+  const [userId, setUserId] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
@@ -437,6 +454,14 @@ export default function Home() {
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
   const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
   const [usageError, setUsageError] = useState("");
+  const [learningProfile, setLearningProfile] =
+    useState<UserMemory>(emptyUserMemory);
+  const [profileDraft, setProfileDraft] = useState<UserMemory>(emptyUserMemory);
+  const [favoriteSubjectsDraft, setFavoriteSubjectsDraft] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileSavedMessage, setProfileSavedMessage] = useState("");
   const documentTextRef = useRef("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const userInitials = getEmailInitials(userEmail);
@@ -455,6 +480,18 @@ export default function Home() {
     !usageSnapshot || usageSnapshot.remainingMessagesToday > 0;
   const hasUploadQuota =
     !usageSnapshot || usageSnapshot.remainingUploadsToday > 0;
+  const profileLabel =
+    learningProfile.displayName ||
+    learningProfile.schoolLevel ||
+    "Lengkapi profil";
+  const profileDetail =
+    [
+      learningProfile.schoolLevel,
+      learningProfile.preferredLanguage,
+      learningProfile.favoriteSubjects.slice(0, 2).join(", "),
+    ]
+      .filter(Boolean)
+      .join(" / ") || "Preferensi belajar tersimpan";
 
   const loadConversations = useCallback(async () => {
     setHistoryError("");
@@ -499,6 +536,22 @@ export default function Home() {
     }
   }, []);
 
+  const loadLearningProfile = useCallback(
+    async (currentUserId: string) => {
+      try {
+        setProfileError("");
+        const memory = await loadUserMemory(supabase, currentUserId);
+        setLearningProfile(memory);
+        setProfileDraft(memory);
+        setFavoriteSubjectsDraft(memory.favoriteSubjects.join(", "));
+      } catch (error) {
+        console.error(error);
+        setProfileError("Learning Profile belum bisa dimuat.");
+      }
+    },
+    [supabase],
+  );
+
   useEffect(() => {
     async function loadUser() {
       const {
@@ -510,12 +563,17 @@ export default function Home() {
         return;
       }
 
+      setUserId(user.id);
       setUserEmail(user.email ?? "");
-      await Promise.all([loadConversations(), loadUsage()]);
+      await Promise.all([
+        loadConversations(),
+        loadUsage(),
+        loadLearningProfile(user.id),
+      ]);
     }
 
     loadUser();
-  }, [loadConversations, loadUsage, router, supabase]);
+  }, [loadConversations, loadLearningProfile, loadUsage, router, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -671,6 +729,55 @@ export default function Home() {
     await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();
+  }
+
+  function openLearningProfile() {
+    setProfileDraft(learningProfile);
+    setFavoriteSubjectsDraft(learningProfile.favoriteSubjects.join(", "));
+    setProfileError("");
+    setProfileSavedMessage("");
+    setIsProfileOpen(true);
+  }
+
+  function updateProfileDraft<K extends keyof UserMemory>(
+    key: K,
+    value: UserMemory[K],
+  ) {
+    setProfileDraft((currentDraft) => ({
+      ...currentDraft,
+      [key]: value,
+    }));
+  }
+
+  async function saveLearningProfile() {
+    if (!userId || isSavingProfile) return;
+
+    setIsSavingProfile(true);
+    setProfileError("");
+    setProfileSavedMessage("");
+
+    try {
+      const savedMemory = await updateUserMemory(
+        supabase,
+        userId,
+        learningProfile,
+        sanitizeUserMemory({
+          ...profileDraft,
+          favoriteSubjects: favoriteSubjectsDraft,
+        }),
+      );
+
+      setLearningProfile(savedMemory);
+      setProfileDraft(savedMemory);
+      setFavoriteSubjectsDraft(savedMemory.favoriteSubjects.join(", "));
+      setProfileSavedMessage("Learning Profile tersimpan.");
+      setIsProfileOpen(false);
+    } catch (error) {
+      console.error(error);
+      setProfileError("Learning Profile belum bisa disimpan.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1154,6 +1261,24 @@ export default function Home() {
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={openLearningProfile}
+            className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left text-sm ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-[#008d54]">
+              <Icon name="user" className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-[#008d54]">
+                Learning Profile
+              </span>
+              <span className="block truncate text-xs text-[#4f665c]">
+                {profileLabel}
+              </span>
+            </span>
+          </button>
+
           {uploadedFileName && (
             <div className="mb-4 rounded-2xl bg-white p-3 text-sm text-[#4f665c] ring-1 ring-[#d8eadf]">
               <p className="font-semibold text-[#008d54]">
@@ -1250,6 +1375,15 @@ export default function Home() {
             </div>
             <button
               type="button"
+              onClick={openLearningProfile}
+              aria-label="Learning Profile"
+              title="Learning Profile"
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#566d62] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+            >
+              <Icon name="user" className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
               className="hidden rounded-full bg-white px-5 py-3 font-bold text-[#06140d] shadow-[0_2px_9px_rgba(15,55,35,0.14)] ring-1 ring-[#d8eadf] transition hover:-translate-y-0.5 sm:block"
             >
               Bagikan
@@ -1269,6 +1403,22 @@ export default function Home() {
                 : "Memuat kuota"}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={openLearningProfile}
+            className="mb-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left text-sm ring-1 ring-[#d8eadf]"
+          >
+            <span className="min-w-0">
+              <span className="block font-bold text-[#18392e]">
+                Learning Profile
+              </span>
+              <span className="block truncate text-[#4f665c]">
+                {profileDetail}
+              </span>
+            </span>
+            <Icon name="user" className="h-5 w-5 shrink-0 text-[#008d54]" />
+          </button>
 
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             <button
@@ -1559,6 +1709,174 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {isProfileOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">
+          <div className="max-h-[92dvh] w-full overflow-y-auto rounded-[28px] bg-[#fbfdfb] p-5 shadow-2xl ring-1 ring-[#d8eadf] sm:max-w-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-[#05150d]">
+                  Learning Profile
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(false)}
+                aria-label="Tutup Learning Profile"
+                title="Tutup"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
+              >
+                <span aria-hidden="true" className="text-2xl leading-none">
+                  x
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-bold text-[#18392e]">
+                  Nama panggilan
+                </span>
+                <input
+                  value={profileDraft.displayName}
+                  onChange={(event) =>
+                    updateProfileDraft("displayName", event.target.value)
+                  }
+                  className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                  placeholder="Aisyah"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-[#18392e]">
+                  Jenjang sekolah
+                </span>
+                <input
+                  value={profileDraft.schoolLevel}
+                  onChange={(event) =>
+                    updateProfileDraft("schoolLevel", event.target.value)
+                  }
+                  className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                  placeholder="Kelas 9 SMP"
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-bold text-[#18392e]">
+                  Tujuan belajar
+                </span>
+                <textarea
+                  value={profileDraft.learningGoals}
+                  onChange={(event) =>
+                    updateProfileDraft("learningGoals", event.target.value)
+                  }
+                  className="mt-2 min-h-24 w-full resize-none rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                  placeholder="Ingin lebih paham matematika dan latihan menjawab soal."
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-bold text-[#18392e]">
+                  Mata pelajaran favorit
+                </span>
+                <input
+                  value={favoriteSubjectsDraft}
+                  onChange={(event) =>
+                    setFavoriteSubjectsDraft(event.target.value)
+                  }
+                  className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                  placeholder="Matematika, Al-Islam, Bahasa Indonesia"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-[#18392e]">
+                  Bahasa pilihan
+                </span>
+                <select
+                  value={profileDraft.preferredLanguage}
+                  onChange={(event) =>
+                    updateProfileDraft("preferredLanguage", event.target.value)
+                  }
+                  className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                >
+                  <option value="">Ikuti bahasa pertanyaan</option>
+                  <option value="Bahasa Indonesia sederhana">
+                    Bahasa Indonesia sederhana
+                  </option>
+                  <option value="Bahasa Indonesia formal">
+                    Bahasa Indonesia formal
+                  </option>
+                  <option value="English">English</option>
+                  <option value="Campuran Indonesia dan Arab ringan">
+                    Indonesia dan Arab ringan
+                  </option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-[#18392e]">
+                  Gaya penjelasan
+                </span>
+                <select
+                  value={profileDraft.preferredExplanationStyle}
+                  onChange={(event) =>
+                    updateProfileDraft(
+                      "preferredExplanationStyle",
+                      event.target.value,
+                    )
+                  }
+                  className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                >
+                  <option value="">Default</option>
+                  <option value="Singkat, langsung ke inti, lalu contoh.">
+                    Singkat + contoh
+                  </option>
+                  <option value="Pelan-pelan dengan langkah berurutan.">
+                    Langkah berurutan
+                  </option>
+                  <option value="Gunakan analogi sederhana dan latihan kecil.">
+                    Analogi + latihan
+                  </option>
+                  <option value="Lebih mendalam, cocok untuk diskusi kajian.">
+                    Mendalam
+                  </option>
+                </select>
+              </label>
+            </div>
+
+            {(profileError || profileSavedMessage) && (
+              <p
+                className={
+                  profileError
+                    ? "mt-4 rounded-2xl bg-[#fff1ed] p-3 text-sm font-semibold text-[#8a3b2b]"
+                    : "mt-4 rounded-2xl bg-[#eef8f1] p-3 text-sm font-semibold text-[#008d54]"
+                }
+              >
+                {profileError || profileSavedMessage}
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(false)}
+                className="h-12 rounded-full bg-white px-6 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={saveLearningProfile}
+                disabled={isSavingProfile}
+                className="h-12 rounded-full bg-[#009252] px-6 text-sm font-bold text-white transition hover:bg-[#007c46] disabled:cursor-not-allowed disabled:bg-[#95d6b9]"
+              >
+                {isSavingProfile ? "Menyimpan..." : "Simpan profil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -1,3 +1,8 @@
+import {
+  createUserMemorySystemPrompt,
+  type UserMemory,
+} from "@/lib/memory/user-memory";
+
 export type ChatMessage = {
   role: "user" | "ai";
   text: string;
@@ -364,9 +369,14 @@ function createMockReply(messages: ChatMessage[], pdfContext = "") {
   return `Assalamualaikum. Ini respon contoh untuk: "${latestMessage}". Nanti bagian ini bisa diganti dengan GPT atau Gemini saat API key sudah tersedia.`;
 }
 
-function createOpenRouterMessages(messages: ChatMessage[], pdfContext: string) {
+function createOpenRouterMessages(
+  messages: ChatMessage[],
+  pdfContext: string,
+  memory?: UserMemory,
+) {
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
+  const memorySystemPrompt = memory ? createUserMemorySystemPrompt(memory) : "";
   const latestUserIndex = recentMessages.findLastIndex(
     (message) => message.role === "user",
   );
@@ -374,6 +384,9 @@ function createOpenRouterMessages(messages: ChatMessage[], pdfContext: string) {
   return [
     { role: "system", content: islamicAiIdentitySystemPrompt },
     { role: "system", content: contextPrioritySystemPrompt },
+    ...(memorySystemPrompt
+      ? [{ role: "system", content: memorySystemPrompt }]
+      : []),
     ...recentMessages.map((message, index) => {
       const role = message.role === "ai" ? "assistant" : "user";
       const shouldAttachPdfContext =
@@ -430,8 +443,13 @@ async function generateOpenRouterReply(
   messages: ChatMessage[],
   pdfContext = "",
   route: AiRoute,
+  memory?: UserMemory,
 ) {
-  const messagesForOpenRouter = createOpenRouterMessages(messages, pdfContext);
+  const messagesForOpenRouter = createOpenRouterMessages(
+    messages,
+    pdfContext,
+    memory,
+  );
   const openRouterModel = resolveOpenRouterModel(route);
 
   try {
@@ -540,8 +558,13 @@ async function streamOpenRouterReply(
   pdfContext = "",
   route: AiRoute,
   onChunk: StreamChunkHandler,
+  memory?: UserMemory,
 ) {
-  const messagesForOpenRouter = createOpenRouterMessages(messages, pdfContext);
+  const messagesForOpenRouter = createOpenRouterMessages(
+    messages,
+    pdfContext,
+    memory,
+  );
   const openRouterModel = resolveOpenRouterModel(route);
   let streamedText = "";
 
@@ -643,6 +666,7 @@ async function generateOpenAiGptReply() {
 async function generateGeminiReply(
   messages: ChatMessage[],
   pdfContext = "",
+  memory?: UserMemory,
 ): Promise<string | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = resolveGeminiModel();
@@ -668,6 +692,7 @@ async function generateGeminiReply(
                 text: [
                   islamicAiIdentitySystemPrompt,
                   contextPrioritySystemPrompt,
+                  memory ? createUserMemorySystemPrompt(memory) : "",
                 ].join("\n\n"),
               },
             ],
@@ -724,6 +749,7 @@ async function streamGeminiReply(
   messages: ChatMessage[],
   pdfContext = "",
   onChunk: StreamChunkHandler,
+  memory?: UserMemory,
 ): Promise<string | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = resolveGeminiModel();
@@ -750,6 +776,7 @@ async function streamGeminiReply(
                 text: [
                   islamicAiIdentitySystemPrompt,
                   contextPrioritySystemPrompt,
+                  memory ? createUserMemorySystemPrompt(memory) : "",
                 ].join("\n\n"),
               },
             ],
@@ -817,6 +844,7 @@ async function generateProviderReply(
   route: AiRoute,
   messages: ChatMessage[],
   pdfContext: string,
+  memory?: UserMemory,
 ): Promise<{ reply: string; provider: AiProvider }> {
   const routeConfig = aiRouteConfig[route];
 
@@ -829,7 +857,7 @@ async function generateProviderReply(
   }
 
   if (routeConfig.futureProvider === "gemini") {
-    const geminiReply = await generateGeminiReply(messages, pdfContext);
+    const geminiReply = await generateGeminiReply(messages, pdfContext, memory);
 
     if (geminiReply) {
       console.info("AI Muhammadiyah provider handled request:", {
@@ -865,7 +893,12 @@ async function generateProviderReply(
     };
   }
 
-  const reply = await generateOpenRouterReply(messages, pdfContext, route);
+  const reply = await generateOpenRouterReply(
+    messages,
+    pdfContext,
+    route,
+    memory,
+  );
 
   console.info("AI Muhammadiyah provider handled request:", {
     route,
@@ -883,6 +916,7 @@ export async function generateChatReply(
   messages: ChatMessage[],
   pdfContext = "",
   selectedModel?: string,
+  memory?: UserMemory,
 ): Promise<GenerateChatReplyResult> {
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
@@ -914,6 +948,7 @@ export async function generateChatReply(
     route,
     recentMessages,
     preparedPdfContext,
+    memory,
   );
 
   return result;
@@ -932,6 +967,7 @@ export async function streamChatReply(
   pdfContext = "",
   selectedModel: string | undefined,
   onChunk: StreamChunkHandler,
+  memory?: UserMemory,
 ) {
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
@@ -967,6 +1003,7 @@ export async function streamChatReply(
       recentMessages,
       preparedPdfContext,
       onChunk,
+      memory,
     );
 
     if (geminiReply) {
@@ -1004,6 +1041,7 @@ export async function streamChatReply(
     preparedPdfContext,
     route,
     onChunk,
+    memory,
   );
 
   if (!openRouterReply) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
+import { loadUserMemory } from "@/lib/memory/user-memory";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { estimateTokenUsage, getLimitErrorMessage } from "@/lib/usage/limits";
 
@@ -118,6 +119,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const userMemory = await loadUserMemory(supabase, user.id).catch((error) => {
+      console.error("User memory load failed:", error);
+      return null;
+    });
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -132,6 +138,7 @@ export async function POST(request: Request) {
               streamedReply += chunk;
               controller.enqueue(encoder.encode(chunk));
             },
+            userMemory ?? undefined,
           );
 
           const finalReply = chatResult.reply || streamedReply;
@@ -149,6 +156,7 @@ export async function POST(request: Request) {
               p_estimated_tokens: estimatedTotalTokens,
               p_metadata: {
                 has_document_context: Boolean(pdfContext.trim()),
+                has_user_memory: Boolean(userMemory),
                 streamed_reply_length: finalReply.length,
               },
               p_user_id: user.id,
