@@ -2,6 +2,7 @@ import {
   createUserMemorySystemPrompt,
   type UserMemory,
 } from "@/lib/memory/user-memory";
+import type { SubscriptionTier } from "@/lib/usage/limits";
 
 export type ChatMessage = {
   role: "user" | "ai";
@@ -17,6 +18,10 @@ type StreamChunkHandler = (chunk: string) => void | Promise<void>;
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 type AiRoute = Exclude<SelectedModel, "auto">;
 type AiProvider = "mock" | "openrouter" | "openai" | "gemini";
+type RoutingAccess = {
+  tier?: SubscriptionTier;
+  allowedModels?: string[];
+};
 
 export const islamicAiIdentitySystemPrompt = [
   "You are AI Muhammadiyah, a modern Islamic education assistant for Muhammadiyah learning communities.",
@@ -46,6 +51,48 @@ const openRouterFallbackModelMap: Record<AiRoute, string> = {
   fast: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   smart: "moonshotai/kimi-k2.6:free",
   document: "qwen/qwen3-coder:free",
+};
+
+const premiumOpenRouterModelMap: Partial<
+  Record<SubscriptionTier, Partial<Record<AiRoute, string>>>
+> = {
+  kader_pintar: {
+    fast:
+      process.env.OPENROUTER_GEMINI_FLASH_MODEL ??
+      "google/gemini-2.5-flash",
+    smart:
+      process.env.OPENROUTER_GPT_MINI_MODEL ?? "openai/gpt-4o-mini",
+  },
+  muallim_pro: {
+    smart:
+      process.env.OPENROUTER_GPT_PREMIUM_MODEL ?? "openai/gpt-4.1",
+    document:
+      process.env.OPENROUTER_GEMINI_PRO_MODEL ??
+      "google/gemini-2.5-pro",
+  },
+  dakwah_digital: {
+    smart:
+      process.env.OPENROUTER_GPT_VOICE_READY_MODEL ??
+      process.env.OPENROUTER_GPT_PREMIUM_MODEL ??
+      "openai/gpt-4.1",
+    document:
+      process.env.OPENROUTER_GEMINI_PRO_MODEL ??
+      "google/gemini-2.5-pro",
+  },
+  sinergi_ranting: {
+    fast:
+      process.env.OPENROUTER_TEAM_FAST_MODEL ??
+      process.env.OPENROUTER_GEMINI_FLASH_MODEL ??
+      "google/gemini-2.5-flash",
+    smart:
+      process.env.OPENROUTER_TEAM_GPT_MODEL ??
+      process.env.OPENROUTER_GPT_PREMIUM_MODEL ??
+      "openai/gpt-4.1",
+    document:
+      process.env.OPENROUTER_TEAM_DOCUMENT_MODEL ??
+      process.env.OPENROUTER_GEMINI_PRO_MODEL ??
+      "google/gemini-2.5-pro",
+  },
 };
 
 const aiRouteConfig: Record<
@@ -90,8 +137,12 @@ function normalizeSelectedModel(selectedModel?: string): SelectedModel {
   return "auto";
 }
 
-function resolveOpenRouterModel(route: AiRoute) {
-  return aiRouteConfig[route]?.fallbackOpenRouterModel ?? openRouterDefaultModel;
+function resolveOpenRouterModel(route: AiRoute, tier: SubscriptionTier = "free") {
+  return (
+    premiumOpenRouterModelMap[tier]?.[route] ??
+    aiRouteConfig[route]?.fallbackOpenRouterModel ??
+    openRouterDefaultModel
+  );
 }
 
 function resolveGeminiModel() {
@@ -102,20 +153,31 @@ function routeSelectedModel(
   selectedModel: SelectedModel,
   latestMessage: string,
   pdfContext: string,
+  allowedModels: string[] = ["auto", "fast"],
 ): AiRoute {
   if (selectedModel !== "auto") {
     return selectedModel;
   }
 
   if (pdfContext && isDocumentQuestion(latestMessage)) {
-    return "document";
+    return allowedModels.includes("document") ? "document" : "fast";
   }
 
   if (isReasoningQuestion(latestMessage)) {
-    return "smart";
+    return allowedModels.includes("smart") ? "smart" : "fast";
   }
 
   return "fast";
+}
+
+function normalizeRoutingAccess(access?: RoutingAccess) {
+  return {
+    tier: access?.tier ?? "free",
+    allowedModels:
+      access?.allowedModels && access.allowedModels.length
+        ? access.allowedModels
+        : ["auto", "fast"],
+  };
 }
 
 function getLatestUserMessage(messages: ChatMessage[]) {
@@ -443,6 +505,7 @@ async function generateOpenRouterReply(
   messages: ChatMessage[],
   pdfContext = "",
   route: AiRoute,
+  tier: SubscriptionTier,
   memory?: UserMemory,
 ) {
   const messagesForOpenRouter = createOpenRouterMessages(
@@ -450,7 +513,7 @@ async function generateOpenRouterReply(
     pdfContext,
     memory,
   );
-  const openRouterModel = resolveOpenRouterModel(route);
+  const openRouterModel = resolveOpenRouterModel(route, tier);
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -558,6 +621,7 @@ async function streamOpenRouterReply(
   pdfContext = "",
   route: AiRoute,
   onChunk: StreamChunkHandler,
+  tier: SubscriptionTier,
   memory?: UserMemory,
 ) {
   const messagesForOpenRouter = createOpenRouterMessages(
@@ -565,7 +629,7 @@ async function streamOpenRouterReply(
     pdfContext,
     memory,
   );
-  const openRouterModel = resolveOpenRouterModel(route);
+  const openRouterModel = resolveOpenRouterModel(route, tier);
   let streamedText = "";
 
   try {
@@ -844,6 +908,7 @@ async function generateProviderReply(
   route: AiRoute,
   messages: ChatMessage[],
   pdfContext: string,
+  access: ReturnType<typeof normalizeRoutingAccess>,
   memory?: UserMemory,
 ): Promise<{ reply: string; provider: AiProvider }> {
   const routeConfig = aiRouteConfig[route];
@@ -864,6 +929,7 @@ async function generateProviderReply(
         route,
         provider: "gemini",
         model: resolveGeminiModel(),
+        tier: access.tier,
       });
 
       return { reply: geminiReply, provider: "gemini" };
@@ -871,7 +937,8 @@ async function generateProviderReply(
 
     console.info("AI Muhammadiyah falling back from Gemini to OpenRouter:", {
       route,
-      openRouterModel: resolveOpenRouterModel(route),
+      openRouterModel: resolveOpenRouterModel(route, access.tier),
+      tier: access.tier,
     });
   }
 
@@ -897,13 +964,15 @@ async function generateProviderReply(
     messages,
     pdfContext,
     route,
+    access.tier,
     memory,
   );
 
   console.info("AI Muhammadiyah provider handled request:", {
     route,
     provider: "openrouter",
-    model: resolveOpenRouterModel(route),
+    model: resolveOpenRouterModel(route, access.tier),
+    tier: access.tier,
   });
 
   return {
@@ -916,8 +985,10 @@ export async function generateChatReply(
   messages: ChatMessage[],
   pdfContext = "",
   selectedModel?: string,
+  routingAccess?: RoutingAccess,
   memory?: UserMemory,
 ): Promise<GenerateChatReplyResult> {
+  const access = normalizeRoutingAccess(routingAccess);
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
   const latestMessage = getLatestUserMessage(recentMessages);
@@ -926,6 +997,7 @@ export async function generateChatReply(
     normalizedModel,
     latestMessage,
     preparedPdfContext,
+    access.allowedModels,
   );
   const shouldUsePdfContext =
     Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
@@ -948,6 +1020,7 @@ export async function generateChatReply(
     route,
     recentMessages,
     preparedPdfContext,
+    access,
     memory,
   );
 
@@ -967,8 +1040,10 @@ export async function streamChatReply(
   pdfContext = "",
   selectedModel: string | undefined,
   onChunk: StreamChunkHandler,
+  routingAccess?: RoutingAccess,
   memory?: UserMemory,
 ) {
+  const access = normalizeRoutingAccess(routingAccess);
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
   const latestMessage = getLatestUserMessage(recentMessages);
@@ -977,6 +1052,7 @@ export async function streamChatReply(
     normalizedModel,
     latestMessage,
     preparedPdfContext,
+    access.allowedModels,
   );
   const shouldUsePdfContext =
     Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
@@ -1011,6 +1087,7 @@ export async function streamChatReply(
         route,
         provider: "gemini",
         model: resolveGeminiModel(),
+        tier: access.tier,
       });
 
       return { reply: geminiReply, provider: "gemini" as const };
@@ -1018,7 +1095,8 @@ export async function streamChatReply(
 
     console.info("AI Muhammadiyah streaming fallback from Gemini to OpenRouter:", {
       route,
-      openRouterModel: resolveOpenRouterModel(route),
+      openRouterModel: resolveOpenRouterModel(route, access.tier),
+      tier: access.tier,
     });
   }
 
@@ -1041,6 +1119,7 @@ export async function streamChatReply(
     preparedPdfContext,
     route,
     onChunk,
+    access.tier,
     memory,
   );
 
@@ -1053,7 +1132,8 @@ export async function streamChatReply(
   console.info("AI Muhammadiyah provider streamed request:", {
     route,
     provider: "openrouter",
-    model: resolveOpenRouterModel(route),
+    model: resolveOpenRouterModel(route, access.tier),
+    tier: access.tier,
   });
 
   return {

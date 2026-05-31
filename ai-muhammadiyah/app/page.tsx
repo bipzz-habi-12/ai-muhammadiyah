@@ -11,6 +11,12 @@ import {
 } from "@/lib/memory/user-memory";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
+  getUpgradePlanForModel,
+  modelCatalog,
+  subscriptionPlans,
+  type PlanModelId,
+} from "@/lib/subscriptions/plans";
+import {
   normalizeUsageSnapshot,
   tierLabels,
   type UsageSnapshot,
@@ -28,7 +34,7 @@ type Message = {
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
 type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Excel" | "Dokumen";
 
-type SelectedModel = "auto" | "fast" | "smart" | "document";
+type SelectedModel = PlanModelId;
 
 type DocumentMetadata = {
   fileName: string;
@@ -73,12 +79,7 @@ const welcomeMessage: Message = {
   text: "Assalamualaikum! Saya AI Muhammadiyah.",
 };
 
-const modelOptions: { value: SelectedModel; label: string }[] = [
-  { value: "auto", label: "Auto / Free Model" },
-  { value: "fast", label: "Fast Model" },
-  { value: "smart", label: "Smart Model" },
-  { value: "document", label: "Document Model" },
-];
+const modelOptions: SelectedModel[] = ["auto", "fast", "smart", "document"];
 
 const supportedDocumentAccept =
   "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx";
@@ -421,6 +422,15 @@ function Icon({
     );
   }
 
+  if (name === "lock") {
+    return (
+      <svg {...common}>
+        <path d="M7 11V8a5 5 0 0 1 10 0v3" />
+        <path d="M6 11h12v10H6z" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />
@@ -452,6 +462,10 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [upgradeTargetModel, setUpgradeTargetModel] =
+    useState<SelectedModel>("smart");
   const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
   const [usageError, setUsageError] = useState("");
   const [learningProfile, setLearningProfile] =
@@ -476,6 +490,8 @@ export default function Home() {
     ? tierLabels[usageSnapshot.tier]
     : "Memuat";
   const allowedModels = usageSnapshot?.allowedModels ?? ["auto", "fast"];
+  const selectedModelInfo = modelCatalog[selectedModel];
+  const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
   const hasMessageQuota =
     !usageSnapshot || usageSnapshot.remainingMessagesToday > 0;
   const hasUploadQuota =
@@ -609,12 +625,30 @@ export default function Home() {
     setRenameValue("");
   }
 
+  function openUpgradeModal(model: SelectedModel = "smart") {
+    setUpgradeTargetModel(model);
+    setIsUpgradeOpen(true);
+    setIsModelMenuOpen(false);
+  }
+
+  function selectModel(model: SelectedModel) {
+    if (!allowedModels.includes(model)) {
+      openUpgradeModal(model);
+      return;
+    }
+
+    setSelectedModel(model);
+    setIsModelMenuOpen(false);
+  }
+
   async function loadConversation(conversation: Conversation) {
     if (isSending) return;
 
     setHistoryError("");
     setActiveConversationId(conversation.id);
-    setSelectedModel(conversation.model);
+    setSelectedModel(
+      allowedModels.includes(conversation.model) ? conversation.model : "auto",
+    );
 
     const { data, error } = await supabase
       .from("messages")
@@ -1259,6 +1293,22 @@ export default function Home() {
                 {usageError}
               </p>
             )}
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => router.push("/plans")}
+                className="flex-1 rounded-full bg-[#009252] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#007c46]"
+              >
+                Lihat paket
+              </button>
+              <button
+                type="button"
+                onClick={() => openUpgradeModal("smart")}
+                className="flex-1 rounded-full bg-[#eef8f1] px-3 py-2 text-xs font-bold text-[#008d54] ring-1 ring-[#d8eadf] transition hover:bg-white"
+              >
+                Upgrade
+              </button>
+            </div>
           </div>
 
           <button
@@ -1340,39 +1390,82 @@ export default function Home() {
             <div className="grid h-11 w-11 place-items-center rounded-full bg-[#009252] text-white md:hidden">
               <SparkIcon className="h-7 w-7" />
             </div>
-            <div className="min-w-0 text-lg font-bold sm:text-xl">
+            <div className="relative min-w-0 text-lg font-bold sm:text-xl">
               <span>AI-mu</span>
               <span className="mx-2 text-[#4f665c]">·</span>
-              <select
-                value={selectedModel}
-                onChange={(event) =>
-                  setSelectedModel(event.target.value as SelectedModel)
-                }
+              <button
+                type="button"
+                onClick={() => setIsModelMenuOpen((isOpen) => !isOpen)}
                 aria-label="Pilih model AI"
-                className="max-w-[190px] rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-[#eef8f1] focus:ring-[#95d6b9] sm:max-w-none sm:text-base"
+                aria-expanded={isModelMenuOpen}
+                className="inline-flex max-w-[190px] items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-[#eef8f1] focus:ring-[#95d6b9] sm:max-w-none sm:text-base"
               >
-                {modelOptions.map((model) => (
-                  <option
-                    key={model.value}
-                    value={model.value}
-                    disabled={!allowedModels.includes(model.value)}
-                  >
-                    {model.label}
-                  </option>
-                ))}
-              </select>
+                <span className="truncate">{selectedModelInfo.label}</span>
+                <span className="text-xs text-[#6b8178]">⌄</span>
+              </button>
+
+              {isModelMenuOpen && (
+                <div className="absolute left-16 top-11 z-30 w-[min(86vw,360px)] overflow-hidden rounded-[24px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf] sm:left-20">
+                  {modelOptions.map((model) => {
+                    const modelInfo = modelCatalog[model];
+                    const isAllowed = allowedModels.includes(model);
+                    const minimumPlan = getUpgradePlanForModel(model);
+
+                    return (
+                      <button
+                        key={model}
+                        type="button"
+                        onClick={() => selectModel(model)}
+                        className={
+                          selectedModel === model
+                            ? "flex w-full items-start gap-3 rounded-[18px] bg-[#eef8f1] p-3 text-left"
+                            : "flex w-full items-start gap-3 rounded-[18px] p-3 text-left transition hover:bg-[#f7fbf8]"
+                        }
+                      >
+                        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-[#008d54]">
+                          <Icon
+                            name={isAllowed ? "check" : "lock"}
+                            className="h-4 w-4"
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2 font-bold text-[#18392e]">
+                            {modelInfo.label}
+                            {!isAllowed && (
+                              <span className="rounded-full bg-[#fff4d8] px-2 py-0.5 text-[11px] font-bold text-[#8a5a00]">
+                                Premium
+                              </span>
+                            )}
+                          </span>
+                          <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#4f665c]">
+                            {isAllowed
+                              ? modelInfo.description
+                              : `Mulai dari ${minimumPlan.name}`}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden text-right text-sm sm:block">
-              <p className="font-bold text-[#18392e]">{currentTierLabel}</p>
+            <button
+              type="button"
+              onClick={() => router.push("/plans")}
+              className="hidden text-right text-sm sm:block"
+            >
+              <p className="inline-flex rounded-full bg-[#eef8f1] px-3 py-1 font-bold text-[#008d54] ring-1 ring-[#d8eadf]">
+                {currentTierLabel}
+              </p>
               <p className="text-[#4f665c]">
                 {usageSnapshot
                   ? `${usageSnapshot.remainingMessagesToday} pesan tersisa`
                   : "Memuat kuota"}
               </p>
-            </div>
+            </button>
             <button
               type="button"
               onClick={openLearningProfile}
@@ -1395,14 +1488,20 @@ export default function Home() {
         </header>
 
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
-          <div className="mb-3 flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-[#d8eadf]">
-            <span className="font-bold text-[#18392e]">{currentTierLabel}</span>
+          <button
+            type="button"
+            onClick={() => router.push("/plans")}
+            className="mb-3 flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 text-left text-sm ring-1 ring-[#d8eadf]"
+          >
+            <span className="rounded-full bg-[#eef8f1] px-3 py-1 font-bold text-[#008d54]">
+              {currentTierLabel}
+            </span>
             <span className="font-semibold text-[#4f665c]">
               {usageSnapshot
                 ? `${usageSnapshot.remainingMessagesToday} pesan tersisa`
                 : "Memuat kuota"}
             </span>
-          </div>
+          </button>
 
           <button
             type="button"
@@ -1709,6 +1808,98 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {isUpgradeOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">
+          <div className="max-h-[92dvh] w-full overflow-y-auto rounded-[28px] bg-[#fbfdfb] p-5 shadow-2xl ring-1 ring-[#d8eadf] sm:max-w-5xl sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#008d54]">
+                  Upgrade paket
+                </p>
+                <h2 className="mt-2 text-2xl font-bold text-[#05150d]">
+                  Buka {modelCatalog[upgradeTargetModel].label}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#4f665c]">
+                  Paket kamu saat ini: {currentTierLabel}. Upgrade mulai dari{" "}
+                  <strong className="text-[#18392e]">{upgradePlan.name}</strong>{" "}
+                  untuk memakai {modelCatalog[upgradeTargetModel].description}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUpgradeOpen(false)}
+                aria-label="Tutup upgrade"
+                title="Tutup"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
+              >
+                <span aria-hidden="true" className="text-2xl leading-none">
+                  x
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              {subscriptionPlans.map((plan) => {
+                const isCurrentPlan = usageSnapshot?.tier === plan.tier;
+                const unlocksTarget =
+                  plan.allowedModels.includes(upgradeTargetModel);
+
+                return (
+                  <article
+                    key={plan.tier}
+                    className={
+                      unlocksTarget
+                        ? "rounded-[24px] bg-white p-4 ring-2 ring-[#95d6b9]"
+                        : "rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]"
+                    }
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-bold text-[#18392e]">
+                          {plan.name}
+                        </h3>
+                        <p className="mt-1 text-2xl font-bold text-[#05150d]">
+                          {plan.price}
+                        </p>
+                        <p className="text-xs font-semibold text-[#4f665c]">
+                          per bulan
+                        </p>
+                      </div>
+                      {isCurrentPlan && (
+                        <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-[11px] font-bold text-[#008d54]">
+                          Aktif
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-[#4f665c]">
+                      {plan.tagline}
+                    </p>
+                    <div className="mt-4 space-y-2 text-xs font-semibold text-[#38534a]">
+                      <p>{plan.quotas[0]}</p>
+                      <p>{plan.quotas[1]}</p>
+                      <p>{plan.modelNames.join(", ")}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-4 h-10 w-full rounded-full bg-[#eef8f1] text-xs font-bold text-[#008d54] ring-1 ring-[#d8eadf] disabled:cursor-not-allowed disabled:opacity-80"
+                    >
+                      Coming Soon
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 rounded-[22px] bg-[#eef8f1] p-4 text-sm leading-relaxed text-[#38534a] ring-1 ring-[#d8eadf]">
+              Pembayaran otomatis belum diaktifkan. Untuk sekarang, upgrade
+              ditampilkan sebagai placeholder manual sambil rute premium dan
+              kuota subscription tetap siap dipakai dari data subscription.
+            </div>
+          </div>
+        </div>
+      )}
 
       {isProfileOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">

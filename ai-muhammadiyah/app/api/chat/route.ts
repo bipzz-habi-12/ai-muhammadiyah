@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
 import { loadUserMemory } from "@/lib/memory/user-memory";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
-import { estimateTokenUsage, getLimitErrorMessage } from "@/lib/usage/limits";
+import {
+  estimateTokenUsage,
+  getLimitErrorMessage,
+  normalizeUsageSnapshot,
+} from "@/lib/usage/limits";
 
 type ChatRequestBody = {
   history?: ChatMessage[];
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
     }
 
     const canUse = Boolean(limitCheck?.allowed);
+    const usageSnapshot = normalizeUsageSnapshot(limitCheck);
 
     if (!canUse) {
       return NextResponse.json(
@@ -138,6 +143,12 @@ export async function POST(request: Request) {
               streamedReply += chunk;
               controller.enqueue(encoder.encode(chunk));
             },
+            usageSnapshot
+              ? {
+                  tier: usageSnapshot.tier,
+                  allowedModels: usageSnapshot.allowedModels,
+                }
+              : undefined,
             userMemory ?? undefined,
           );
 
