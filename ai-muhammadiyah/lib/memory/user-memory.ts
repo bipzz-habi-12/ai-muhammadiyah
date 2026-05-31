@@ -7,6 +7,9 @@ export type UserMemory = {
   favoriteSubjects: string[];
   preferredLanguage: string;
   preferredExplanationStyle: string;
+  themePreference: "system" | "light" | "dark";
+  defaultModel: "auto" | "fast" | "smart" | "document";
+  defaultStudyMode: string;
 };
 
 export type UserMemoryInput = {
@@ -16,6 +19,9 @@ export type UserMemoryInput = {
   favoriteSubjects?: string[] | string;
   preferredLanguage?: string;
   preferredExplanationStyle?: string;
+  themePreference?: string;
+  defaultModel?: string;
+  defaultStudyMode?: string;
 };
 
 type UserMemoryRow = {
@@ -26,6 +32,9 @@ type UserMemoryRow = {
   favorite_subjects: string[] | null;
   preferred_language: string | null;
   preferred_explanation_style: string | null;
+  theme_preference: string | null;
+  default_model: string | null;
+  default_study_mode: string | null;
 };
 
 export const emptyUserMemory: UserMemory = {
@@ -35,6 +44,9 @@ export const emptyUserMemory: UserMemory = {
   favoriteSubjects: [],
   preferredLanguage: "",
   preferredExplanationStyle: "",
+  themePreference: "system",
+  defaultModel: "auto",
+  defaultStudyMode: "Kajian umum",
 };
 
 const memoryTextLimits = {
@@ -44,6 +56,7 @@ const memoryTextLimits = {
   favoriteSubject: 60,
   preferredLanguage: 60,
   preferredExplanationStyle: 220,
+  defaultStudyMode: 80,
 };
 
 const maxFavoriteSubjects = 8;
@@ -67,6 +80,27 @@ function normalizeFavoriteSubjects(subjects: string[] | string | undefined) {
   ).slice(0, maxFavoriteSubjects);
 }
 
+function normalizeThemePreference(value: string | undefined) {
+  if (value === "light" || value === "dark") {
+    return value;
+  }
+
+  return "system";
+}
+
+function normalizeDefaultModel(value: string | undefined) {
+  if (
+    value === "fast" ||
+    value === "smart" ||
+    value === "document" ||
+    value === "auto"
+  ) {
+    return value;
+  }
+
+  return "auto";
+}
+
 export function sanitizeUserMemory(input: UserMemoryInput): UserMemory {
   return {
     displayName: cleanText(input.displayName, memoryTextLimits.displayName),
@@ -81,6 +115,11 @@ export function sanitizeUserMemory(input: UserMemoryInput): UserMemory {
       input.preferredExplanationStyle,
       memoryTextLimits.preferredExplanationStyle,
     ),
+    themePreference: normalizeThemePreference(input.themePreference),
+    defaultModel: normalizeDefaultModel(input.defaultModel),
+    defaultStudyMode:
+      cleanText(input.defaultStudyMode, memoryTextLimits.defaultStudyMode) ||
+      "Kajian umum",
   };
 }
 
@@ -96,6 +135,9 @@ function mapMemoryRow(row: UserMemoryRow | null): UserMemory {
     favoriteSubjects: row.favorite_subjects ?? [],
     preferredLanguage: row.preferred_language ?? "",
     preferredExplanationStyle: row.preferred_explanation_style ?? "",
+    themePreference: row.theme_preference ?? "",
+    defaultModel: row.default_model ?? "",
+    defaultStudyMode: row.default_study_mode ?? "",
   });
 }
 
@@ -108,6 +150,9 @@ function createMemoryPayload(userId: string, memory: UserMemory) {
     favorite_subjects: memory.favoriteSubjects,
     preferred_language: memory.preferredLanguage || null,
     preferred_explanation_style: memory.preferredExplanationStyle || null,
+    theme_preference: memory.themePreference,
+    default_model: memory.defaultModel,
+    default_study_mode: memory.defaultStudyMode,
   };
 }
 
@@ -118,7 +163,7 @@ export async function loadUserMemory(
   const { data, error } = await supabase
     .from("user_memory")
     .select(
-      "user_id,display_name,school_level,learning_goals,favorite_subjects,preferred_language,preferred_explanation_style",
+      "user_id,display_name,school_level,learning_goals,favorite_subjects,preferred_language,preferred_explanation_style,theme_preference,default_model,default_study_mode",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -140,7 +185,7 @@ export async function saveUserMemory(
     .from("user_memory")
     .upsert(createMemoryPayload(userId, memory), { onConflict: "user_id" })
     .select(
-      "user_id,display_name,school_level,learning_goals,favorite_subjects,preferred_language,preferred_explanation_style",
+      "user_id,display_name,school_level,learning_goals,favorite_subjects,preferred_language,preferred_explanation_style,theme_preference,default_model,default_study_mode",
     )
     .single();
 
@@ -175,6 +220,7 @@ export function createUserMemorySystemPrompt(memory: UserMemory) {
       `Preferred language: ${safeMemory.preferredLanguage}`,
     safeMemory.preferredExplanationStyle &&
       `Preferred explanation style: ${safeMemory.preferredExplanationStyle}`,
+    safeMemory.defaultStudyMode && `Default study mode: ${safeMemory.defaultStudyMode}`,
   ].filter(Boolean);
 
   if (!lines.length) {
