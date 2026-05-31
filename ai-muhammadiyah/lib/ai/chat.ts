@@ -24,6 +24,26 @@ type StreamProviderResult = {
   finishReason?: string;
   needsContinuation?: boolean;
 };
+type OpenAiErrorDetails = {
+  status?: number;
+  errorBody?: string;
+  error?: unknown;
+};
+type OpenAiReplyResult = {
+  reply: string | null;
+  error?: OpenAiErrorDetails;
+};
+type OpenAiStreamResult = StreamProviderResult & {
+  error?: OpenAiErrorDetails;
+};
+type OpenAiResponsesPayload = {
+  model: string;
+  instructions: string;
+  input: ReturnType<typeof createOpenAiInput>;
+  max_output_tokens: number;
+  stream?: boolean;
+  temperature?: number;
+};
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 type AiRoute = Exclude<SelectedModel, "auto">;
 type AiProvider = "mock" | "openrouter" | "openai" | "gemini";
@@ -33,10 +53,15 @@ type RoutingAccess = {
 };
 
 export const islamicAiIdentitySystemPrompt = [
-  "You are AI Muhammadiyah, a modern Islamic education assistant for Muhammadiyah learning communities.",
-  "Speak politely, professionally, warmly, and naturally. Use Islamic greetings such as Assalamualaikum only when appropriate, without forcing them into every reply.",
+  "You are AI Muhammadiyah, a modern Islamic education AI platform for Muhammadiyah learning communities.",
+  "Present yourself as AI Muhammadiyah, not as GPT, OpenAI, Gemini, a generic chatbot, or an API wrapper.",
+  "Your core role is a premium learning assistant for Islamic education, Cambridge-style academic learning, OSN/STEM preparation, coding, study strategy, writing, and productive school support.",
+  "Speak politely, professionally, warmly, and naturally. Use Islamic greetings such as Assalamualaikum only when appropriate, usually once at the beginning of a fresh conversation.",
+  "Keep greetings concise, friendly, and polished. Do not repeat long introductions or identity paragraphs.",
   "Focus on education, akhlak, useful knowledge, helpfulness, motivation, productivity, and adab reminders.",
   "Support Islamic study help and school learning with a balanced Muhammadiyah educational tone: thoughtful, evidence-aware, practical, and respectful.",
+  "Avoid generic model disclaimers such as knowledge cutoff statements, 'as an AI language model', or 'I cannot access the internet' unless the user specifically asks about your limitations, live web access, or current events.",
+  "If current or live information is required and no browsing tool is available, answer from stable knowledge when safe and clearly suggest checking an official/current source without turning it into a boilerplate disclaimer.",
   "Avoid extreme, sectarian, unsafe, or unsupported religious claims. Do not present uncertain Islamic rulings as absolute.",
   "When a question depends on detailed fiqh, local fatwa, or a sensitive Islamic ruling and you are unsure, encourage the user to consult qualified scholars or trusted Muhammadiyah authorities.",
   "Keep answers concise unless the user asks for detailed explanations.",
@@ -52,9 +77,11 @@ const answerCompletionSystemPrompt = [
 
 const responseStyleSystemPrompt = [
   "RESPONSE STYLE:",
-  "- Use clean Markdown with helpful headings, spacing, and readable paragraphs.",
+  "- Use clean, modern Markdown with helpful headings, spacing, and readable paragraphs.",
   "- Use bullet points for lists and numbered steps for tutorials or procedures.",
   "- Use tables only when they make comparison or data easier to understand.",
+  "- Keep the tone premium, concise, confident, and friendly.",
+  "- Avoid repetitive self-disclaimer paragraphs and generic assistant caveats.",
   "- Use light emojis sparingly when they clarify the answer, not as decoration.",
   "- Avoid messy excessive bolding.",
   "- Use Indonesian by default unless the user asks for English or another language.",
@@ -77,6 +104,7 @@ const geminiFlashModel =
   "gemini-2.5-flash";
 const geminiProModel = process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro";
 const openAiDefaultModel = process.env.OPENAI_MODEL ?? "gpt-5-mini";
+const gptTestMode = process.env.GPT_TEST_MODE === "true";
 
 const openRouterFallbackModelMap: Record<AiRoute, string> = {
   fast: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -148,6 +176,41 @@ function hasGeminiProAccess(tier: SubscriptionTier) {
 
 function resolveOpenAiModel() {
   return openAiDefaultModel;
+}
+
+function isGpt5MiniModel(model: string) {
+  return model.toLowerCase() === "gpt-5-mini";
+}
+
+function createOpenAiResponsesPayload({
+  model,
+  messages,
+  pdfContext,
+  memory,
+  stream,
+}: {
+  model: string;
+  messages: ChatMessage[];
+  pdfContext: string;
+  memory?: UserMemory;
+  stream?: boolean;
+}): OpenAiResponsesPayload {
+  const payload: OpenAiResponsesPayload = {
+    model,
+    instructions: createOpenAiInstructions(memory),
+    input: createOpenAiInput(messages, pdfContext, memory),
+    max_output_tokens: openAiMaxOutputTokens,
+  };
+
+  if (stream) {
+    payload.stream = true;
+  }
+
+  if (!isGpt5MiniModel(model)) {
+    payload.temperature = 0.4;
+  }
+
+  return payload;
 }
 
 function resolveGeminiModel(route: AiRoute = "fast", tier: SubscriptionTier = "free") {
@@ -579,6 +642,62 @@ function logOpenAiError(
   });
 }
 
+function logOpenAiRequestEvent(
+  event: "request start" | "request success" | "request failure",
+  details: {
+    model: string;
+    route?: AiRoute;
+    status?: number;
+    errorBody?: string;
+    error?: unknown;
+  },
+) {
+  const payload = {
+    provider: "openai",
+    model: details.model,
+    route: details.route ?? null,
+    status: details.status ?? null,
+    errorBody: details.errorBody ?? null,
+    error: details.error,
+  };
+
+  if (event === "request failure") {
+    console.error(`OpenAI GPT ${event}:`, payload);
+    return;
+  }
+
+  console.info(`OpenAI GPT ${event}:`, payload);
+}
+
+function createOpenAiFailureReply(error?: OpenAiErrorDetails) {
+  const details = [
+    "OpenAI GPT-5 mini test mode failed.",
+    "",
+    `Status: ${error?.status ?? "unknown"}`,
+    "",
+    "OpenAI error body:",
+    error?.errorBody ?? formatUnknownError(error?.error),
+  ];
+
+  return details.join("\n");
+}
+
+function formatUnknownError(error: unknown) {
+  if (!error) {
+    return "No OpenAI error body was returned.";
+  }
+
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 async function generateOpenRouterReply(
   messages: ChatMessage[],
   pdfContext = "",
@@ -831,60 +950,93 @@ async function generateOpenAiGptReply(
   messages: ChatMessage[],
   pdfContext = "",
   memory?: UserMemory,
-) {
+): Promise<OpenAiReplyResult> {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = resolveOpenAiModel();
 
   if (!openAiApiKey) {
-    return null;
+    const error = { errorBody: "OPENAI_API_KEY is missing" };
+    logOpenAiRequestEvent("request failure", {
+      model: openAiModel,
+      errorBody: error.errorBody,
+    });
+    return { reply: null, error };
   }
 
   try {
+    logOpenAiRequestEvent("request start", {
+      model: openAiModel,
+    });
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${openAiApiKey}`,
       },
-      body: JSON.stringify({
+      body: JSON.stringify(createOpenAiResponsesPayload({
         model: openAiModel,
-        instructions: createOpenAiInstructions(memory),
-        input: createOpenAiInput(messages, pdfContext, memory),
-        max_output_tokens: openAiMaxOutputTokens,
-        temperature: 0.4,
-      }),
+        messages,
+        pdfContext,
+        memory,
+      })),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      const error = {
+        status: response.status,
+        errorBody: errorText,
+      };
 
       logOpenAiError("OpenAI GPT request failed:", {
         status: response.status,
         model: openAiModel,
         errorBody: errorText,
       });
+      logOpenAiRequestEvent("request failure", {
+        model: openAiModel,
+        status: response.status,
+        errorBody: errorText,
+      });
 
-      return null;
+      return { reply: null, error };
     }
 
     const data = await response.json();
     const reply = extractOpenAiOutputText(data);
 
     if (!reply) {
+      const error = { errorBody: JSON.stringify(data) };
       logOpenAiError("OpenAI GPT returned an empty reply:", {
         model: openAiModel,
-        errorBody: JSON.stringify(data),
+        errorBody: error.errorBody,
       });
+      logOpenAiRequestEvent("request failure", {
+        model: openAiModel,
+        errorBody: error.errorBody,
+      });
+
+      return { reply: null, error };
     }
 
-    return reply;
+    logOpenAiRequestEvent("request success", {
+      model: openAiModel,
+      status: response.status,
+    });
+
+    return { reply };
   } catch (error) {
     logOpenAiError("OpenAI GPT request failed:", {
       model: openAiModel,
       error,
     });
+    logOpenAiRequestEvent("request failure", {
+      model: openAiModel,
+      error,
+    });
 
-    return null;
+    return { reply: null, error: { error } };
   }
 }
 
@@ -1179,43 +1331,61 @@ async function streamOpenAiGptReply(
   pdfContext = "",
   onChunk: StreamChunkHandler,
   memory?: UserMemory,
-): Promise<StreamProviderResult | null> {
+): Promise<OpenAiStreamResult | null> {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = resolveOpenAiModel();
   let streamedText = "";
   let streamedFinishReason: string | undefined;
+  let streamedError: OpenAiErrorDetails | undefined;
 
   if (!openAiApiKey) {
-    return null;
+    const error = { errorBody: "OPENAI_API_KEY is missing" };
+    logOpenAiRequestEvent("request failure", {
+      model: openAiModel,
+      errorBody: error.errorBody,
+    });
+    return { reply: "", error };
   }
 
   try {
+    logOpenAiRequestEvent("request start", {
+      model: openAiModel,
+    });
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${openAiApiKey}`,
       },
-      body: JSON.stringify({
+      body: JSON.stringify(createOpenAiResponsesPayload({
         model: openAiModel,
-        instructions: createOpenAiInstructions(memory),
-        input: createOpenAiInput(messages, pdfContext, memory),
-        max_output_tokens: openAiMaxOutputTokens,
-        temperature: 0.4,
+        messages,
+        pdfContext,
+        memory,
         stream: true,
-      }),
+      })),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      const error = {
+        status: response.status,
+        errorBody: errorText,
+      };
 
       logOpenAiError("OpenAI GPT stream failed:", {
         status: response.status,
         model: openAiModel,
         errorBody: errorText,
       });
+      logOpenAiRequestEvent("request failure", {
+        model: openAiModel,
+        status: response.status,
+        errorBody: errorText,
+      });
 
-      return null;
+      return { reply: "", error };
     }
 
     await streamSseJson(response, async (data) => {
@@ -1238,9 +1408,16 @@ async function streamOpenAiGptReply(
         };
 
         if (event.type === "response.failed") {
+          streamedError = {
+            errorBody: JSON.stringify(event.error ?? event),
+          };
           logOpenAiError("OpenAI GPT stream response failed:", {
             model: openAiModel,
-            errorBody: JSON.stringify(event.error ?? event),
+            errorBody: streamedError.errorBody,
+          });
+          logOpenAiRequestEvent("request failure", {
+            model: openAiModel,
+            errorBody: streamedError.errorBody,
           });
         }
 
@@ -1267,25 +1444,42 @@ async function streamOpenAiGptReply(
     });
 
     if (!streamedText) {
+      const error = streamedError ?? {
+        errorBody: "OpenAI stream returned an empty reply.",
+      };
       logOpenAiError("OpenAI GPT stream returned an empty reply:", {
         model: openAiModel,
+        errorBody: error.errorBody,
       });
+      logOpenAiRequestEvent("request failure", {
+        model: openAiModel,
+        errorBody: error.errorBody,
+      });
+
+      return { reply: "", error };
     }
 
-    return streamedText
-      ? {
-          reply: streamedText,
-          finishReason: streamedFinishReason,
-          needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
-        }
-      : null;
+    logOpenAiRequestEvent("request success", {
+      model: openAiModel,
+      status: response.status,
+    });
+
+    return {
+      reply: streamedText,
+      finishReason: streamedFinishReason,
+      needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
+    };
   } catch (error) {
     logOpenAiError("OpenAI GPT stream request failed:", {
       model: openAiModel,
       error,
     });
+    logOpenAiRequestEvent("request failure", {
+      model: openAiModel,
+      error,
+    });
 
-    return null;
+    return { reply: "", error: { error } };
   }
 }
 
@@ -1299,13 +1493,13 @@ async function generateProviderReply(
   const routeConfig = aiRouteConfig[route];
 
   if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
-    const openAiReply = await generateOpenAiGptReply(
+    const openAiResult = await generateOpenAiGptReply(
       messages,
       pdfContext,
       memory,
     );
 
-    if (openAiReply) {
+    if (openAiResult.reply) {
       console.info("AI Muhammadiyah provider handled request:", {
         route,
         provider: "openai",
@@ -1313,7 +1507,20 @@ async function generateProviderReply(
         tier: access.tier,
       });
 
-      return { reply: openAiReply, provider: "openai", model: resolveOpenAiModel() };
+      return {
+        reply: openAiResult.reply,
+        provider: "openai",
+        model: resolveOpenAiModel(),
+      };
+    }
+
+    if (gptTestMode) {
+      return {
+        reply: createOpenAiFailureReply(openAiResult.error),
+        provider: "openai",
+        model: resolveOpenAiModel(),
+        fallbackEvent: "gpt_test_mode_no_fallback",
+      };
     }
 
     console.warn("AI Muhammadiyah falling back from OpenAI GPT to Gemini:", {
@@ -1521,7 +1728,7 @@ export async function streamChatReply(
       memory,
     );
 
-    if (openAiResult) {
+    if (openAiResult?.reply) {
       console.info("AI Muhammadiyah provider streamed request:", {
         route,
         provider: "openai",
@@ -1541,6 +1748,19 @@ export async function streamChatReply(
         model: resolveOpenAiModel(),
         finishReason: openAiResult.finishReason,
         needsContinuation: openAiResult.needsContinuation,
+      };
+    }
+
+    if (gptTestMode) {
+      const reply = createOpenAiFailureReply(openAiResult?.error);
+
+      await streamText(reply, onChunk);
+
+      return {
+        reply,
+        provider: "openai" as const,
+        model: resolveOpenAiModel(),
+        fallbackEvent: "gpt_test_mode_no_fallback",
       };
     }
 

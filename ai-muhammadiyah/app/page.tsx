@@ -87,7 +87,7 @@ const continuationMarker = "[[AI_MU_CONTINUE_SUGGESTED]]";
 
 const welcomeMessage: Message = {
   role: "ai",
-  text: "Assalamualaikum! Saya AI Muhammadiyah.",
+  text: "Assalamualaikum. Saya AI Muhammadiyah, siap membantu belajar Islam, Cambridge, OSN/STEM, dan coding.",
 };
 
 const modelOptions: SelectedModel[] = ["auto", "fast", "smart", "document"];
