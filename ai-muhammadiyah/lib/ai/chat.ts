@@ -12,9 +12,18 @@ export type ChatMessage = {
 type GenerateChatReplyResult = {
   reply: string;
   provider: AiProvider;
+  model: string;
+  fallbackEvent?: string;
+  finishReason?: string;
+  needsContinuation?: boolean;
 };
 
 type StreamChunkHandler = (chunk: string) => void | Promise<void>;
+type StreamProviderResult = {
+  reply: string;
+  finishReason?: string;
+  needsContinuation?: boolean;
+};
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 type AiRoute = Exclude<SelectedModel, "auto">;
 type AiProvider = "mock" | "openrouter" | "openai" | "gemini";
@@ -34,6 +43,23 @@ export const islamicAiIdentitySystemPrompt = [
   "Answer in the user's language when possible, and use simple Indonesian by default.",
 ].join("\n");
 
+const answerCompletionSystemPrompt = [
+  "ANSWER COMPLETION RULES:",
+  "- Finish the answer completely and do not stop mid-sentence.",
+  "- If the answer is long, give a short summary first, then continue in structured sections.",
+  "- Prefer a complete but concise answer over an unfinished long answer.",
+].join("\n");
+
+const responseStyleSystemPrompt = [
+  "RESPONSE STYLE:",
+  "- Use clean Markdown with helpful headings, spacing, and readable paragraphs.",
+  "- Use bullet points for lists and numbered steps for tutorials or procedures.",
+  "- Use tables only when they make comparison or data easier to understand.",
+  "- Use light emojis sparingly when they clarify the answer, not as decoration.",
+  "- Avoid messy excessive bolding.",
+  "- Use Indonesian by default unless the user asks for English or another language.",
+].join("\n");
+
 const contextPrioritySystemPrompt = [
   "CONTEXT PRIORITY RULES:",
   "1. If the user asks about personal information, names, preferences, or previous conversation, answer from the conversation memory first.",
@@ -45,54 +71,17 @@ const contextPrioritySystemPrompt = [
 ].join("\n");
 
 const openRouterDefaultModel = process.env.OPENROUTER_MODEL ?? "openrouter/free";
-const geminiDefaultModel = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const geminiFlashModel =
+  process.env.GEMINI_FLASH_MODEL ??
+  process.env.GEMINI_MODEL ??
+  "gemini-2.5-flash";
+const geminiProModel = process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro";
+const openAiDefaultModel = process.env.OPENAI_MODEL ?? "gpt-5-mini";
 
 const openRouterFallbackModelMap: Record<AiRoute, string> = {
   fast: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   smart: "moonshotai/kimi-k2.6:free",
   document: "qwen/qwen3-coder:free",
-};
-
-const premiumOpenRouterModelMap: Partial<
-  Record<SubscriptionTier, Partial<Record<AiRoute, string>>>
-> = {
-  kader_pintar: {
-    fast:
-      process.env.OPENROUTER_GEMINI_FLASH_MODEL ??
-      "google/gemini-2.5-flash",
-    smart:
-      process.env.OPENROUTER_GPT_MINI_MODEL ?? "openai/gpt-4o-mini",
-  },
-  muallim_pro: {
-    smart:
-      process.env.OPENROUTER_GPT_PREMIUM_MODEL ?? "openai/gpt-4.1",
-    document:
-      process.env.OPENROUTER_GEMINI_PRO_MODEL ??
-      "google/gemini-2.5-pro",
-  },
-  dakwah_digital: {
-    smart:
-      process.env.OPENROUTER_GPT_VOICE_READY_MODEL ??
-      process.env.OPENROUTER_GPT_PREMIUM_MODEL ??
-      "openai/gpt-4.1",
-    document:
-      process.env.OPENROUTER_GEMINI_PRO_MODEL ??
-      "google/gemini-2.5-pro",
-  },
-  sinergi_ranting: {
-    fast:
-      process.env.OPENROUTER_TEAM_FAST_MODEL ??
-      process.env.OPENROUTER_GEMINI_FLASH_MODEL ??
-      "google/gemini-2.5-flash",
-    smart:
-      process.env.OPENROUTER_TEAM_GPT_MODEL ??
-      process.env.OPENROUTER_GPT_PREMIUM_MODEL ??
-      "openai/gpt-4.1",
-    document:
-      process.env.OPENROUTER_TEAM_DOCUMENT_MODEL ??
-      process.env.OPENROUTER_GEMINI_PRO_MODEL ??
-      "google/gemini-2.5-pro",
-  },
 };
 
 const aiRouteConfig: Record<
@@ -124,6 +113,10 @@ const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
 const maxDocumentContextLength = 12000;
 const minUsefulDocumentContextLength = 120;
+const openRouterMaxTokens = 1200;
+const openAiMaxOutputTokens = 1800;
+const geminiMaxOutputTokens = 1800;
+const continuationMarker = "\n\n[[AI_MU_CONTINUE_SUGGESTED]]";
 
 function normalizeSelectedModel(selectedModel?: string): SelectedModel {
   if (
@@ -137,16 +130,33 @@ function normalizeSelectedModel(selectedModel?: string): SelectedModel {
   return "auto";
 }
 
-function resolveOpenRouterModel(route: AiRoute, tier: SubscriptionTier = "free") {
+function resolveOpenRouterModel(route: AiRoute) {
+  return aiRouteConfig[route]?.fallbackOpenRouterModel ?? openRouterDefaultModel;
+}
+
+function hasPremiumSmartAccess(tier: SubscriptionTier) {
+  return tier !== "free";
+}
+
+function hasGeminiProAccess(tier: SubscriptionTier) {
   return (
-    premiumOpenRouterModelMap[tier]?.[route] ??
-    aiRouteConfig[route]?.fallbackOpenRouterModel ??
-    openRouterDefaultModel
+    tier === "muallim_pro" ||
+    tier === "dakwah_digital" ||
+    tier === "sinergi_ranting"
   );
 }
 
-function resolveGeminiModel() {
-  return geminiDefaultModel.replace(/^models\//, "");
+function resolveOpenAiModel() {
+  return openAiDefaultModel;
+}
+
+function resolveGeminiModel(route: AiRoute = "fast", tier: SubscriptionTier = "free") {
+  const model =
+    (route === "document" || route === "smart") && hasGeminiProAccess(tier)
+      ? geminiProModel
+      : geminiFlashModel;
+
+  return model.replace(/^models\//, "");
 }
 
 function routeSelectedModel(
@@ -369,24 +379,6 @@ function createModelUnavailableFallback(pdfContext: string) {
   ].join("\n");
 }
 
-function createGeminiUnavailableFallback(pdfContext: string) {
-  const hasPdfContext = Boolean(preparePdfContext(pdfContext));
-
-  if (hasPdfContext) {
-    return [
-      "Maaf, Gemini sedang belum bisa menganalisis dokumen saat ini.",
-      "",
-      "Dokumen sudah berhasil dibaca, tetapi layanan AI dokumennya perlu dicoba lagi sebentar lagi.",
-    ].join("\n");
-  }
-
-  return [
-    "Maaf, Gemini sedang belum bisa menjawab saat ini.",
-    "",
-    "Silakan coba lagi sebentar lagi.",
-  ].join("\n");
-}
-
 function createGenericAiFallback() {
   return "Maaf, chat AI sedang bermasalah. Silakan coba lagi.";
 }
@@ -446,6 +438,8 @@ function createOpenRouterMessages(
   return [
     { role: "system", content: islamicAiIdentitySystemPrompt },
     { role: "system", content: contextPrioritySystemPrompt },
+    { role: "system", content: answerCompletionSystemPrompt },
+    { role: "system", content: responseStyleSystemPrompt },
     ...(memorySystemPrompt
       ? [{ role: "system", content: memorySystemPrompt }]
       : []),
@@ -464,6 +458,72 @@ function createOpenRouterMessages(
       };
     }),
   ];
+}
+
+function createOpenAiInput(
+  messages: ChatMessage[],
+  pdfContext: string,
+  memory?: UserMemory,
+) {
+  return createOpenRouterMessages(messages, pdfContext, memory)
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+}
+
+function createOpenAiInstructions(memory?: UserMemory) {
+  return [
+    islamicAiIdentitySystemPrompt,
+    contextPrioritySystemPrompt,
+    answerCompletionSystemPrompt,
+    responseStyleSystemPrompt,
+    memory ? createUserMemorySystemPrompt(memory) : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function createGeminiSystemInstruction(memory?: UserMemory) {
+  return [
+    islamicAiIdentitySystemPrompt,
+    contextPrioritySystemPrompt,
+    answerCompletionSystemPrompt,
+    responseStyleSystemPrompt,
+    memory ? createUserMemorySystemPrompt(memory) : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function isMaxTokenFinishReason(finishReason?: string | null) {
+  if (!finishReason) {
+    return false;
+  }
+
+  const normalizedReason = finishReason.toLowerCase();
+
+  return (
+    normalizedReason === "length" ||
+    normalizedReason === "max_tokens" ||
+    normalizedReason === "max_output_tokens" ||
+    normalizedReason === "max_tokens_exceeded" ||
+    normalizedReason === "token_limit" ||
+    normalizedReason === "max_token" ||
+    normalizedReason === "max_output"
+  );
+}
+
+function appendContinuationMarkerIfNeeded(result: StreamProviderResult) {
+  if (!result.needsContinuation) {
+    return result;
+  }
+
+  return {
+    ...result,
+    reply: `${result.reply}${continuationMarker}`,
+  };
 }
 
 function createGeminiContents(messages: ChatMessage[], pdfContext: string) {
@@ -501,6 +561,24 @@ function getRateLimitInfo(response: Response) {
   };
 }
 
+function logOpenAiError(
+  context: string,
+  details: {
+    status?: number;
+    errorBody?: string;
+    model: string;
+    error?: unknown;
+  },
+) {
+  console.error(context, {
+    provider: "openai",
+    model: details.model,
+    status: details.status ?? null,
+    errorBody: details.errorBody ?? null,
+    error: details.error,
+  });
+}
+
 async function generateOpenRouterReply(
   messages: ChatMessage[],
   pdfContext = "",
@@ -513,7 +591,7 @@ async function generateOpenRouterReply(
     pdfContext,
     memory,
   );
-  const openRouterModel = resolveOpenRouterModel(route, tier);
+  const openRouterModel = resolveOpenRouterModel(route);
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -527,7 +605,7 @@ async function generateOpenRouterReply(
       body: JSON.stringify({
         model: openRouterModel,
         messages: messagesForOpenRouter,
-        max_tokens: 350,
+        max_tokens: openRouterMaxTokens,
       }),
     });
 
@@ -623,14 +701,15 @@ async function streamOpenRouterReply(
   onChunk: StreamChunkHandler,
   tier: SubscriptionTier,
   memory?: UserMemory,
-) {
+): Promise<StreamProviderResult | null> {
   const messagesForOpenRouter = createOpenRouterMessages(
     messages,
     pdfContext,
     memory,
   );
-  const openRouterModel = resolveOpenRouterModel(route, tier);
+  const openRouterModel = resolveOpenRouterModel(route);
   let streamedText = "";
+  let streamedFinishReason: string | undefined;
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -644,7 +723,7 @@ async function streamOpenRouterReply(
       body: JSON.stringify({
         model: openRouterModel,
         messages: messagesForOpenRouter,
-        max_tokens: 350,
+        max_tokens: openRouterMaxTokens,
         stream: true,
       }),
     });
@@ -666,7 +745,7 @@ async function streamOpenRouterReply(
           : createModelUnavailableFallback(pdfContext);
 
       await streamText(fallback, onChunk);
-      return fallback;
+      return { reply: fallback };
     }
 
     await streamSseJson(response, async (data) => {
@@ -680,13 +759,19 @@ async function streamOpenRouterReply(
             delta?: {
               content?: string;
             };
+            finish_reason?: string | null;
           }[];
         };
+        const finishReason = event.choices?.[0]?.finish_reason;
         const chunk = event.choices?.[0]?.delta?.content ?? "";
 
         if (chunk) {
           streamedText += chunk;
           await onChunk(chunk);
+        }
+
+        if (isMaxTokenFinishReason(finishReason)) {
+          streamedFinishReason = finishReason ?? undefined;
         }
       } catch (error) {
         console.error("OpenRouter stream parse failed:", {
@@ -698,12 +783,16 @@ async function streamOpenRouterReply(
     });
 
     if (streamedText) {
-      return streamedText;
+      return {
+        reply: streamedText,
+        finishReason: streamedFinishReason,
+        needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
+      };
     }
 
     const fallback = createModelUnavailableFallback(pdfContext);
     await streamText(fallback, onChunk);
-    return fallback;
+    return { reply: fallback };
   } catch (error) {
     console.error("OpenRouter stream request failed:", {
       model: openRouterModel,
@@ -712,28 +801,103 @@ async function streamOpenRouterReply(
 
     const fallback = createModelUnavailableFallback(pdfContext);
     await streamText(fallback, onChunk);
-    return fallback;
+    return { reply: fallback };
   }
 }
 
-async function generateOpenAiGptReply() {
-  // Future connection point:
-  // Use OPENAI_API_KEY here when the smart route is ready to call an OpenAI GPT model.
-  // For now this intentionally returns null so OpenRouter remains the working fallback.
-  if (!process.env.OPENAI_API_KEY) {
+function extractOpenAiOutputText(data: {
+  output_text?: string;
+  output?: {
+    content?: {
+      text?: string;
+      type?: string;
+    }[];
+  }[];
+}) {
+  if (data.output_text?.trim()) {
+    return data.output_text.trim();
+  }
+
+  return (
+    data.output
+      ?.flatMap((item) => item.content ?? [])
+      .map((content) => content.text ?? "")
+      .join("")
+      .trim() || null
+  );
+}
+
+async function generateOpenAiGptReply(
+  messages: ChatMessage[],
+  pdfContext = "",
+  memory?: UserMemory,
+) {
+  const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
+  const openAiModel = resolveOpenAiModel();
+
+  if (!openAiApiKey) {
     return null;
   }
 
-  return null;
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: openAiModel,
+        instructions: createOpenAiInstructions(memory),
+        input: createOpenAiInput(messages, pdfContext, memory),
+        max_output_tokens: openAiMaxOutputTokens,
+        temperature: 0.4,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      logOpenAiError("OpenAI GPT request failed:", {
+        status: response.status,
+        model: openAiModel,
+        errorBody: errorText,
+      });
+
+      return null;
+    }
+
+    const data = await response.json();
+    const reply = extractOpenAiOutputText(data);
+
+    if (!reply) {
+      logOpenAiError("OpenAI GPT returned an empty reply:", {
+        model: openAiModel,
+        errorBody: JSON.stringify(data),
+      });
+    }
+
+    return reply;
+  } catch (error) {
+    logOpenAiError("OpenAI GPT request failed:", {
+      model: openAiModel,
+      error,
+    });
+
+    return null;
+  }
 }
 
 async function generateGeminiReply(
   messages: ChatMessage[],
   pdfContext = "",
+  route: AiRoute = "fast",
+  tier: SubscriptionTier = "free",
   memory?: UserMemory,
+  modelOverride?: string,
 ): Promise<string | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
-  const geminiModel = resolveGeminiModel();
+  const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
 
   if (!geminiApiKey) {
     return null;
@@ -753,17 +917,13 @@ async function generateGeminiReply(
           systemInstruction: {
             parts: [
               {
-                text: [
-                  islamicAiIdentitySystemPrompt,
-                  contextPrioritySystemPrompt,
-                  memory ? createUserMemorySystemPrompt(memory) : "",
-                ].join("\n\n"),
+                text: createGeminiSystemInstruction(memory),
               },
             ],
           },
           contents: createGeminiContents(messages, pdfContext),
           generationConfig: {
-            maxOutputTokens: 700,
+            maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
           },
         }),
@@ -813,11 +973,15 @@ async function streamGeminiReply(
   messages: ChatMessage[],
   pdfContext = "",
   onChunk: StreamChunkHandler,
+  route: AiRoute = "fast",
+  tier: SubscriptionTier = "free",
   memory?: UserMemory,
-): Promise<string | null> {
+  modelOverride?: string,
+): Promise<StreamProviderResult | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
-  const geminiModel = resolveGeminiModel();
+  const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
   let streamedText = "";
+  let streamedFinishReason: string | undefined;
 
   if (!geminiApiKey) {
     return null;
@@ -837,17 +1001,13 @@ async function streamGeminiReply(
           systemInstruction: {
             parts: [
               {
-                text: [
-                  islamicAiIdentitySystemPrompt,
-                  contextPrioritySystemPrompt,
-                  memory ? createUserMemorySystemPrompt(memory) : "",
-                ].join("\n\n"),
+                text: createGeminiSystemInstruction(memory),
               },
             ],
           },
           contents: createGeminiContents(messages, pdfContext),
           generationConfig: {
-            maxOutputTokens: 700,
+            maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
           },
         }),
@@ -870,6 +1030,7 @@ async function streamGeminiReply(
       try {
         const event = JSON.parse(data) as {
           candidates?: {
+            finishReason?: string;
             content?: {
               parts?: {
                 text?: string;
@@ -878,11 +1039,16 @@ async function streamGeminiReply(
           }[];
         };
         const parts = event.candidates?.[0]?.content?.parts ?? [];
+        const finishReason = event.candidates?.[0]?.finishReason;
         const chunk = parts.map((part) => part.text ?? "").join("");
 
         if (chunk) {
           streamedText += chunk;
           await onChunk(chunk);
+        }
+
+        if (isMaxTokenFinishReason(finishReason)) {
+          streamedFinishReason = finishReason;
         }
       } catch (error) {
         console.error("Gemini stream parse failed:", {
@@ -893,10 +1059,229 @@ async function streamGeminiReply(
       }
     });
 
-    return streamedText || null;
+    return streamedText
+      ? {
+          reply: streamedText,
+          finishReason: streamedFinishReason,
+          needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
+        }
+      : null;
   } catch (error) {
     console.error("Gemini stream request failed:", {
       model: geminiModel,
+      error,
+    });
+
+    return null;
+  }
+}
+
+function resolveGeminiFallbackModels(
+  route: AiRoute,
+  tier: SubscriptionTier,
+): string[] {
+  const flashModel = resolveGeminiModel("fast", "free");
+
+  if (route === "smart") {
+    return [flashModel];
+  }
+
+  const primaryModel = resolveGeminiModel(route, tier);
+
+  return primaryModel === flashModel ? [primaryModel] : [primaryModel, flashModel];
+}
+
+async function generateGeminiReplyWithFallback(
+  messages: ChatMessage[],
+  pdfContext: string,
+  route: AiRoute,
+  tier: SubscriptionTier,
+  memory?: UserMemory,
+) {
+  const models = resolveGeminiFallbackModels(route, tier);
+
+  for (const [index, model] of models.entries()) {
+    const reply = await generateGeminiReply(
+      messages,
+      pdfContext,
+      route,
+      tier,
+      memory,
+      model,
+    );
+
+    if (reply) {
+      return { reply, model, fallbackEvent: index > 0 ? "gemini_pro_to_flash" : undefined };
+    }
+
+    if (index === 0 && models.length > 1) {
+      console.warn("AI Muhammadiyah falling back from Gemini Pro to Gemini Flash:", {
+        route,
+        provider: "gemini",
+        failedModel: model,
+        fallbackModel: models[1],
+        tier,
+      });
+    }
+  }
+
+  return null;
+}
+
+async function streamGeminiReplyWithFallback(
+  messages: ChatMessage[],
+  pdfContext: string,
+  onChunk: StreamChunkHandler,
+  route: AiRoute,
+  tier: SubscriptionTier,
+  memory?: UserMemory,
+) {
+  const models = resolveGeminiFallbackModels(route, tier);
+
+  for (const [index, model] of models.entries()) {
+    const result = await streamGeminiReply(
+      messages,
+      pdfContext,
+      onChunk,
+      route,
+      tier,
+      memory,
+      model,
+    );
+
+    if (result) {
+      return {
+        ...result,
+        model,
+        fallbackEvent: index > 0 ? "gemini_pro_to_flash" : undefined,
+      };
+    }
+
+    if (index === 0 && models.length > 1) {
+      console.warn(
+        "AI Muhammadiyah streaming fallback from Gemini Pro to Gemini Flash:",
+        {
+          route,
+          provider: "gemini",
+          failedModel: model,
+          fallbackModel: models[1],
+          tier,
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+async function streamOpenAiGptReply(
+  messages: ChatMessage[],
+  pdfContext = "",
+  onChunk: StreamChunkHandler,
+  memory?: UserMemory,
+): Promise<StreamProviderResult | null> {
+  const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
+  const openAiModel = resolveOpenAiModel();
+  let streamedText = "";
+  let streamedFinishReason: string | undefined;
+
+  if (!openAiApiKey) {
+    return null;
+  }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: openAiModel,
+        instructions: createOpenAiInstructions(memory),
+        input: createOpenAiInput(messages, pdfContext, memory),
+        max_output_tokens: openAiMaxOutputTokens,
+        temperature: 0.4,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      logOpenAiError("OpenAI GPT stream failed:", {
+        status: response.status,
+        model: openAiModel,
+        errorBody: errorText,
+      });
+
+      return null;
+    }
+
+    await streamSseJson(response, async (data) => {
+      if (data === "[DONE]") {
+        return;
+      }
+
+      try {
+        const event = JSON.parse(data) as {
+          type?: string;
+          delta?: string;
+          error?: unknown;
+          response?: {
+            incomplete_details?: {
+              reason?: string;
+            } | null;
+            output_text?: string;
+            status?: string;
+          };
+        };
+
+        if (event.type === "response.failed") {
+          logOpenAiError("OpenAI GPT stream response failed:", {
+            model: openAiModel,
+            errorBody: JSON.stringify(event.error ?? event),
+          });
+        }
+
+        if (event.type === "response.output_text.delta" && event.delta) {
+          streamedText += event.delta;
+          await onChunk(event.delta);
+        }
+
+        if (
+          event.type === "response.incomplete" ||
+          event.response?.status === "incomplete"
+        ) {
+          streamedFinishReason =
+            event.response?.incomplete_details?.reason ??
+            "max_output_tokens";
+        }
+      } catch (error) {
+        console.error("OpenAI GPT stream parse failed:", {
+          model: openAiModel,
+          data,
+          error,
+        });
+      }
+    });
+
+    if (!streamedText) {
+      logOpenAiError("OpenAI GPT stream returned an empty reply:", {
+        model: openAiModel,
+      });
+    }
+
+    return streamedText
+      ? {
+          reply: streamedText,
+          finishReason: streamedFinishReason,
+          needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
+        }
+      : null;
+  } catch (error) {
+    logOpenAiError("OpenAI GPT stream request failed:", {
+      model: openAiModel,
       error,
     });
 
@@ -910,53 +1295,90 @@ async function generateProviderReply(
   pdfContext: string,
   access: ReturnType<typeof normalizeRoutingAccess>,
   memory?: UserMemory,
-): Promise<{ reply: string; provider: AiProvider }> {
+): Promise<GenerateChatReplyResult> {
   const routeConfig = aiRouteConfig[route];
 
-  if (routeConfig.futureProvider === "openai") {
-    const openAiReply = await generateOpenAiGptReply();
+  if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
+    const openAiReply = await generateOpenAiGptReply(
+      messages,
+      pdfContext,
+      memory,
+    );
 
     if (openAiReply) {
-      return { reply: openAiReply, provider: "openai" };
-    }
-  }
-
-  if (routeConfig.futureProvider === "gemini") {
-    const geminiReply = await generateGeminiReply(messages, pdfContext, memory);
-
-    if (geminiReply) {
       console.info("AI Muhammadiyah provider handled request:", {
         route,
-        provider: "gemini",
-        model: resolveGeminiModel(),
+        provider: "openai",
+        model: resolveOpenAiModel(),
         tier: access.tier,
       });
 
-      return { reply: geminiReply, provider: "gemini" };
+      return { reply: openAiReply, provider: "openai", model: resolveOpenAiModel() };
     }
 
-    console.info("AI Muhammadiyah falling back from Gemini to OpenRouter:", {
+    console.warn("AI Muhammadiyah falling back from OpenAI GPT to Gemini:", {
       route,
-      openRouterModel: resolveOpenRouterModel(route, access.tier),
+      openAiModel: resolveOpenAiModel(),
+      geminiModel: resolveGeminiModel("fast", "free"),
+      tier: access.tier,
+    });
+  }
+
+  const shouldTryGemini =
+    route === "fast" ||
+    route === "document" ||
+    route === "smart" ||
+    routeConfig.futureProvider === "gemini";
+
+  if (shouldTryGemini) {
+    const geminiResult = await generateGeminiReplyWithFallback(
+      messages,
+      pdfContext,
+      route,
+      access.tier,
+      memory,
+    );
+
+    if (geminiResult) {
+      console.info("AI Muhammadiyah provider handled request:", {
+        route,
+        provider: "gemini",
+        model: geminiResult.model,
+        tier: access.tier,
+      });
+
+      return {
+        reply: geminiResult.reply,
+        provider: "gemini",
+        model: geminiResult.model,
+        fallbackEvent:
+          geminiResult.fallbackEvent ??
+          (route === "smart" && hasPremiumSmartAccess(access.tier)
+            ? "openai_to_gemini"
+            : undefined),
+      };
+    }
+
+    console.warn("AI Muhammadiyah falling back from Gemini to OpenRouter:", {
+      route,
+      geminiModel: resolveGeminiModel(route, access.tier),
+      openRouterModel: resolveOpenRouterModel(route),
       tier: access.tier,
     });
   }
 
   if (!process.env.OPENROUTER_API_KEY) {
-    const provider = routeConfig.futureProvider === "gemini" ? "gemini" : "mock";
-
     console.info("AI Muhammadiyah provider could not use OpenRouter fallback:", {
       route,
-      provider,
+      provider: "openrouter",
       reason: "OPENROUTER_API_KEY is missing",
     });
 
     return {
-      reply:
-        routeConfig.futureProvider === "gemini"
-          ? createGeminiUnavailableFallback(pdfContext)
-          : createMockReply(messages, pdfContext),
-      provider,
+      reply: createGenericAiFallback(),
+      provider: "openrouter",
+      model: resolveOpenRouterModel(route),
+      fallbackEvent: "openrouter_unavailable",
     };
   }
 
@@ -971,13 +1393,15 @@ async function generateProviderReply(
   console.info("AI Muhammadiyah provider handled request:", {
     route,
     provider: "openrouter",
-    model: resolveOpenRouterModel(route, access.tier),
+    model: resolveOpenRouterModel(route),
     tier: access.tier,
   });
 
   return {
     reply,
     provider: "openrouter",
+    model: resolveOpenRouterModel(route),
+    fallbackEvent: shouldTryGemini ? "gemini_to_openrouter" : undefined,
   };
 }
 
@@ -1006,13 +1430,21 @@ export async function generateChatReply(
     return {
       reply: createShortPdfFallback(preparedPdfContext),
       provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "mock",
+      model: process.env.OPENROUTER_API_KEY
+        ? resolveOpenRouterModel(route)
+        : "mock",
     };
   }
 
-  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) {
+  if (
+    !process.env.OPENAI_API_KEY &&
+    !process.env.OPENROUTER_API_KEY &&
+    !process.env.GEMINI_API_KEY
+  ) {
     return {
       reply: createMockReply(recentMessages, preparedPdfContext),
       provider: "mock",
+      model: "mock",
     };
   }
 
@@ -1063,58 +1495,128 @@ export async function streamChatReply(
     return {
       reply,
       provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "mock",
+      model: process.env.OPENROUTER_API_KEY
+        ? resolveOpenRouterModel(route)
+        : "mock",
     };
   }
 
-  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) {
+  if (
+    !process.env.OPENAI_API_KEY &&
+    !process.env.OPENROUTER_API_KEY &&
+    !process.env.GEMINI_API_KEY
+  ) {
     const reply = createMockReply(recentMessages, preparedPdfContext);
     await streamText(reply, onChunk);
-    return { reply, provider: "mock" as const };
+    return { reply, provider: "mock" as const, model: "mock" };
   }
 
   const routeConfig = aiRouteConfig[route];
 
-  if (routeConfig.futureProvider === "gemini") {
-    const geminiReply = await streamGeminiReply(
+  if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
+    const openAiResult = await streamOpenAiGptReply(
       recentMessages,
       preparedPdfContext,
       onChunk,
       memory,
     );
 
-    if (geminiReply) {
+    if (openAiResult) {
       console.info("AI Muhammadiyah provider streamed request:", {
         route,
-        provider: "gemini",
-        model: resolveGeminiModel(),
+        provider: "openai",
+        model: resolveOpenAiModel(),
         tier: access.tier,
       });
 
-      return { reply: geminiReply, provider: "gemini" as const };
+      const finalResult = appendContinuationMarkerIfNeeded(openAiResult);
+
+      if (openAiResult.needsContinuation) {
+        await onChunk(continuationMarker);
+      }
+
+      return {
+        reply: finalResult.reply,
+        provider: "openai" as const,
+        model: resolveOpenAiModel(),
+        finishReason: openAiResult.finishReason,
+        needsContinuation: openAiResult.needsContinuation,
+      };
     }
 
-    console.info("AI Muhammadiyah streaming fallback from Gemini to OpenRouter:", {
+    console.warn("AI Muhammadiyah streaming fallback from OpenAI GPT to Gemini:", {
       route,
-      openRouterModel: resolveOpenRouterModel(route, access.tier),
+      openAiModel: resolveOpenAiModel(),
+      geminiModel: resolveGeminiModel("fast", "free"),
+      tier: access.tier,
+    });
+  }
+
+  if (
+    route === "fast" ||
+    route === "document" ||
+    route === "smart" ||
+    routeConfig.futureProvider === "gemini"
+  ) {
+    const geminiResult = await streamGeminiReplyWithFallback(
+      recentMessages,
+      preparedPdfContext,
+      onChunk,
+      route,
+      access.tier,
+      memory,
+    );
+
+    if (geminiResult) {
+      console.info("AI Muhammadiyah provider streamed request:", {
+        route,
+        provider: "gemini",
+        model: geminiResult.model,
+        tier: access.tier,
+      });
+
+      const finalResult = appendContinuationMarkerIfNeeded(geminiResult);
+
+      if (geminiResult.needsContinuation) {
+        await onChunk(continuationMarker);
+      }
+
+      return {
+        reply: finalResult.reply,
+        provider: "gemini" as const,
+        model: geminiResult.model,
+        fallbackEvent:
+          geminiResult.fallbackEvent ??
+          (route === "smart" && hasPremiumSmartAccess(access.tier)
+            ? "openai_to_gemini"
+            : undefined),
+        finishReason: geminiResult.finishReason,
+        needsContinuation: geminiResult.needsContinuation,
+      };
+    }
+
+    console.warn("AI Muhammadiyah streaming fallback from Gemini to OpenRouter:", {
+      route,
+      geminiModel: resolveGeminiModel(route, access.tier),
+      openRouterModel: resolveOpenRouterModel(route),
       tier: access.tier,
     });
   }
 
   if (!process.env.OPENROUTER_API_KEY) {
-    const reply =
-      routeConfig.futureProvider === "gemini"
-        ? createGeminiUnavailableFallback(preparedPdfContext)
-        : createMockReply(recentMessages, preparedPdfContext);
+    const reply = createGenericAiFallback();
 
     await streamText(reply, onChunk);
 
     return {
       reply,
-      provider: routeConfig.futureProvider === "gemini" ? "gemini" : "mock",
+      provider: "openrouter" as const,
+      model: resolveOpenRouterModel(route),
+      fallbackEvent: "openrouter_unavailable",
     };
   }
 
-  const openRouterReply = await streamOpenRouterReply(
+  const openRouterResult = await streamOpenRouterReply(
     recentMessages,
     preparedPdfContext,
     route,
@@ -1123,21 +1625,37 @@ export async function streamChatReply(
     memory,
   );
 
-  if (!openRouterReply) {
+  if (!openRouterResult) {
     const reply = createGenericAiFallback();
     await streamText(reply, onChunk);
-    return { reply, provider: "openrouter" as const };
+    return {
+      reply,
+      provider: "openrouter" as const,
+      model: resolveOpenRouterModel(route),
+      fallbackEvent: "openrouter_empty",
+    };
   }
 
   console.info("AI Muhammadiyah provider streamed request:", {
     route,
     provider: "openrouter",
-    model: resolveOpenRouterModel(route, access.tier),
+    model: resolveOpenRouterModel(route),
     tier: access.tier,
   });
 
+  const finalOpenRouterResult =
+    appendContinuationMarkerIfNeeded(openRouterResult);
+
+  if (openRouterResult.needsContinuation) {
+    await onChunk(continuationMarker);
+  }
+
   return {
-    reply: openRouterReply,
+    reply: finalOpenRouterResult.reply,
     provider: "openrouter" as const,
+    model: resolveOpenRouterModel(route),
+    fallbackEvent: "gemini_to_openrouter",
+    finishReason: openRouterResult.finishReason,
+    needsContinuation: openRouterResult.needsContinuation,
   };
 }

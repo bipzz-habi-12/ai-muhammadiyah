@@ -168,6 +168,11 @@ export async function POST(request: Request) {
               p_metadata: {
                 has_document_context: Boolean(pdfContext.trim()),
                 has_user_memory: Boolean(userMemory),
+                provider_used: chatResult.provider,
+                model_used: chatResult.model,
+                fallback_event: chatResult.fallbackEvent ?? null,
+                finish_reason: chatResult.finishReason ?? null,
+                needs_continuation: Boolean(chatResult.needsContinuation),
                 streamed_reply_length: finalReply.length,
               },
               p_user_id: user.id,
@@ -178,6 +183,11 @@ export async function POST(request: Request) {
             console.error("Chat usage increment failed:", {
               userId: user.id,
               selectedModel,
+              providerUsed: chatResult.provider,
+              modelUsed: chatResult.model,
+              fallbackEvent: chatResult.fallbackEvent,
+              finishReason: chatResult.finishReason,
+              needsContinuation: chatResult.needsContinuation,
               estimatedTotalTokens,
               error: usageError,
             });
@@ -185,6 +195,11 @@ export async function POST(request: Request) {
             console.info("Chat usage increment succeeded:", {
               userId: user.id,
               selectedModel,
+              providerUsed: chatResult.provider,
+              modelUsed: chatResult.model,
+              fallbackEvent: chatResult.fallbackEvent,
+              finishReason: chatResult.finishReason,
+              needsContinuation: chatResult.needsContinuation,
               estimatedTotalTokens,
               usage: usageData,
             });

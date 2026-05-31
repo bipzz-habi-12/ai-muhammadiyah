@@ -10,6 +10,8 @@ export type SubscriptionPlan = {
   dailyMessageLimit: number;
   dailyUploadLimit: number;
   modelNames: string[];
+  modelBadges: string[];
+  isGptPowered: boolean;
   allowedModels: PlanModelId[];
   features: string[];
   quotas: string[];
@@ -43,22 +45,22 @@ export const modelCatalog: Record<
   fast: {
     label: "Fast Model",
     shortLabel: "Fast",
-    description: "Jawaban cepat untuk obrolan belajar harian.",
+    description: "Gemini Flash untuk obrolan belajar harian yang cepat.",
     premiumLabel: "Included",
     minimumTier: "free",
   },
   smart: {
-    label: "Smart Model",
+    label: "GPT-5 mini Smart",
     shortLabel: "Smart",
-    description: "Rute GPT mini sampai GPT premium untuk penalaran lebih kuat.",
-    premiumLabel: "Premium",
+    description: "Rute GPT-5 mini untuk penalaran, strategi, dan analisis.",
+    premiumLabel: "GPT premium",
     minimumTier: "kader_pintar",
   },
   document: {
-    label: "Document Model",
+    label: "Gemini 2.5 Pro Document",
     shortLabel: "Document",
-    description: "Rute Gemini Pro untuk analisis dokumen dan konteks panjang.",
-    premiumLabel: "Premium",
+    description: "Gemini 2.5 Pro untuk analisis dokumen dan konteks panjang.",
+    premiumLabel: "Gemini Pro",
     minimumTier: "muallim_pro",
   },
 };
@@ -71,7 +73,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Mulai belajar dengan AI-mu.",
     dailyMessageLimit: 20,
     dailyUploadLimit: 3,
-    modelNames: ["Auto", "Fast"],
+    modelNames: ["Gemini Flash", "Auto", "Fast"],
+    modelBadges: ["Gemini Flash only"],
+    isGptPowered: false,
     allowedModels: ["auto", "fast"],
     features: [
       "Chat AI streaming",
@@ -87,7 +91,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk kader dan pelajar aktif.",
     dailyMessageLimit: 100,
     dailyUploadLimit: 10,
-    modelNames: ["Gemini Flash", "GPT mini", "Auto", "Fast"],
+    modelNames: ["Gemini Flash", "GPT-5 mini limited", "Auto", "Fast"],
+    modelBadges: ["Includes GPT-5 mini", "Gemini Flash"],
+    isGptPowered: true,
     allowedModels: ["auto", "fast", "smart"],
     features: [
       "Akses Smart Model",
@@ -103,7 +109,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk guru, mentor, dan pembimbing.",
     dailyMessageLimit: 300,
     dailyUploadLimit: 30,
-    modelNames: ["Gemini Pro", "GPT premium", "GPT mini", "Fast"],
+    modelNames: ["Gemini 2.5 Pro", "GPT-5 mini", "Fast"],
+    modelBadges: ["Includes GPT-5 mini", "Includes Gemini 2.5 Pro"],
+    isGptPowered: true,
     allowedModels: ["auto", "fast", "smart", "document"],
     features: [
       "Akses Document Model",
@@ -119,7 +127,13 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk konten, dakwah, dan publikasi.",
     dailyMessageLimit: 600,
     dailyUploadLimit: 60,
-    modelNames: ["GPT premium", "Voice-ready routing", "Gemini Pro"],
+    modelNames: ["GPT-5 mini", "Voice-ready routing", "Gemini 2.5 Pro"],
+    modelBadges: [
+      "Includes GPT-5 mini",
+      "Includes Gemini 2.5 Pro",
+      "Voice routing ready",
+    ],
+    isGptPowered: true,
     allowedModels: ["auto", "fast", "smart", "document"],
     features: [
       "Routing GPT untuk naskah dan ide konten",
@@ -135,7 +149,13 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk ranting, sekolah, dan tim bersama.",
     dailyMessageLimit: 2000,
     dailyUploadLimit: 200,
-    modelNames: ["Semua shared team models", "GPT premium", "Gemini Pro"],
+    modelNames: ["Full premium routing", "GPT-5 mini", "Gemini 2.5 Pro"],
+    modelBadges: [
+      "Includes GPT-5 mini",
+      "Includes Gemini 2.5 Pro",
+      "Full routing access",
+    ],
+    isGptPowered: true,
     allowedModels: ["auto", "fast", "smart", "document"],
     features: [
       "Semua model bersama untuk tim",

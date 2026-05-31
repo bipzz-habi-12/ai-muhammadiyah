@@ -61,7 +61,9 @@ export default async function PlansPage() {
                 className={
                   isCurrent
                     ? "rounded-[26px] bg-white p-5 shadow-[0_16px_42px_rgba(27,77,50,0.08)] ring-2 ring-[#95d6b9]"
-                    : "rounded-[26px] bg-white p-5 shadow-sm ring-1 ring-[#d8eadf]"
+                    : plan.isGptPowered
+                      ? "rounded-[26px] bg-white p-5 shadow-[0_14px_36px_rgba(138,90,0,0.08)] ring-1 ring-[#efdba8]"
+                      : "rounded-[26px] bg-white p-5 shadow-sm ring-1 ring-[#d8eadf]"
                 }
               >
                 <div className="flex items-start justify-between gap-3">
@@ -81,6 +83,11 @@ export default async function PlansPage() {
                       Aktif
                     </span>
                   )}
+                  {!isCurrent && plan.isGptPowered && (
+                    <span className="rounded-full bg-[#fff4d8] px-3 py-1 text-xs font-bold text-[#8a5a00]">
+                      GPT
+                    </span>
+                  )}
                 </div>
 
                 <p className="mt-4 min-h-12 text-sm leading-relaxed text-[#4f665c]">
@@ -94,6 +101,22 @@ export default async function PlansPage() {
                   <p className="mt-2 text-sm font-semibold leading-relaxed text-[#18392e]">
                     {plan.modelNames.join(", ")}
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {plan.modelBadges.map((badge) => (
+                      <span
+                        key={badge}
+                        className={
+                          badge.includes("GPT")
+                            ? "rounded-full bg-[#fff4d8] px-2.5 py-1 text-[11px] font-bold text-[#8a5a00]"
+                            : badge.includes("Gemini 2.5 Pro")
+                              ? "rounded-full bg-[#e8f1ff] px-2.5 py-1 text-[11px] font-bold text-[#28528a]"
+                              : "rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#008d54] ring-1 ring-[#d8eadf]"
+                        }
+                      >
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mt-4 space-y-3">
@@ -116,6 +139,18 @@ export default async function PlansPage() {
                 </div>
 
                 <ul className="mt-5 space-y-2 text-sm leading-relaxed text-[#38534a]">
+                  {plan.isGptPowered && (
+                    <li className="flex gap-2 font-semibold text-[#18392e]">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d49b00]" />
+                      <span>Includes GPT-5 mini</span>
+                    </li>
+                  )}
+                  {plan.modelBadges.includes("Includes Gemini 2.5 Pro") && (
+                    <li className="flex gap-2 font-semibold text-[#18392e]">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#3f72b5]" />
+                      <span>Includes Gemini 2.5 Pro</span>
+                    </li>
+                  )}
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex gap-2">
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#009252]" />

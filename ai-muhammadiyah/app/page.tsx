@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   emptyUserMemory,
@@ -30,6 +31,7 @@ type Message = {
   createdAt?: string;
   model?: SelectedModel;
   documentMetadata?: DocumentMetadata | null;
+  continuationSuggested?: boolean;
 };
 
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
@@ -81,6 +83,7 @@ type MessageRow = {
 const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
 const maxDocumentUploadBytes = 25 * 1024 * 1024;
+const continuationMarker = "[[AI_MU_CONTINUE_SUGGESTED]]";
 
 const welcomeMessage: Message = {
   role: "ai",
@@ -88,6 +91,30 @@ const welcomeMessage: Message = {
 };
 
 const modelOptions: SelectedModel[] = ["auto", "fast", "smart", "document"];
+
+function getModelProviderLabel(model: SelectedModel) {
+  if (model === "smart") {
+    return "Powered by GPT-5 mini";
+  }
+
+  if (model === "document") {
+    return "Powered by Gemini 2.5 Pro";
+  }
+
+  return "Powered by Gemini";
+}
+
+function getLockedModelRequirement(model: SelectedModel) {
+  if (model === "smart") {
+    return "Requires Muallim Pro or higher";
+  }
+
+  if (model === "document") {
+    return "Requires Muallim Pro or higher";
+  }
+
+  return `Mulai dari ${getUpgradePlanForModel(model).name}`;
+}
 
 const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
@@ -266,6 +293,131 @@ function getFriendlyChatError(error: unknown) {
   }
 
   return error.message;
+}
+
+function parseContinuationMarker(text: string) {
+  const needsContinuation = text.includes(continuationMarker);
+
+  return {
+    text: text.replaceAll(continuationMarker, "").trimEnd(),
+    needsContinuation,
+  };
+}
+
+function renderInlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={index} className="font-bold text-[#0f3025]">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return part;
+  });
+}
+
+function MarkdownMessage({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/);
+  const elements: ReactNode[] = [];
+  let listItems: ReactNode[] = [];
+  let orderedItems: ReactNode[] = [];
+
+  function flushLists() {
+    if (listItems.length) {
+      elements.push(
+        <ul key={`ul-${elements.length}`} className="my-3 list-disc space-y-1 pl-5">
+          {listItems}
+        </ul>,
+      );
+      listItems = [];
+    }
+
+    if (orderedItems.length) {
+      elements.push(
+        <ol
+          key={`ol-${elements.length}`}
+          className="my-3 list-decimal space-y-1 pl-5"
+        >
+          {orderedItems}
+        </ol>,
+      );
+      orderedItems = [];
+    }
+  }
+
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      flushLists();
+      return;
+    }
+
+    const heading = trimmedLine.match(/^(#{2,4})\s+(.+)$/);
+    const bullet = trimmedLine.match(/^[-*]\s+(.+)$/);
+    const ordered = trimmedLine.match(/^\d+\.\s+(.+)$/);
+
+    if (heading) {
+      flushLists();
+      const levelClass =
+        heading[1].length === 2
+          ? "mt-4 text-lg"
+          : "mt-3 text-base";
+
+      elements.push(
+        <h3
+          key={`h-${index}`}
+          className={`${levelClass} font-bold leading-snug text-[#0f3025] first:mt-0`}
+        >
+          {renderInlineMarkdown(heading[2])}
+        </h3>,
+      );
+      return;
+    }
+
+    if (trimmedLine === "---") {
+      flushLists();
+      elements.push(
+        <hr key={`hr-${index}`} className="my-4 border-[#d8eadf]" />,
+      );
+      return;
+    }
+
+    if (bullet) {
+      orderedItems = [];
+      listItems.push(
+        <li key={`li-${index}`} className="pl-1">
+          {renderInlineMarkdown(bullet[1])}
+        </li>,
+      );
+      return;
+    }
+
+    if (ordered) {
+      listItems = [];
+      orderedItems.push(
+        <li key={`oli-${index}`} className="pl-1">
+          {renderInlineMarkdown(ordered[1])}
+        </li>,
+      );
+      return;
+    }
+
+    flushLists();
+    elements.push(
+      <p key={`p-${index}`} className="my-2 first:mt-0 last:mb-0">
+        {renderInlineMarkdown(trimmedLine)}
+      </p>,
+    );
+  });
+
+  flushLists();
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 async function fetchUsageSnapshot() {
@@ -503,6 +655,7 @@ export default function Home() {
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [upgradeTargetModel, setUpgradeTargetModel] =
     useState<SelectedModel>("smart");
@@ -544,14 +697,6 @@ export default function Home() {
     learningProfile.displayName ||
     learningProfile.schoolLevel ||
     "Lengkapi profil";
-  const profileDetail =
-    [
-      learningProfile.schoolLevel,
-      learningProfile.preferredLanguage,
-      learningProfile.favoriteSubjects.slice(0, 2).join(", "),
-    ]
-      .filter(Boolean)
-      .join(" / ") || "Preferensi belajar tersimpan";
 
   const loadConversations = useCallback(async () => {
     setHistoryError("");
@@ -976,10 +1121,11 @@ export default function Home() {
     }
   }
 
-  async function sendMessage() {
-    if (!input.trim() || isSending || !hasMessageQuota) return;
+  async function sendMessage(messageOverride?: string) {
+    const userText = (messageOverride ?? input).trim();
 
-    const userText = input.trim();
+    if (!userText || isSending || !hasMessageQuota) return;
+
     const currentDocumentContext = documentTextRef.current || documentText;
     const documentMetadata = getCurrentDocumentMetadata();
     let conversation = activeConversation;
@@ -1067,6 +1213,7 @@ export default function Home() {
         }
 
         streamedReply += chunk;
+        const parsedReply = parseContinuationMarker(streamedReply);
         setIsAwaitingFirstChunk(false);
         setMessages((prev) => {
           const updatedMessages = [...prev];
@@ -1075,7 +1222,8 @@ export default function Home() {
           if (lastMessage?.role === "ai") {
             updatedMessages[updatedMessages.length - 1] = {
               ...lastMessage,
-              text: streamedReply,
+              text: parsedReply.text,
+              continuationSuggested: parsedReply.needsContinuation,
             };
           }
 
@@ -1087,6 +1235,7 @@ export default function Home() {
 
       if (finalChunk) {
         streamedReply += finalChunk;
+        const parsedReply = parseContinuationMarker(streamedReply);
         setIsAwaitingFirstChunk(false);
         setMessages((prev) => {
           const updatedMessages = [...prev];
@@ -1095,7 +1244,8 @@ export default function Home() {
           if (lastMessage?.role === "ai") {
             updatedMessages[updatedMessages.length - 1] = {
               ...lastMessage,
-              text: streamedReply,
+              text: parsedReply.text,
+              continuationSuggested: parsedReply.needsContinuation,
             };
           }
 
@@ -1103,7 +1253,9 @@ export default function Home() {
         });
       }
 
-      if (!streamedReply.trim()) {
+      const finalReply = parseContinuationMarker(streamedReply);
+
+      if (!finalReply.text.trim()) {
         throw new Error("Chat stream returned an empty reply");
       }
 
@@ -1112,7 +1264,7 @@ export default function Home() {
         .insert({
           conversation_id: currentConversation.id,
           role: "assistant",
-          content: streamedReply,
+          content: finalReply.text,
           selected_model: selectedModel,
           document_metadata: documentMetadata,
         });
@@ -1189,6 +1341,12 @@ export default function Home() {
       setIsAwaitingFirstChunk(false);
       setIsSending(false);
     }
+  }
+
+  function continueAnswer() {
+    void sendMessage(
+      "Lanjutkan jawaban sebelumnya dari bagian terakhir. Jangan ulangi dari awal, lanjutkan secara runtut sampai selesai.",
+    );
   }
 
   return (
@@ -1347,136 +1505,107 @@ export default function Home() {
           ))}
         </nav>
 
-        <div className="border-t border-[#d9e9df] px-5 py-4">
-          <div className="mb-4 rounded-2xl bg-white p-3 text-sm ring-1 ring-[#d8eadf]">
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-semibold text-[#008d54]">{currentTierLabel}</p>
-              <p className="font-bold text-[#18392e]">
-                {usageSnapshot
-                  ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
-                  : "--"}
-              </p>
-            </div>
-            <p className="mt-1 text-xs font-semibold text-[#4f665c]">
-              Sisa pesan hari ini
-            </p>
-            {usageSnapshot && (
-              <p className="mt-1 text-xs text-[#4f665c]">
-                Upload dokumen: {usageSnapshot.remainingUploadsToday}/
-                {usageSnapshot.dailyUploadLimit}
-              </p>
-            )}
-            {usageError && (
-              <p className="mt-2 text-xs font-semibold text-[#8a3b2b]">
-                {usageError}
-              </p>
-            )}
-            <div className="mt-3 flex gap-2">
+        <div className="relative border-t border-[#d9e9df] px-5 py-4">
+          {isAccountMenuOpen && (
+            <div className="absolute bottom-[86px] left-5 right-5 z-40 overflow-hidden rounded-[22px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf]">
               <button
                 type="button"
-                onClick={() => router.push("/plans")}
-                className="flex-1 rounded-full bg-[#009252] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#007c46]"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  router.push("/plans");
+                }}
+                className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
               >
-                Lihat paket
+                <span>
+                  <span className="block font-bold text-[#18392e]">
+                    Upgrade plan
+                  </span>
+                  <span className="text-xs font-semibold text-[#4f665c]">
+                    {currentTierLabel}
+                  </span>
+                </span>
+                <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
+                  {usageSnapshot
+                    ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
+                    : "--"}
+                </span>
               </button>
               <button
                 type="button"
-                onClick={() => openUpgradeModal("smart")}
-                className="flex-1 rounded-full bg-[#eef8f1] px-3 py-2 text-xs font-bold text-[#008d54] ring-1 ring-[#d8eadf] transition hover:bg-white"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  openLearningProfile();
+                }}
+                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
               >
-                Upgrade
+                <Icon name="user" className="h-5 w-5 text-[#008d54]" />
+                <span>
+                  <span className="block font-bold text-[#18392e]">
+                    Learning Profile
+                  </span>
+                  <span className="text-xs font-semibold text-[#4f665c]">
+                    {profileLabel}
+                  </span>
+                </span>
               </button>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={openLearningProfile}
-            className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left text-sm ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
-          >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-[#008d54]">
-              <Icon name="user" className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold text-[#008d54]">
-                Learning Profile
-              </span>
-              <span className="block truncate text-xs text-[#4f665c]">
-                {profileLabel}
-              </span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => openSettings("general")}
-            className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left text-sm ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
-          >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#eef8f1] text-[#008d54]">
-              <Icon name="settings" className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold text-[#18392e]">
-                Settings
-              </span>
-              <span className="block truncate text-xs text-[#4f665c]">
-                Model, data, keamanan, dokumen
-              </span>
-            </span>
-          </button>
-
-          {uploadedFileName && (
-            <div className="mb-4 rounded-2xl bg-white p-3 text-sm text-[#4f665c] ring-1 ring-[#d8eadf]">
-              <p className="font-semibold text-[#008d54]">
-                {uploadedDocumentType} terupload
-              </p>
-              <p className="mt-1 break-words text-[#18392e]">{uploadedFileName}</p>
-              <p className="mt-2 text-xs font-semibold text-[#4f665c]">
-                {documentStatus === "loading" &&
-                  `Membaca teks ${uploadedDocumentType}...`}
-                {documentStatus === "loaded" &&
-                  `${uploadedDocumentType} siap dianalisis AI`}
-                {documentStatus === "error" &&
-                  (documentError || `${uploadedDocumentType} belum bisa dibaca`)}
-              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  openSettings("subscription");
+                }}
+                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+              >
+                <Icon name="book" className="h-5 w-5 text-[#008d54]" />
+                <span className="font-bold text-[#18392e]">Usage / quota</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  openSettings("general");
+                }}
+                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+              >
+                <Icon name="settings" className="h-5 w-5 text-[#008d54]" />
+                <span className="font-bold text-[#18392e]">Settings</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#8a3b2b] transition hover:bg-[#fff1ed] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Icon name="lock" className="h-5 w-5" />
+                {isLoggingOut ? "Keluar..." : "Logout"}
+              </button>
+              {usageError && (
+                <p className="px-3 py-2 text-xs font-semibold text-[#8a3b2b]">
+                  {usageError}
+                </p>
+              )}
             </div>
           )}
 
-          <div className="flex items-center gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-lg font-bold text-[#008d54]">
+          <button
+            type="button"
+            onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+            className="flex w-full items-center gap-3 rounded-[22px] bg-white p-3 text-left ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
+            aria-expanded={isAccountMenuOpen}
+          >
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-base font-bold text-[#008d54]">
               {userInitials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-lg font-bold">Akun Anggota</p>
-              <p className="truncate text-sm text-[#4f665c]">
+              <p className="truncate text-base font-bold">Akun Anggota</p>
+              <p className="truncate text-xs text-[#4f665c]">
                 {userEmail || "Memuat akun..."}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              aria-label="Keluar"
-              title="Keluar"
-              className="grid h-10 w-10 place-items-center rounded-full text-[#566d62] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-              >
-                <path d="M10 17l5-5-5-5" />
-                <path d="M15 12H3" />
-                <path d="M21 19V5a2 2 0 0 0-2-2h-5" />
-                <path d="M14 21h5a2 2 0 0 0 2-2" />
-              </svg>
-            </button>
-          </div>
+            <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
+              {currentTierLabel}
+            </span>
+          </button>
         </div>
       </aside>
 
@@ -1497,15 +1626,22 @@ export default function Home() {
                 className="inline-flex max-w-[190px] items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-[#eef8f1] focus:ring-[#95d6b9] sm:max-w-none sm:text-base"
               >
                 <span className="truncate">{selectedModelInfo.label}</span>
+                {selectedModel === "smart" && (
+                  <span className="rounded-full bg-[#fff4d8] px-2 py-0.5 text-[10px] font-bold uppercase tracking-normal text-[#8a5a00]">
+                    GPT
+                  </span>
+                )}
                 <span className="text-xs text-[#6b8178]">⌄</span>
               </button>
+              <span className="ml-2 hidden align-middle text-xs font-bold text-[#6b8178] lg:inline">
+                {getModelProviderLabel(selectedModel)}
+              </span>
 
               {isModelMenuOpen && (
                 <div className="absolute left-16 top-11 z-30 w-[min(86vw,360px)] overflow-hidden rounded-[24px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf] sm:left-20">
                   {modelOptions.map((model) => {
                     const modelInfo = modelCatalog[model];
                     const isAllowed = allowedModels.includes(model);
-                    const minimumPlan = getUpgradePlanForModel(model);
 
                     return (
                       <button
@@ -1527,6 +1663,17 @@ export default function Home() {
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2 font-bold text-[#18392e]">
                             {modelInfo.label}
+                            {model === "smart" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#fff4d8] px-2 py-0.5 text-[11px] font-bold text-[#8a5a00]">
+                                <SparkIcon className="h-3 w-3" />
+                                GPT-5 mini
+                              </span>
+                            )}
+                            {model === "document" && (
+                              <span className="rounded-full bg-[#e8f1ff] px-2 py-0.5 text-[11px] font-bold text-[#28528a]">
+                                Gemini Pro
+                              </span>
+                            )}
                             {!isAllowed && (
                               <span className="rounded-full bg-[#fff4d8] px-2 py-0.5 text-[11px] font-bold text-[#8a5a00]">
                                 Premium
@@ -1536,7 +1683,7 @@ export default function Home() {
                           <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#4f665c]">
                             {isAllowed
                               ? modelInfo.description
-                              : `Mulai dari ${minimumPlan.name}`}
+                              : getLockedModelRequirement(model)}
                           </span>
                         </span>
                       </button>
@@ -1547,83 +1694,85 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-3">
+            <span className="hidden rounded-full bg-[#eef8f1] px-3 py-1 text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf] sm:inline-flex">
+              {currentTierLabel}
+            </span>
             <button
               type="button"
-              onClick={() => router.push("/plans")}
-              className="hidden text-right text-sm sm:block"
+              onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+              aria-label="Menu akun"
+              aria-expanded={isAccountMenuOpen}
+              className="grid h-12 w-12 place-items-center rounded-full bg-[#009252] text-xl font-bold text-white shadow-sm transition hover:bg-[#007c46]"
             >
-              <p className="inline-flex rounded-full bg-[#eef8f1] px-3 py-1 font-bold text-[#008d54] ring-1 ring-[#d8eadf]">
-                {currentTierLabel}
-              </p>
-              <p className="text-[#4f665c]">
-                {usageSnapshot
-                  ? `${usageSnapshot.remainingMessagesToday} pesan tersisa`
-                  : "Memuat kuota"}
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={openLearningProfile}
-              aria-label="Learning Profile"
-              title="Learning Profile"
-              className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#566d62] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
-            >
-              <Icon name="user" className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              className="hidden rounded-full bg-white px-5 py-3 font-bold text-[#06140d] shadow-[0_2px_9px_rgba(15,55,35,0.14)] ring-1 ring-[#d8eadf] transition hover:-translate-y-0.5 sm:block"
-            >
-              Bagikan
-            </button>
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-[#009252] text-xl font-bold text-white">
               {userInitials}
-            </div>
+            </button>
+
+            {isAccountMenuOpen && (
+              <div className="absolute right-0 top-14 z-40 w-[min(86vw,300px)] overflow-hidden rounded-[22px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf] md:hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false);
+                    router.push("/plans");
+                  }}
+                  className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+                >
+                  <span className="font-bold text-[#18392e]">Upgrade plan</span>
+                  <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
+                    {currentTierLabel}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false);
+                    openLearningProfile();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+                >
+                  <Icon name="user" className="h-5 w-5 text-[#008d54]" />
+                  <span className="font-bold text-[#18392e]">
+                    Learning Profile
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false);
+                    openSettings("subscription");
+                  }}
+                  className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+                >
+                  <Icon name="book" className="h-5 w-5 text-[#008d54]" />
+                  <span className="font-bold text-[#18392e]">Usage / quota</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false);
+                    openSettings("general");
+                  }}
+                  className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+                >
+                  <Icon name="settings" className="h-5 w-5 text-[#008d54]" />
+                  <span className="font-bold text-[#18392e]">Settings</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#8a3b2b] transition hover:bg-[#fff1ed] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Icon name="lock" className="h-5 w-5" />
+                  {isLoggingOut ? "Keluar..." : "Logout"}
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
-          <button
-            type="button"
-            onClick={() => router.push("/plans")}
-            className="mb-3 flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 text-left text-sm ring-1 ring-[#d8eadf]"
-          >
-            <span className="rounded-full bg-[#eef8f1] px-3 py-1 font-bold text-[#008d54]">
-              {currentTierLabel}
-            </span>
-            <span className="font-semibold text-[#4f665c]">
-              {usageSnapshot
-                ? `${usageSnapshot.remainingMessagesToday} pesan tersisa`
-                : "Memuat kuota"}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={openLearningProfile}
-            className="mb-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left text-sm ring-1 ring-[#d8eadf]"
-          >
-            <span className="min-w-0">
-              <span className="block font-bold text-[#18392e]">
-                Learning Profile
-              </span>
-              <span className="block truncate text-[#4f665c]">
-                {profileDetail}
-              </span>
-            </span>
-            <Icon name="user" className="h-5 w-5 shrink-0 text-[#008d54]" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => openSettings("general")}
-            className="mb-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left text-sm ring-1 ring-[#d8eadf]"
-          >
-            <span className="font-bold text-[#18392e]">Settings</span>
-            <Icon name="settings" className="h-5 w-5 shrink-0 text-[#008d54]" />
-          </button>
-
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
@@ -1755,7 +1904,7 @@ export default function Home() {
 
                   <button
                     type="button"
-                    onClick={sendMessage}
+                    onClick={() => sendMessage()}
                     disabled={isSending || !input.trim() || !hasMessageQuota}
                     aria-label="Kirim pesan"
                     title="Kirim pesan"
@@ -1824,10 +1973,25 @@ export default function Home() {
                       className={
                         message.role === "user"
                           ? "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#009252] px-5 py-3 text-sm leading-relaxed text-white shadow-lg shadow-emerald-900/15 sm:max-w-xl sm:text-base"
-                          : "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#18392e] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-xl sm:text-base"
+                          : "max-w-[85%] rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#18392e] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-2xl sm:text-base"
                       }
                     >
-                      {message.text}
+                      {message.role === "ai" ? (
+                        <>
+                          <MarkdownMessage text={message.text} />
+                          {message.continuationSuggested && !isSending && (
+                            <button
+                              type="button"
+                              onClick={continueAnswer}
+                              className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#eef8f1] px-4 py-2 text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf] transition hover:bg-white"
+                            >
+                              Lanjutkan jawaban
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        message.text
+                      )}
                     </div>
                   </div>
                 )
@@ -1877,7 +2041,7 @@ export default function Home() {
 
               <button
                 type="button"
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={isSending || !input.trim() || !hasMessageQuota}
                 aria-label="Kirim pesan"
                 title="Kirim pesan"
@@ -1930,6 +2094,12 @@ export default function Home() {
                   <strong className="text-[#18392e]">{upgradePlan.name}</strong>{" "}
                   untuk memakai {modelCatalog[upgradeTargetModel].description}
                 </p>
+                {(upgradeTargetModel === "smart" ||
+                  upgradeTargetModel === "document") && (
+                  <p className="mt-2 inline-flex rounded-full bg-[#fff4d8] px-3 py-1 text-xs font-bold text-[#8a5a00]">
+                    Requires Muallim Pro or higher
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -1984,6 +2154,22 @@ export default function Home() {
                       <p>{plan.quotas[0]}</p>
                       <p>{plan.quotas[1]}</p>
                       <p>{plan.modelNames.join(", ")}</p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {plan.modelBadges.map((badge) => (
+                        <span
+                          key={badge}
+                          className={
+                            badge.includes("GPT")
+                              ? "rounded-full bg-[#fff4d8] px-2 py-0.5 text-[11px] font-bold text-[#8a5a00]"
+                              : badge.includes("Gemini 2.5 Pro")
+                                ? "rounded-full bg-[#e8f1ff] px-2 py-0.5 text-[11px] font-bold text-[#28528a]"
+                                : "rounded-full bg-[#eef8f1] px-2 py-0.5 text-[11px] font-bold text-[#008d54]"
+                          }
+                        >
+                          {badge}
+                        </span>
+                      ))}
                     </div>
                     <button
                       type="button"
