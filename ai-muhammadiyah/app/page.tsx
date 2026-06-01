@@ -10,6 +10,16 @@ import {
   updateUserMemory,
   type UserMemory,
 } from "@/lib/memory/user-memory";
+import {
+  canUseStudyMode,
+  defaultStudyMode,
+  getStudyModeBadge,
+  normalizeStudyMode,
+  resolveAllowedStudyMode,
+  studyModeCatalog,
+  studyModeOptions,
+  type StudyModeId,
+} from "@/lib/study-modes";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   getPlanByTier,
@@ -30,6 +40,7 @@ type Message = {
   text: string;
   createdAt?: string;
   model?: SelectedModel;
+  studyMode?: SelectedStudyMode;
   documentMetadata?: DocumentMetadata | null;
   continuationSuggested?: boolean;
 };
@@ -38,6 +49,7 @@ type DocumentStatus = "idle" | "loading" | "loaded" | "error";
 type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Excel" | "Dokumen";
 
 type SelectedModel = PlanModelId;
+type SelectedStudyMode = StudyModeId;
 type SettingsTab =
   | "general"
   | "personalization"
@@ -58,6 +70,7 @@ type Conversation = {
   createdAt: string;
   updatedAt: string;
   model: SelectedModel;
+  studyMode: SelectedStudyMode;
   documentMetadata: DocumentMetadata | null;
 };
 
@@ -67,6 +80,7 @@ type ConversationRow = {
   created_at: string;
   updated_at: string;
   selected_model: string | null;
+  study_mode: string | null;
   document_metadata: DocumentMetadata | null;
 };
 
@@ -77,6 +91,7 @@ type MessageRow = {
   content: string;
   created_at: string;
   selected_model: string | null;
+  study_mode: string | null;
   document_metadata: DocumentMetadata | null;
 };
 
@@ -116,6 +131,22 @@ function getLockedModelRequirement(model: SelectedModel) {
   return `Mulai dari ${getUpgradePlanForModel(model).name}`;
 }
 
+function getLockedStudyModeRequirement(mode: SelectedStudyMode) {
+  if (mode === "osn_coach") {
+    return "Requires Premium for olympiad coaching";
+  }
+
+  if (mode === "research_mode") {
+    return "Requires Premium for academic depth";
+  }
+
+  if (mode === "step_by_step") {
+    return "Requires Premium for full guided solving";
+  }
+
+  return "Available in your plan";
+}
+
 const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "personalization", label: "Personalization" },
@@ -129,14 +160,6 @@ const languageOptions = [
   { label: "Auto", value: "" },
   { label: "Indonesian", value: "Bahasa Indonesia sederhana" },
   { label: "English", value: "English" },
-];
-
-const studyModeOptions = [
-  "Kajian umum",
-  "Tanya jawab cepat",
-  "Latihan soal",
-  "Ringkasan materi",
-  "Persiapan ujian",
 ];
 
 const supportedDocumentAccept =
@@ -206,6 +229,7 @@ function mapConversationRow(row: ConversationRow): Conversation {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     model: normalizeSelectedModel(row.selected_model),
+    studyMode: normalizeStudyMode(row.study_mode),
     documentMetadata: row.document_metadata,
   };
 }
@@ -217,6 +241,7 @@ function mapMessageRow(row: MessageRow): Message {
     text: row.content,
     createdAt: row.created_at,
     model: normalizeSelectedModel(row.selected_model),
+    studyMode: normalizeStudyMode(row.study_mode),
     documentMetadata: row.document_metadata,
   };
 }
@@ -654,7 +679,10 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
+  const [selectedStudyMode, setSelectedStudyMode] =
+    useState<SelectedStudyMode>(defaultStudyMode);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [upgradeTargetModel, setUpgradeTargetModel] =
@@ -687,6 +715,11 @@ export default function Home() {
     : "Memuat";
   const allowedModels = usageSnapshot?.allowedModels ?? ["auto", "fast"];
   const selectedModelInfo = modelCatalog[selectedModel];
+  const selectedStudyModeInfo = studyModeCatalog[selectedStudyMode];
+  const selectedStudyModeBadge = getStudyModeBadge(
+    selectedStudyMode,
+    usageSnapshot?.tier,
+  );
   const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
   const currentPlan = usageSnapshot ? getPlanByTier(usageSnapshot.tier) : null;
   const hasMessageQuota =
@@ -704,7 +737,9 @@ export default function Home() {
 
     const { data, error } = await supabase
       .from("conversations")
-      .select("id,title,created_at,updated_at,selected_model,document_metadata")
+      .select(
+        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata",
+      )
       .order("updated_at", { ascending: false })
       .limit(40);
 
@@ -730,6 +765,9 @@ export default function Home() {
           ? "auto"
           : currentModel,
       );
+      setSelectedStudyMode((currentMode) =>
+        resolveAllowedStudyMode(currentMode, snapshot?.tier),
+      );
     } catch (error) {
       console.error(error);
       setUsageSnapshot(null);
@@ -750,6 +788,12 @@ export default function Home() {
         setProfileDraft(memory);
         setFavoriteSubjectsDraft(memory.favoriteSubjects.join(", "));
         setSelectedModel(memory.defaultModel);
+        setSelectedStudyMode(
+          normalizeStudyMode(
+            window.localStorage.getItem("ai-mu-study-mode") ??
+              memory.defaultStudyMode,
+          ),
+        );
       } catch (error) {
         console.error(error);
         setProfileError("Learning Profile belum bisa dimuat.");
@@ -788,6 +832,10 @@ export default function Home() {
   useEffect(() => {
     document.documentElement.dataset.theme = learningProfile.themePreference;
   }, [learningProfile.themePreference]);
+
+  useEffect(() => {
+    window.localStorage.setItem("ai-mu-study-mode", selectedStudyMode);
+  }, [selectedStudyMode]);
 
   function getCurrentDocumentMetadata(): DocumentMetadata | null {
     if (!uploadedFileName || documentStatus === "idle") {
@@ -835,6 +883,17 @@ export default function Home() {
     setIsModelMenuOpen(false);
   }
 
+  function selectStudyMode(mode: SelectedStudyMode) {
+    if (!canUseStudyMode(mode, usageSnapshot?.tier)) {
+      setIsStudyModeMenuOpen(false);
+      router.push("/plans");
+      return;
+    }
+
+    setSelectedStudyMode(mode);
+    setIsStudyModeMenuOpen(false);
+  }
+
   async function loadConversation(conversation: Conversation) {
     if (isSending) return;
 
@@ -843,11 +902,14 @@ export default function Home() {
     setSelectedModel(
       allowedModels.includes(conversation.model) ? conversation.model : "auto",
     );
+    setSelectedStudyMode(
+      resolveAllowedStudyMode(conversation.studyMode, usageSnapshot?.tier),
+    );
 
     const { data, error } = await supabase
       .from("messages")
       .select(
-        "id,conversation_id,role,content,created_at,selected_model,document_metadata",
+        "id,conversation_id,role,content,created_at,selected_model,study_mode,document_metadata",
       )
       .eq("conversation_id", conversation.id)
       .order("created_at", { ascending: true });
@@ -885,9 +947,12 @@ export default function Home() {
       .insert({
         title,
         selected_model: selectedModel,
+        study_mode: selectedStudyMode,
         document_metadata: documentMetadata,
       })
-      .select("id,title,created_at,updated_at,selected_model,document_metadata")
+      .select(
+        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata",
+      )
       .single();
 
     if (error) {
@@ -1005,6 +1070,9 @@ export default function Home() {
       setProfileDraft(savedMemory);
       setFavoriteSubjectsDraft(savedMemory.favoriteSubjects.join(", "));
       setSelectedModel(savedMemory.defaultModel);
+      setSelectedStudyMode(
+        resolveAllowedStudyMode(savedMemory.defaultStudyMode, usageSnapshot?.tier),
+      );
       setProfileSavedMessage("Learning Profile tersimpan.");
     } catch (error) {
       console.error(error);
@@ -1135,6 +1203,7 @@ export default function Home() {
         role: "user",
         text: userText,
         model: selectedModel,
+        studyMode: selectedStudyMode,
         documentMetadata,
       },
     ];
@@ -1154,6 +1223,7 @@ export default function Home() {
         role: "user",
         content: userText,
         selected_model: selectedModel,
+        study_mode: selectedStudyMode,
         document_metadata: documentMetadata,
       });
 
@@ -1167,6 +1237,7 @@ export default function Home() {
           role: "ai",
           text: "",
           model: selectedModel,
+          studyMode: selectedStudyMode,
           documentMetadata,
         },
       ]);
@@ -1180,6 +1251,7 @@ export default function Home() {
           history: aiHistory,
           pdfContext: currentDocumentContext,
           selectedModel,
+          selectedStudyMode,
         }),
       });
 
@@ -1266,6 +1338,7 @@ export default function Home() {
           role: "assistant",
           content: finalReply.text,
           selected_model: selectedModel,
+          study_mode: selectedStudyMode,
           document_metadata: documentMetadata,
         });
 
@@ -1278,6 +1351,7 @@ export default function Home() {
         .from("conversations")
         .update({
           selected_model: selectedModel,
+          study_mode: selectedStudyMode,
           document_metadata: documentMetadata,
           updated_at: updatedAt,
         })
@@ -1290,6 +1364,7 @@ export default function Home() {
               ? {
                   ...item,
                   model: selectedModel,
+                  studyMode: selectedStudyMode,
                   documentMetadata,
                   updatedAt,
                 }
@@ -1311,6 +1386,7 @@ export default function Home() {
           role: "assistant",
           content: errorText,
           selected_model: selectedModel,
+          study_mode: selectedStudyMode,
           document_metadata: documentMetadata,
         });
       }
@@ -1323,6 +1399,7 @@ export default function Home() {
                 role: "ai",
                 text: errorText,
                 model: selectedModel,
+                studyMode: selectedStudyMode,
                 documentMetadata,
               },
             ]
@@ -1332,6 +1409,7 @@ export default function Home() {
                 role: "ai",
                 text: errorText,
                 model: selectedModel,
+                studyMode: selectedStudyMode,
                 documentMetadata,
               },
             ],
@@ -1620,7 +1698,10 @@ export default function Home() {
               <span className="mx-2 text-[#4f665c]">·</span>
               <button
                 type="button"
-                onClick={() => setIsModelMenuOpen((isOpen) => !isOpen)}
+                onClick={() => {
+                  setIsStudyModeMenuOpen(false);
+                  setIsModelMenuOpen((isOpen) => !isOpen);
+                }}
                 aria-label="Pilih model AI"
                 aria-expanded={isModelMenuOpen}
                 className="inline-flex max-w-[190px] items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-[#eef8f1] focus:ring-[#95d6b9] sm:max-w-none sm:text-base"
@@ -1636,6 +1717,24 @@ export default function Home() {
               <span className="ml-2 hidden align-middle text-xs font-bold text-[#6b8178] lg:inline">
                 {getModelProviderLabel(selectedModel)}
               </span>
+
+              <span className="mx-2 hidden text-[#4f665c] sm:inline">/</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsModelMenuOpen(false);
+                  setIsStudyModeMenuOpen((isOpen) => !isOpen);
+                }}
+                aria-label="Pilih study mode"
+                aria-expanded={isStudyModeMenuOpen}
+                className="mt-2 inline-flex max-w-[210px] items-center gap-2 rounded-full bg-[#eef8f1] px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-white focus:ring-[#95d6b9] sm:mt-0 sm:max-w-none"
+              >
+                <span className="truncate">{selectedStudyModeInfo.label}</span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-normal text-[#008d54] ring-1 ring-[#d8eadf]">
+                  {selectedStudyModeBadge}
+                </span>
+                <span className="text-xs text-[#6b8178]">⌄</span>
+              </button>
 
               {isModelMenuOpen && (
                 <div className="absolute left-16 top-11 z-30 w-[min(86vw,360px)] overflow-hidden rounded-[24px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf] sm:left-20">
@@ -1684,6 +1783,54 @@ export default function Home() {
                             {isAllowed
                               ? modelInfo.description
                               : getLockedModelRequirement(model)}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isStudyModeMenuOpen && (
+                <div className="absolute left-0 top-24 z-30 w-[min(88vw,390px)] overflow-hidden rounded-[24px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf] sm:left-44 sm:top-12">
+                  {studyModeOptions.map((mode) => {
+                    const isAllowed = canUseStudyMode(mode.id, usageSnapshot?.tier);
+                    const badge = getStudyModeBadge(mode.id, usageSnapshot?.tier);
+
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => selectStudyMode(mode.id)}
+                        className={
+                          selectedStudyMode === mode.id
+                            ? "flex w-full items-start gap-3 rounded-[18px] bg-[#eef8f1] p-3 text-left"
+                            : "flex w-full items-start gap-3 rounded-[18px] p-3 text-left transition hover:bg-[#f7fbf8]"
+                        }
+                      >
+                        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-[#008d54]">
+                          <Icon
+                            name={isAllowed ? "check" : "lock"}
+                            className="h-4 w-4"
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2 font-bold text-[#18392e]">
+                            {mode.label}
+                            <span
+                              className={
+                                isAllowed
+                                  ? "rounded-full bg-[#eef8f1] px-2 py-0.5 text-[11px] font-bold text-[#008d54]"
+                                  : "rounded-full bg-[#fff4d8] px-2 py-0.5 text-[11px] font-bold text-[#8a5a00]"
+                              }
+                            >
+                              {badge}
+                            </span>
+                          </span>
+                          <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#4f665c]">
+                            {isAllowed
+                              ? mode.description
+                              : getLockedStudyModeRequirement(mode.id)}
                           </span>
                         </span>
                       </button>
@@ -1866,10 +2013,11 @@ export default function Home() {
 
                   <button
                     type="button"
+                    onClick={() => setIsStudyModeMenuOpen(true)}
                     className="inline-flex items-center gap-2 rounded-full px-2 py-2 font-bold transition hover:bg-[#eef8f1]"
                   >
                     <Icon name="book" className="h-6 w-6" />
-                    Mode Kajian
+                    {selectedStudyModeInfo.shortLabel}
                   </button>
 
                   <button
@@ -2038,6 +2186,20 @@ export default function Home() {
                 disabled={isSending}
                 className="min-w-0 flex-1 bg-transparent text-sm text-[#18392e] outline-none placeholder:text-[#6d8178] sm:text-base"
               />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsModelMenuOpen(false);
+                  setIsStudyModeMenuOpen((isOpen) => !isOpen);
+                }}
+                className="hidden shrink-0 items-center gap-2 rounded-full bg-[#eef8f1] px-3 py-2 text-xs font-bold text-[#008d54] ring-1 ring-[#d8eadf] transition hover:bg-white sm:inline-flex"
+              >
+                {selectedStudyModeInfo.shortLabel}
+                <span className="text-[10px] text-[#4f665c]">
+                  {selectedStudyModeBadge}
+                </span>
+              </button>
 
               <button
                 type="button"
@@ -2304,13 +2466,16 @@ export default function Home() {
                       <select
                         value={profileDraft.defaultStudyMode}
                         onChange={(event) =>
-                          updateProfileDraft("defaultStudyMode", event.target.value)
+                          updateProfileDraft(
+                            "defaultStudyMode",
+                            normalizeStudyMode(event.target.value),
+                          )
                         }
                         className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
                       >
                         {studyModeOptions.map((mode) => (
-                          <option key={mode} value={mode}>
-                            {mode}
+                          <option key={mode.id} value={mode.id}>
+                            {mode.label}
                           </option>
                         ))}
                       </select>

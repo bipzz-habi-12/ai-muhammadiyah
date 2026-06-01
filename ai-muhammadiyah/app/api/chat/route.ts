@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
 import { loadUserMemory } from "@/lib/memory/user-memory";
+import {
+  canUseStudyMode,
+  normalizeStudyMode,
+} from "@/lib/study-modes";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import {
   estimateTokenUsage,
@@ -13,6 +17,7 @@ type ChatRequestBody = {
   messages?: ChatMessage[];
   pdfContext?: string;
   selectedModel?: string;
+  selectedStudyMode?: string;
 };
 
 const maxRecentChatMessages = 10;
@@ -67,6 +72,7 @@ export async function POST(request: Request) {
     const rawHistory = body.history ?? body.messages ?? [];
     const pdfContext = body.pdfContext ?? "";
     const selectedModel = body.selectedModel ?? "auto";
+    const selectedStudyMode = body.selectedStudyMode ?? "";
 
     if (!Array.isArray(rawHistory) || !rawHistory.every(isChatMessage)) {
       return NextResponse.json(
@@ -85,6 +91,13 @@ export async function POST(request: Request) {
     if (typeof selectedModel !== "string") {
       return NextResponse.json(
         { error: "Pilihan model tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    if (typeof selectedStudyMode !== "string") {
+      return NextResponse.json(
+        { error: "Pilihan study mode tidak valid." },
         { status: 400 },
       );
     }
@@ -116,11 +129,22 @@ export async function POST(request: Request) {
 
     const canUse = Boolean(limitCheck?.allowed);
     const usageSnapshot = normalizeUsageSnapshot(limitCheck);
+    const normalizedStudyMode = normalizeStudyMode(selectedStudyMode);
 
     if (!canUse) {
       return NextResponse.json(
         { error: getLimitErrorMessage(limitCheck?.reason) },
         { status: 429 },
+      );
+    }
+
+    if (!canUseStudyMode(normalizedStudyMode, usageSnapshot?.tier)) {
+      return NextResponse.json(
+        {
+          error:
+            "Study mode ini memerlukan paket Premium. Paket Free dapat memakai Quick Explain dan Cambridge Tutor Basic.",
+        },
+        { status: 403 },
       );
     }
 
@@ -139,6 +163,7 @@ export async function POST(request: Request) {
             safeHistory,
             pdfContext,
             selectedModel,
+            normalizedStudyMode,
             (chunk) => {
               streamedReply += chunk;
               controller.enqueue(encoder.encode(chunk));
@@ -170,6 +195,7 @@ export async function POST(request: Request) {
                 has_user_memory: Boolean(userMemory),
                 provider_used: chatResult.provider,
                 model_used: chatResult.model,
+                study_mode: normalizedStudyMode,
                 fallback_event: chatResult.fallbackEvent ?? null,
                 finish_reason: chatResult.finishReason ?? null,
                 needs_continuation: Boolean(chatResult.needsContinuation),

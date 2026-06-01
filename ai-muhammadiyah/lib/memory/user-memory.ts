@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeStudyMode, type StudyModeId } from "@/lib/study-modes";
 
 export type UserMemory = {
   displayName: string;
@@ -9,7 +10,7 @@ export type UserMemory = {
   preferredExplanationStyle: string;
   themePreference: "system" | "light" | "dark";
   defaultModel: "auto" | "fast" | "smart" | "document";
-  defaultStudyMode: string;
+  defaultStudyMode: StudyModeId;
 };
 
 export type UserMemoryInput = {
@@ -46,7 +47,7 @@ export const emptyUserMemory: UserMemory = {
   preferredExplanationStyle: "",
   themePreference: "system",
   defaultModel: "auto",
-  defaultStudyMode: "Kajian umum",
+  defaultStudyMode: "cambridge_tutor",
 };
 
 const memoryTextLimits = {
@@ -117,9 +118,9 @@ export function sanitizeUserMemory(input: UserMemoryInput): UserMemory {
     ),
     themePreference: normalizeThemePreference(input.themePreference),
     defaultModel: normalizeDefaultModel(input.defaultModel),
-    defaultStudyMode:
-      cleanText(input.defaultStudyMode, memoryTextLimits.defaultStudyMode) ||
-      "Kajian umum",
+    defaultStudyMode: normalizeStudyMode(
+      cleanText(input.defaultStudyMode, memoryTextLimits.defaultStudyMode),
+    ),
   };
 }
 
