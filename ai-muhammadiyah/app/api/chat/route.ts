@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
+import {
+  createKnowledgePromptContext,
+  retrieveKnowledgeChunks,
+} from "@/lib/knowledge";
 import { loadUserMemory } from "@/lib/memory/user-memory";
 import {
   canUseStudyMode,
@@ -152,6 +156,14 @@ export async function POST(request: Request) {
       console.error("User memory load failed:", error);
       return null;
     });
+    const knowledgeChunks = await retrieveKnowledgeChunks(
+      supabase,
+      latestUserMessage,
+    ).catch((error) => {
+      console.error("Knowledge retrieval failed:", error);
+      return [];
+    });
+    const knowledgeContext = createKnowledgePromptContext(knowledgeChunks);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -175,6 +187,9 @@ export async function POST(request: Request) {
                 }
               : undefined,
             userMemory ?? undefined,
+            {
+              knowledgeContext,
+            },
           );
 
           const finalReply = chatResult.reply || streamedReply;
@@ -192,6 +207,12 @@ export async function POST(request: Request) {
               p_estimated_tokens: estimatedTotalTokens,
               p_metadata: {
                 has_document_context: Boolean(pdfContext.trim()),
+                has_knowledge_context: Boolean(knowledgeContext),
+                knowledge_sources: knowledgeChunks.map((chunk) => ({
+                  source_id: chunk.sourceId,
+                  title: chunk.sourceTitle,
+                  chunk: chunk.chunkOrder + 1,
+                })),
                 has_user_memory: Boolean(userMemory),
                 provider_used: chatResult.provider,
                 model_used: chatResult.model,

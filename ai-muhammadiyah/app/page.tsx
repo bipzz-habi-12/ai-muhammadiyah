@@ -56,7 +56,8 @@ type SettingsTab =
   | "subscription"
   | "data"
   | "security"
-  | "documents";
+  | "documents"
+  | "knowledge";
 
 type DocumentMetadata = {
   fileName: string;
@@ -93,6 +94,17 @@ type MessageRow = {
   selected_model: string | null;
   study_mode: string | null;
   document_metadata: DocumentMetadata | null;
+};
+
+type KnowledgeSource = {
+  id: string;
+  title: string;
+  category: string;
+  fileType: string;
+  originalFileName: string | null;
+  status: "active" | "draft" | "archived";
+  chunkCount: number;
+  createdAt: string;
 };
 
 const maxRecentChatMessages = 10;
@@ -154,6 +166,7 @@ const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "data", label: "Data Controls" },
   { id: "security", label: "Security" },
   { id: "documents", label: "Documents" },
+  { id: "knowledge", label: "Knowledge Base" },
 ];
 
 const languageOptions = [
@@ -516,6 +529,27 @@ async function extractDocumentFromLocalUpload(file: File) {
   return data;
 }
 
+async function fetchKnowledgeSources() {
+  const response = await fetch("/api/knowledge", {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = (await response.json()) as {
+    error?: string;
+    isAdmin?: boolean;
+    sources?: KnowledgeSource[];
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Knowledge base belum bisa dimuat.");
+  }
+
+  return {
+    isAdmin: Boolean(data.isAdmin),
+    sources: data.sources ?? [],
+  };
+}
+
 function SparkIcon({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -700,6 +734,14 @@ export default function Home() {
   const [profileError, setProfileError] = useState("");
   const [profileSavedMessage, setProfileSavedMessage] = useState("");
   const [settingsDataMessage, setSettingsDataMessage] = useState("");
+  const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
+  const [isKnowledgeAdmin, setIsKnowledgeAdmin] = useState(false);
+  const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false);
+  const [isUploadingKnowledge, setIsUploadingKnowledge] = useState(false);
+  const [knowledgeTitle, setKnowledgeTitle] = useState("");
+  const [knowledgeCategory, setKnowledgeCategory] = useState("kemuhammadiyahan");
+  const [knowledgeMessage, setKnowledgeMessage] = useState("");
+  const [knowledgeError, setKnowledgeError] = useState("");
   const documentTextRef = useRef("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const userInitials = getEmailInitials(userEmail);
@@ -779,6 +821,25 @@ export default function Home() {
     }
   }, []);
 
+  const loadKnowledge = useCallback(async () => {
+    try {
+      setIsLoadingKnowledge(true);
+      setKnowledgeError("");
+      const data = await fetchKnowledgeSources();
+      setKnowledgeSources(data.sources);
+      setIsKnowledgeAdmin(data.isAdmin);
+    } catch (error) {
+      console.error(error);
+      setKnowledgeError(
+        error instanceof Error
+          ? error.message
+          : "Knowledge base belum bisa dimuat.",
+      );
+    } finally {
+      setIsLoadingKnowledge(false);
+    }
+  }, []);
+
   const loadLearningProfile = useCallback(
     async (currentUserId: string) => {
       try {
@@ -819,11 +880,19 @@ export default function Home() {
         loadConversations(),
         loadUsage(),
         loadLearningProfile(user.id),
+        loadKnowledge(),
       ]);
     }
 
     loadUser();
-  }, [loadConversations, loadLearningProfile, loadUsage, router, supabase]);
+  }, [
+    loadConversations,
+    loadKnowledge,
+    loadLearningProfile,
+    loadUsage,
+    router,
+    supabase,
+  ]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -1030,8 +1099,14 @@ export default function Home() {
     setProfileError("");
     setProfileSavedMessage("");
     setSettingsDataMessage("");
+    setKnowledgeMessage("");
+    setKnowledgeError("");
     setActiveSettingsTab(tab);
     setIsSettingsOpen(true);
+
+    if (tab === "knowledge") {
+      void loadKnowledge();
+    }
   }
 
   function openLearningProfile() {
@@ -1185,6 +1260,85 @@ export default function Home() {
       );
     } finally {
       // Allows uploading the same file again after an error or update.
+      event.target.value = "";
+    }
+  }
+
+  async function handleKnowledgeUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file || isUploadingKnowledge) return;
+
+    setKnowledgeMessage("");
+    setKnowledgeError("");
+
+    if (!isKnowledgeAdmin) {
+      setKnowledgeError("Hanya admin yang bisa upload knowledge source.");
+      event.target.value = "";
+      return;
+    }
+
+    const fileName = file.name.toLowerCase();
+    const isSupportedDocument =
+      file.type === "application/pdf" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      fileName.endsWith(".pdf") ||
+      fileName.endsWith(".docx") ||
+      fileName.endsWith(".pptx") ||
+      fileName.endsWith(".xlsx");
+
+    if (!isSupportedDocument) {
+      setKnowledgeError("Format knowledge source harus PDF, DOCX, PPTX, atau XLSX.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > maxDocumentUploadBytes) {
+      setKnowledgeError("Ukuran dokumen terlalu besar. Maksimal 25 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setIsUploadingKnowledge(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("document", file);
+      formData.append("title", knowledgeTitle.trim() || file.name);
+      formData.append("category", knowledgeCategory.trim() || "general");
+
+      const response = await fetch("/api/knowledge/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        chunkCount?: number;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Knowledge source belum bisa diupload.");
+      }
+
+      setKnowledgeMessage(
+        `Knowledge source tersimpan dengan ${data.chunkCount ?? 0} chunk.`,
+      );
+      setKnowledgeTitle("");
+      await loadKnowledge();
+    } catch (error) {
+      console.error(error);
+      setKnowledgeError(
+        error instanceof Error
+          ? error.message
+          : "Knowledge source belum bisa diupload.",
+      );
+    } finally {
+      setIsUploadingKnowledge(false);
       event.target.value = "";
     }
   }
@@ -2738,6 +2892,132 @@ export default function Home() {
                         dipakai pada chat aktif. File asli tidak ditampilkan
                         sebagai arsip permanen di UI saat ini.
                       </p>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingsTab === "knowledge" && (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
+                        <p className="text-sm font-bold text-[#18392e]">
+                          Retrieval status
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                          {isLoadingKnowledge
+                            ? "Memuat knowledge base..."
+                            : `${knowledgeSources.length} source aktif terbaca.`}
+                        </p>
+                      </div>
+                      <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
+                        <p className="text-sm font-bold text-[#18392e]">
+                          Admin access
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                          {isKnowledgeAdmin
+                            ? "Upload dan kelola manual aktif untuk akun ini."
+                            : "Akun ini bisa membaca source publik aktif."}
+                        </p>
+                      </div>
+                    </div>
+
+                    {isKnowledgeAdmin && (
+                      <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="text-sm font-bold text-[#18392e]">
+                              Source title
+                            </span>
+                            <input
+                              value={knowledgeTitle}
+                              onChange={(event) =>
+                                setKnowledgeTitle(event.target.value)
+                              }
+                              className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                              placeholder="Pedoman ISMUBA"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-sm font-bold text-[#18392e]">
+                              Category
+                            </span>
+                            <input
+                              value={knowledgeCategory}
+                              onChange={(event) =>
+                                setKnowledgeCategory(event.target.value)
+                              }
+                              className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                              placeholder="kemuhammadiyahan"
+                            />
+                          </label>
+                        </div>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                          <label className="inline-flex h-12 cursor-pointer items-center justify-center rounded-full bg-[#009252] px-6 text-sm font-bold text-white transition hover:bg-[#007c46]">
+                            {isUploadingKnowledge
+                              ? "Mengupload..."
+                              : "Upload knowledge document"}
+                            <input
+                              type="file"
+                              accept={supportedDocumentAccept}
+                              onChange={handleKnowledgeUpload}
+                              disabled={isUploadingKnowledge}
+                              className="sr-only"
+                            />
+                          </label>
+                          <p className="text-sm text-[#4f665c]">
+                            PDF, DOCX, PPTX, XLSX. Teks dipotong otomatis untuk
+                            pencarian full-text.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {(knowledgeError || knowledgeMessage) && (
+                      <p
+                        className={
+                          knowledgeError
+                            ? "rounded-2xl bg-[#fff1ed] p-3 text-sm font-semibold text-[#8a3b2b]"
+                            : "rounded-2xl bg-[#eef8f1] p-3 text-sm font-semibold text-[#008d54]"
+                        }
+                      >
+                        {knowledgeError || knowledgeMessage}
+                      </p>
+                    )}
+
+                    <div className="space-y-3">
+                      {knowledgeSources.map((source) => (
+                        <div
+                          key={source.id}
+                          className="rounded-[22px] bg-white p-4 ring-1 ring-[#d8eadf]"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-bold text-[#18392e]">
+                                {source.title}
+                              </p>
+                              <p className="mt-1 text-sm text-[#4f665c]">
+                                {source.category} - {source.fileType.toUpperCase()} -
+                                {" "}
+                                {source.chunkCount} chunks
+                              </p>
+                            </div>
+                            <span className="w-fit rounded-full bg-[#eef8f1] px-3 py-1 text-xs font-bold text-[#008d54]">
+                              {source.status}
+                            </span>
+                          </div>
+                          {source.originalFileName && (
+                            <p className="mt-2 break-words text-xs text-[#6b8177]">
+                              {source.originalFileName}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+
+                      {!isLoadingKnowledge && knowledgeSources.length === 0 && (
+                        <div className="rounded-[22px] bg-white p-4 text-sm leading-relaxed text-[#4f665c] ring-1 ring-[#d8eadf]">
+                          Belum ada knowledge source aktif.
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

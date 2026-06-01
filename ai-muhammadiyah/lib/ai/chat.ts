@@ -50,6 +50,9 @@ type OpenAiResponsesPayload = {
   stream?: boolean;
   temperature?: number;
 };
+type ChatContextOptions = {
+  knowledgeContext?: string;
+};
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 type AiRoute = Exclude<SelectedModel, "auto">;
 type AiProvider = "mock" | "openrouter" | "openai" | "gemini";
@@ -192,6 +195,7 @@ function createOpenAiResponsesPayload({
   model,
   messages,
   pdfContext,
+  knowledgeContext,
   studyMode,
   tier,
   memory,
@@ -200,6 +204,7 @@ function createOpenAiResponsesPayload({
   model: string;
   messages: ChatMessage[];
   pdfContext: string;
+  knowledgeContext?: string;
   studyMode?: StudyModeId;
   tier?: SubscriptionTier;
   memory?: UserMemory;
@@ -208,7 +213,7 @@ function createOpenAiResponsesPayload({
   const payload: OpenAiResponsesPayload = {
     model,
     instructions: createOpenAiInstructions(memory, studyMode, tier),
-    input: createOpenAiInput(messages, pdfContext, memory),
+    input: createOpenAiInput(messages, pdfContext, memory, knowledgeContext),
     max_output_tokens: openAiMaxOutputTokens,
   };
 
@@ -475,6 +480,21 @@ function createPdfAnalysisPrompt(pdfContext: string, question: string) {
   ].join("\n");
 }
 
+function createKnowledgeGroundedPrompt(knowledgeContext: string, question: string) {
+  return [
+    "INTERNAL KNOWLEDGE BASE INSTRUCTIONS:",
+    "- The internal knowledge base context is provided below.",
+    "- Use it when relevant before relying on general model knowledge.",
+    "- Do not invent citations. Cite only the source title and chunk number shown in the context.",
+    "- If the needed detail is not found in the context, say it is not found in the current knowledge base.",
+    "",
+    knowledgeContext,
+    "",
+    "USER QUESTION:",
+    question,
+  ].join("\n");
+}
+
 function createMockReply(messages: ChatMessage[], pdfContext = "") {
   const latestMessage = getLatestUserMessage(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
@@ -502,9 +522,11 @@ function createOpenRouterMessages(
   studyMode?: StudyModeId,
   tier?: SubscriptionTier,
   memory?: UserMemory,
+  knowledgeContext = "",
 ) {
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
+  const preparedKnowledgeContext = knowledgeContext.trim();
   const memorySystemPrompt = memory ? createUserMemorySystemPrompt(memory) : "";
   const studyModeSystemPrompt = createStudyModeSystemPrompt(
     studyMode ?? defaultStudyMode,
@@ -529,12 +551,19 @@ function createOpenRouterMessages(
         Boolean(preparedPdfContext) &&
         index === latestUserIndex &&
         isDocumentQuestion(message.text);
+      const shouldAttachKnowledgeContext =
+        Boolean(preparedKnowledgeContext) && index === latestUserIndex;
 
       return {
         role,
         content: shouldAttachPdfContext
           ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
-          : message.text,
+          : shouldAttachKnowledgeContext
+            ? createKnowledgeGroundedPrompt(
+                preparedKnowledgeContext,
+                message.text,
+              )
+            : message.text,
       };
     }),
   ];
@@ -544,8 +573,16 @@ function createOpenAiInput(
   messages: ChatMessage[],
   pdfContext: string,
   memory?: UserMemory,
+  knowledgeContext = "",
 ) {
-  return createOpenRouterMessages(messages, pdfContext, undefined, undefined, memory)
+  return createOpenRouterMessages(
+    messages,
+    pdfContext,
+    undefined,
+    undefined,
+    memory,
+    knowledgeContext,
+  )
     .filter((message) => message.role !== "system")
     .map((message) => ({
       role: message.role,
@@ -616,9 +653,14 @@ function appendContinuationMarkerIfNeeded(result: StreamProviderResult) {
   };
 }
 
-function createGeminiContents(messages: ChatMessage[], pdfContext: string) {
+function createGeminiContents(
+  messages: ChatMessage[],
+  pdfContext: string,
+  knowledgeContext = "",
+) {
   const recentMessages = prepareChatHistory(messages);
   const preparedPdfContext = preparePdfContext(pdfContext);
+  const preparedKnowledgeContext = knowledgeContext.trim();
   const latestUserIndex = recentMessages.findLastIndex(
     (message) => message.role === "user",
   );
@@ -628,6 +670,8 @@ function createGeminiContents(messages: ChatMessage[], pdfContext: string) {
       Boolean(preparedPdfContext) &&
       index === latestUserIndex &&
       isDocumentQuestion(message.text);
+    const shouldAttachKnowledgeContext =
+      Boolean(preparedKnowledgeContext) && index === latestUserIndex;
 
     return {
       role: message.role === "ai" ? "model" : "user",
@@ -635,7 +679,12 @@ function createGeminiContents(messages: ChatMessage[], pdfContext: string) {
         {
           text: shouldAttachPdfContext
             ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
-            : message.text,
+            : shouldAttachKnowledgeContext
+              ? createKnowledgeGroundedPrompt(
+                  preparedKnowledgeContext,
+                  message.text,
+                )
+              : message.text,
         },
       ],
     };
@@ -732,6 +781,7 @@ async function generateOpenRouterReply(
   tier: SubscriptionTier,
   studyMode: StudyModeId,
   memory?: UserMemory,
+  knowledgeContext = "",
 ) {
   const messagesForOpenRouter = createOpenRouterMessages(
     messages,
@@ -739,6 +789,7 @@ async function generateOpenRouterReply(
     studyMode,
     tier,
     memory,
+    knowledgeContext,
   );
   const openRouterModel = resolveOpenRouterModel(route);
 
@@ -851,6 +902,7 @@ async function streamOpenRouterReply(
   tier: SubscriptionTier,
   studyMode: StudyModeId,
   memory?: UserMemory,
+  knowledgeContext = "",
 ): Promise<StreamProviderResult | null> {
   const messagesForOpenRouter = createOpenRouterMessages(
     messages,
@@ -858,6 +910,7 @@ async function streamOpenRouterReply(
     studyMode,
     tier,
     memory,
+    knowledgeContext,
   );
   const openRouterModel = resolveOpenRouterModel(route);
   let streamedText = "";
@@ -985,6 +1038,7 @@ async function generateOpenAiGptReply(
   studyMode: StudyModeId,
   tier: SubscriptionTier,
   memory?: UserMemory,
+  knowledgeContext = "",
 ): Promise<OpenAiReplyResult> {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = resolveOpenAiModel();
@@ -1013,6 +1067,7 @@ async function generateOpenAiGptReply(
         model: openAiModel,
         messages,
         pdfContext,
+        knowledgeContext,
         studyMode,
         tier,
         memory,
@@ -1085,6 +1140,7 @@ async function generateGeminiReply(
   studyMode: StudyModeId = defaultStudyMode,
   memory?: UserMemory,
   modelOverride?: string,
+  knowledgeContext = "",
 ): Promise<string | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
@@ -1111,7 +1167,7 @@ async function generateGeminiReply(
               },
             ],
           },
-          contents: createGeminiContents(messages, pdfContext),
+          contents: createGeminiContents(messages, pdfContext, knowledgeContext),
           generationConfig: {
             maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
@@ -1168,6 +1224,7 @@ async function streamGeminiReply(
   studyMode: StudyModeId = defaultStudyMode,
   memory?: UserMemory,
   modelOverride?: string,
+  knowledgeContext = "",
 ): Promise<StreamProviderResult | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
@@ -1196,7 +1253,7 @@ async function streamGeminiReply(
               },
             ],
           },
-          contents: createGeminiContents(messages, pdfContext),
+          contents: createGeminiContents(messages, pdfContext, knowledgeContext),
           generationConfig: {
             maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
@@ -1289,6 +1346,7 @@ async function generateGeminiReplyWithFallback(
   tier: SubscriptionTier,
   studyMode: StudyModeId,
   memory?: UserMemory,
+  knowledgeContext = "",
 ) {
   const models = resolveGeminiFallbackModels(route, tier);
 
@@ -1301,6 +1359,7 @@ async function generateGeminiReplyWithFallback(
       studyMode,
       memory,
       model,
+      knowledgeContext,
     );
 
     if (reply) {
@@ -1329,6 +1388,7 @@ async function streamGeminiReplyWithFallback(
   tier: SubscriptionTier,
   studyMode: StudyModeId,
   memory?: UserMemory,
+  knowledgeContext = "",
 ) {
   const models = resolveGeminiFallbackModels(route, tier);
 
@@ -1342,6 +1402,7 @@ async function streamGeminiReplyWithFallback(
       studyMode,
       memory,
       model,
+      knowledgeContext,
     );
 
     if (result) {
@@ -1376,6 +1437,7 @@ async function streamOpenAiGptReply(
   studyMode: StudyModeId,
   tier: SubscriptionTier,
   memory?: UserMemory,
+  knowledgeContext = "",
 ): Promise<OpenAiStreamResult | null> {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = resolveOpenAiModel();
@@ -1407,6 +1469,7 @@ async function streamOpenAiGptReply(
         model: openAiModel,
         messages,
         pdfContext,
+        knowledgeContext,
         studyMode,
         tier,
         memory,
@@ -1537,6 +1600,7 @@ async function generateProviderReply(
   access: ReturnType<typeof normalizeRoutingAccess>,
   studyMode: StudyModeId,
   memory?: UserMemory,
+  options?: ChatContextOptions,
 ): Promise<GenerateChatReplyResult> {
   const routeConfig = aiRouteConfig[route];
 
@@ -1547,6 +1611,7 @@ async function generateProviderReply(
       studyMode,
       access.tier,
       memory,
+      options?.knowledgeContext,
     );
 
     if (openAiResult.reply) {
@@ -1595,6 +1660,7 @@ async function generateProviderReply(
       access.tier,
       studyMode,
       memory,
+      options?.knowledgeContext,
     );
 
     if (geminiResult) {
@@ -1647,6 +1713,7 @@ async function generateProviderReply(
     access.tier,
     studyMode,
     memory,
+    options?.knowledgeContext,
   );
 
   console.info("AI Muhammadiyah provider handled request:", {
@@ -1671,6 +1738,7 @@ export async function generateChatReply(
   selectedStudyMode?: string,
   routingAccess?: RoutingAccess,
   memory?: UserMemory,
+  options?: ChatContextOptions,
 ): Promise<GenerateChatReplyResult> {
   const access = normalizeRoutingAccess(routingAccess);
   const studyMode = normalizeStudyMode(selectedStudyMode);
@@ -1716,6 +1784,7 @@ export async function generateChatReply(
     access,
     studyMode,
     memory,
+    options,
   );
 
   return result;
@@ -1737,6 +1806,7 @@ export async function streamChatReply(
   onChunk: StreamChunkHandler,
   routingAccess?: RoutingAccess,
   memory?: UserMemory,
+  options?: ChatContextOptions,
 ) {
   const access = normalizeRoutingAccess(routingAccess);
   const studyMode = normalizeStudyMode(selectedStudyMode);
@@ -1785,6 +1855,7 @@ export async function streamChatReply(
       studyMode,
       access.tier,
       memory,
+      options?.knowledgeContext,
     );
 
     if (openAiResult?.reply) {
@@ -1845,6 +1916,7 @@ export async function streamChatReply(
       access.tier,
       studyMode,
       memory,
+      options?.knowledgeContext,
     );
 
     if (geminiResult) {
@@ -1904,6 +1976,7 @@ export async function streamChatReply(
     access.tier,
     studyMode,
     memory,
+    options?.knowledgeContext,
   );
 
   if (!openRouterResult) {
