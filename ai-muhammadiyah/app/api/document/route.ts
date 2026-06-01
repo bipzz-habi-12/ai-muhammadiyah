@@ -31,6 +31,51 @@ type UploadedDocumentResult =
     };
 
 const maxDocumentUploadBytes = 25 * 1024 * 1024;
+const supportedImageMimeTypes = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+
+function getImageType(fileName: string, mimeType?: string) {
+  const normalizedFileName = fileName.toLowerCase();
+
+  if (
+    mimeType === "image/png" ||
+    normalizedFileName.endsWith(".png")
+  ) {
+    return "png";
+  }
+
+  if (
+    mimeType === "image/jpeg" ||
+    normalizedFileName.endsWith(".jpg") ||
+    normalizedFileName.endsWith(".jpeg")
+  ) {
+    return "jpeg";
+  }
+
+  if (
+    mimeType === "image/webp" ||
+    normalizedFileName.endsWith(".webp")
+  ) {
+    return "webp";
+  }
+
+  return null;
+}
+
+function getNormalizedImageMimeType(imageType: string, mimeType?: string) {
+  if (mimeType && supportedImageMimeTypes.has(mimeType)) {
+    return mimeType;
+  }
+
+  return imageType === "png"
+    ? "image/png"
+    : imageType === "webp"
+      ? "image/webp"
+      : "image/jpeg";
+}
 
 async function uploadDocumentBackupToStorage(
   fileName: string,
@@ -149,12 +194,16 @@ export async function POST(request: Request) {
       uploadedDocument.fileName,
       uploadedDocument.mimeType,
     );
+    const imageType = getImageType(
+      uploadedDocument.fileName,
+      uploadedDocument.mimeType,
+    );
 
-    if (!documentType) {
+    if (!documentType && !imageType) {
       return NextResponse.json(
         {
           error:
-            "Format belum didukung. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx).",
+            "Format belum didukung. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), PNG, JPG, JPEG, atau WEBP.",
         },
         { status: 400 },
       );
@@ -191,6 +240,45 @@ export async function POST(request: Request) {
       uploadedDocument.mimeType,
       buffer,
     );
+
+    if (imageType) {
+      const mimeType = getNormalizedImageMimeType(
+        imageType,
+        uploadedDocument.mimeType,
+      );
+      const { error: usageError } = await usageSupabase.rpc("increment_usage", {
+        p_action: "document_upload",
+        p_model_used: "document",
+        p_document_count: 1,
+        p_estimated_tokens: 0,
+        p_metadata: {
+          file_name: uploadedDocument.fileName,
+          file_type: imageType,
+          mime_type: mimeType,
+          file_size_bytes: buffer.byteLength,
+          upload_kind: "image",
+        },
+      });
+
+      if (usageError) {
+        console.error("Image upload usage increment failed:", usageError);
+      }
+
+      return NextResponse.json({
+        fileName: uploadedDocument.fileName,
+        fileType: imageType,
+        kind: "image",
+        mimeType,
+        data: buffer.toString("base64"),
+      });
+    }
+
+    if (!documentType) {
+      return NextResponse.json(
+        { error: "Format dokumen belum didukung." },
+        { status: 400 },
+      );
+    }
 
     const text = await extractDocumentText(buffer, documentType);
 

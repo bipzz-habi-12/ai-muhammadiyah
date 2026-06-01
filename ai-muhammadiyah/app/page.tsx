@@ -46,7 +46,14 @@ type Message = {
 };
 
 type DocumentStatus = "idle" | "loading" | "loaded" | "error";
-type UploadedDocumentType = "PDF" | "Word" | "PowerPoint" | "Excel" | "Dokumen";
+type UploadedDocumentType =
+  | "PDF"
+  | "Word"
+  | "PowerPoint"
+  | "Excel"
+  | "Image"
+  | "Dokumen";
+type UploadedAttachmentKind = "document" | "image";
 
 type SelectedModel = PlanModelId;
 type SelectedStudyMode = StudyModeId;
@@ -63,6 +70,24 @@ type DocumentMetadata = {
   fileName: string;
   fileType: UploadedDocumentType;
   status: Exclude<DocumentStatus, "idle">;
+  files?: {
+    fileName: string;
+    fileType: UploadedDocumentType;
+    status: Exclude<DocumentStatus, "idle">;
+    kind?: UploadedAttachmentKind;
+  }[];
+};
+
+type UploadedAttachment = {
+  id: string;
+  fileName: string;
+  fileType: UploadedDocumentType;
+  kind: UploadedAttachmentKind;
+  status: Exclude<DocumentStatus, "idle">;
+  text?: string;
+  mimeType?: string;
+  data?: string;
+  error?: string;
 };
 
 type Conversation = {
@@ -176,7 +201,7 @@ const languageOptions = [
 ];
 
 const supportedDocumentAccept =
-  "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx";
+  "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp";
 
 const quickPrompts = [
   {
@@ -342,8 +367,93 @@ function parseContinuationMarker(text: string) {
   };
 }
 
+// Disabled while math is normalized to plain readable text instead of stacked UI.
+function isSimpleMathToken(value: string) {
+  return /^[A-Za-z0-9\s()+\-.,²³⁰¹⁴⁵⁶⁷⁸⁹]+$/.test(value);
+}
+
+// Disabled while math is normalized to plain readable text instead of stacked UI.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function renderMathFragments(text: string, keyPrefix: string): ReactNode[] {
+  const fragments: ReactNode[] = [];
+  const pattern =
+    /(sqrt\(([^()\n]+)\)|(\([^()\n]{1,80}\)|[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹][A-Za-z0-9\s()+\-.,²³⁰¹⁴⁵⁶⁷⁸⁹]{0,60})\s+\/\s+([A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹][A-Za-z0-9\s()+\-.,²³⁰¹⁴⁵⁶⁷⁸⁹]{0,40}))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text))) {
+    if (match.index > lastIndex) {
+      fragments.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match[1].startsWith("sqrt(")) {
+      const radicand = match[2].trim();
+      const needsParentheses = /[\s+\-*/]/.test(radicand);
+      fragments.push(
+        <span key={`${keyPrefix}-sqrt-${match.index}`}>
+          √{needsParentheses ? `(${radicand})` : radicand}
+        </span>,
+      );
+    } else {
+      const numerator = match[3].trim();
+      const denominator = match[4].trim();
+
+      if (isSimpleMathToken(numerator) && isSimpleMathToken(denominator)) {
+        fragments.push(
+          <span
+            key={`${keyPrefix}-frac-${match.index}`}
+            className="mx-0.5 inline-flex translate-y-[0.18em] flex-col items-center align-middle leading-none"
+          >
+            <span className="border-b border-current px-1 pb-0.5">
+              {numerator}
+            </span>
+            <span className="px-1 pt-0.5">{denominator}</span>
+          </span>,
+        );
+      } else {
+        fragments.push(match[0]);
+      }
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    fragments.push(text.slice(lastIndex));
+  }
+
+  return fragments;
+}
+
+function normalizeMathText(text: string) {
+  // Example: "$\\frac{x^2 + 2*x + 1}{3}$" -> "(x² + 2 × x + 1) ÷ 3"
+  // Example: "sqrt(x+1)" -> "√(x + 1)"
+  return text
+    .replace(/`([^`\n]*(?:\\frac|\\sqrt|sqrt\(|\^|\s\/\s|\*)[^`\n]*)`/gi, "$1")
+    .replace(/\\\(/g, "")
+    .replace(/\\\)/g, "")
+    .replace(/\\\[/g, "")
+    .replace(/\\\]/g, "")
+    .replace(/\$\$/g, "")
+    .replace(/\$/g, "")
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1) ÷ ($2)")
+    .replace(/\\sqrt\{([^{}]+)\}/g, "√($1)")
+    .replace(/\bsqrt\(([^()\n]+)\)/gi, (_, radicand: string) => {
+      const cleanRadicand = radicand.trim().replace(/\s*([+\-])\s*/g, " $1 ");
+      return `√(${cleanRadicand.replace(/\s+/g, " ")})`;
+    })
+    .replace(/\^([+-]?\d+)/g, (_, power: string) => toSuperscriptV2(power))
+    .replace(/(\b[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹]+|\))\s*\*\s*(\(?[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹]+)/g, "$1 × $2")
+    .replace(/(?<!https?:)(\b[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹)]+)\s+\/\s+([A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹(]+)/g, "$1 ÷ $2")
+    .replace(/\b([a-zA-Z])2\b/g, "$1²")
+    .replace(/\b([a-zA-Z])3\b/g, "$1³")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function renderInlineMarkdown(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const cleanText = normalizeMathText(text);
+  const parts = cleanText.split(/(\*\*[^*]+\*\*)/g);
 
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -356,6 +466,76 @@ function renderInlineMarkdown(text: string) {
 
     return part;
   });
+}
+
+function toSuperscript(value: string) {
+  const superscripts: Record<string, string> = {
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹",
+    "+": "⁺",
+    "-": "⁻",
+  };
+
+  return value
+    .split("")
+    .map((character) => superscripts[character] ?? character)
+    .join("");
+}
+
+// Kept only to avoid risky churn around older encoded characters in this file.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function formatMathLikeText(text: string) {
+  return text
+    .replace(/\^([+-]?\d+)/g, (_, power: string) => toSuperscript(power))
+    .replace(/(\d|\w)\s*\*\s*(\d|\w)/g, "$1 × $2")
+    .replace(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g, "$1 ÷ $2")
+    .replace(/\b([a-zA-Z])2\b/g, "$1²")
+    .replace(/\b([a-zA-Z])3\b/g, "$1³");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function formatMathLikeTextV2(text: string) {
+  return text
+    .replace(/\^([+-]?\d+)/g, (_, power: string) => toSuperscriptV2(power))
+    .replace(/(\d|\w)\s*\*\s*(\d|\w)/g, "$1 × $2")
+    .replace(/\bsqrt\(([^()\n]+)\)/gi, (_, radicand: string) => {
+      const cleanRadicand = radicand.trim();
+      return /[\s+\-*/]/.test(cleanRadicand)
+        ? `√(${cleanRadicand})`
+        : `√${cleanRadicand}`;
+    })
+    .replace(/\b([a-zA-Z])2\b/g, "$1²")
+    .replace(/\b([a-zA-Z])3\b/g, "$1³");
+}
+
+function toSuperscriptV2(value: string) {
+  const superscripts: Record<string, string> = {
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹",
+    "+": "⁺",
+    "-": "⁻",
+  };
+
+  return value
+    .split("")
+    .map((character) => superscripts[character] ?? character)
+    .join("");
 }
 
 function MarkdownMessage({ text }: { text: string }) {
@@ -491,6 +671,15 @@ function getEmailInitials(email: string) {
 }
 
 function getUploadedDocumentType(fileName: string): UploadedDocumentType {
+  if (
+    fileName.endsWith(".png") ||
+    fileName.endsWith(".jpg") ||
+    fileName.endsWith(".jpeg") ||
+    fileName.endsWith(".webp")
+  ) {
+    return "Image";
+  }
+
   if (fileName.endsWith(".docx")) {
     return "Word";
   }
@@ -506,6 +695,43 @@ function getUploadedDocumentType(fileName: string): UploadedDocumentType {
   return "PDF";
 }
 
+function getAttachmentKind(file: File): UploadedAttachmentKind {
+  const fileName = file.name.toLowerCase();
+
+  return file.type.startsWith("image/") ||
+    fileName.endsWith(".png") ||
+    fileName.endsWith(".jpg") ||
+    fileName.endsWith(".jpeg") ||
+    fileName.endsWith(".webp")
+    ? "image"
+    : "document";
+}
+
+function isSupportedUpload(file: File) {
+  const fileName = file.name.toLowerCase();
+
+  return (
+    file.type === "application/pdf" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    file.type === "image/png" ||
+    file.type === "image/jpeg" ||
+    file.type === "image/webp" ||
+    fileName.endsWith(".pdf") ||
+    fileName.endsWith(".docx") ||
+    fileName.endsWith(".pptx") ||
+    fileName.endsWith(".xlsx") ||
+    fileName.endsWith(".png") ||
+    fileName.endsWith(".jpg") ||
+    fileName.endsWith(".jpeg") ||
+    fileName.endsWith(".webp")
+  );
+}
+
 async function extractDocumentFromLocalUpload(file: File) {
   const formData = new FormData();
   formData.append("document", file);
@@ -518,7 +744,10 @@ async function extractDocumentFromLocalUpload(file: File) {
   const data = (await response.json()) as {
     error?: string;
     fileName?: string;
-    fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+    fileType?: "pdf" | "docx" | "pptx" | "xlsx" | "png" | "jpeg" | "webp";
+    kind?: UploadedAttachmentKind;
+    mimeType?: string;
+    data?: string;
     text?: string;
   };
 
@@ -704,12 +933,14 @@ export default function Home() {
   const [renamingConversationId, setRenamingConversationId] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [chatSearch, setChatSearch] = useState("");
-  const [uploadedFileName, setUploadedFileName] = useState("");
-  const [uploadedDocumentType, setUploadedDocumentType] =
-    useState<UploadedDocumentType>("Dokumen");
+  const [uploadedAttachments, setUploadedAttachments] = useState<
+    UploadedAttachment[]
+  >([]);
   const [documentText, setDocumentText] = useState("");
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>("idle");
   const [documentError, setDocumentError] = useState("");
+  const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
+  const [composerNotice, setComposerNotice] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
@@ -907,24 +1138,82 @@ export default function Home() {
   }, [selectedStudyMode]);
 
   function getCurrentDocumentMetadata(): DocumentMetadata | null {
-    if (!uploadedFileName || documentStatus === "idle") {
+    if (!uploadedAttachments.length) {
       return null;
     }
 
+    const primaryAttachment = uploadedAttachments[0];
+
     return {
-      fileName: uploadedFileName,
-      fileType: uploadedDocumentType,
-      status: documentStatus,
+      fileName:
+        uploadedAttachments.length > 1
+          ? `${uploadedAttachments.length} files uploaded`
+          : primaryAttachment.fileName,
+      fileType:
+        uploadedAttachments.length > 1 ? "Dokumen" : primaryAttachment.fileType,
+      status: uploadedAttachments.some((attachment) => attachment.status === "error")
+        ? "error"
+        : uploadedAttachments.some((attachment) => attachment.status === "loading")
+          ? "loading"
+          : "loaded",
+      files: uploadedAttachments.map((attachment) => ({
+        fileName: attachment.fileName,
+        fileType: attachment.fileType,
+        status: attachment.status,
+        kind: attachment.kind,
+      })),
     };
   }
 
   function resetDocumentState() {
-    setUploadedFileName("");
-    setUploadedDocumentType("Dokumen");
+    setUploadedAttachments([]);
     documentTextRef.current = "";
     setDocumentText("");
     setDocumentStatus("idle");
     setDocumentError("");
+    setComposerNotice("");
+  }
+
+  function removeAttachment(attachmentId: string) {
+    setUploadedAttachments((current) => {
+      const nextAttachments = current.filter(
+        (attachment) => attachment.id !== attachmentId,
+      );
+      const loadedDocuments = nextAttachments
+        .filter(
+          (attachment) =>
+            attachment.kind === "document" &&
+            attachment.status === "loaded" &&
+            attachment.text,
+        )
+        .map(
+          (attachment) =>
+            `FILE: ${attachment.fileName} (${attachment.fileType})\n${attachment.text}`,
+        );
+
+      documentTextRef.current = loadedDocuments.join("\n\n---\n\n");
+      setDocumentText(documentTextRef.current);
+      setDocumentStatus(
+        nextAttachments.some((attachment) => attachment.status === "error")
+          ? "error"
+          : nextAttachments.some((attachment) => attachment.status === "loading")
+            ? "loading"
+            : nextAttachments.length
+              ? "loaded"
+              : "idle",
+      );
+      setDocumentError(
+        nextAttachments.find((attachment) => attachment.status === "error")
+          ?.error ?? "",
+      );
+
+      return nextAttachments;
+    });
+  }
+
+  function showComposerNotice(message: string) {
+    setComposerNotice(message);
+    setIsAttachMenuOpen(false);
   }
 
   function resetMemory() {
@@ -997,8 +1286,28 @@ export default function Home() {
         ?.documentMetadata ?? conversation.documentMetadata;
 
     if (latestDocumentMetadata) {
-      setUploadedFileName(latestDocumentMetadata.fileName);
-      setUploadedDocumentType(latestDocumentMetadata.fileType);
+      setUploadedAttachments(
+        latestDocumentMetadata.files?.length
+          ? latestDocumentMetadata.files.map((file, index) => ({
+              id: `${file.fileName}-${index}`,
+              fileName: file.fileName,
+              fileType: file.fileType,
+              kind: file.kind ?? (file.fileType === "Image" ? "image" : "document"),
+              status: file.status,
+            }))
+          : [
+              {
+                id: latestDocumentMetadata.fileName,
+                fileName: latestDocumentMetadata.fileName,
+                fileType: latestDocumentMetadata.fileType,
+                kind:
+                  latestDocumentMetadata.fileType === "Image"
+                    ? "image"
+                    : "document",
+                status: latestDocumentMetadata.status,
+              },
+            ],
+      );
       setDocumentStatus(latestDocumentMetadata.status);
       setDocumentError("");
       documentTextRef.current = "";
@@ -1181,9 +1490,9 @@ export default function Home() {
   }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
 
-    if (!file) return;
+    if (!files.length) return;
 
     if (!hasUploadQuota) {
       setDocumentStatus("error");
@@ -1194,74 +1503,140 @@ export default function Home() {
       return;
     }
 
-    const fileName = file.name.toLowerCase();
-    const isSupportedDocument =
-      file.type === "application/pdf" ||
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-      fileName.endsWith(".pdf") ||
-      fileName.endsWith(".docx") ||
-      fileName.endsWith(".pptx") ||
-      fileName.endsWith(".xlsx");
+    const pendingAttachments = files.map((file) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+      fileName: file.name,
+      fileType: getUploadedDocumentType(file.name.toLowerCase()),
+      kind: getAttachmentKind(file),
+      status: "loading" as const,
+    }));
 
-    setUploadedFileName(file.name);
-    setUploadedDocumentType(getUploadedDocumentType(fileName));
-    documentTextRef.current = "";
-    setDocumentText("");
+    setUploadedAttachments((current) => [...current, ...pendingAttachments]);
     setDocumentError("");
     setDocumentStatus("loading");
+    setComposerNotice("");
 
-    if (!isSupportedDocument) {
-      setDocumentStatus("error");
-      setDocumentError(
-        "Format belum didukung. Mohon upload file PDF, Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx).",
-      );
-      event.target.value = "";
-      return;
-    }
+    await Promise.all(
+      files.map(async (file, index) => {
+        const attachmentId = pendingAttachments[index].id;
 
-    if (file.size > maxDocumentUploadBytes) {
-      setDocumentStatus("error");
-      setDocumentError(
-        "Ukuran dokumen terlalu besar. Mohon upload file maksimal 25 MB agar bisa dibaca dengan stabil.",
-      );
-      event.target.value = "";
-      return;
-    }
+        if (!isSupportedUpload(file)) {
+          setUploadedAttachments((current) =>
+            current.map((attachment) =>
+              attachment.id === attachmentId
+                ? {
+                    ...attachment,
+                    status: "error",
+                    error:
+                      "Format belum didukung. Gunakan PDF, DOCX, PPTX, XLSX, PNG, JPG, JPEG, atau WEBP.",
+                  }
+                : attachment,
+            ),
+          );
+          return;
+        }
 
-    try {
-      const data = await extractDocumentFromLocalUpload(file);
+        if (file.size > maxDocumentUploadBytes) {
+          setUploadedAttachments((current) =>
+            current.map((attachment) =>
+              attachment.id === attachmentId
+                ? {
+                    ...attachment,
+                    status: "error",
+                    error:
+                      "Ukuran file terlalu besar. Maksimal 25 MB per file.",
+                  }
+                : attachment,
+            ),
+          );
+          return;
+        }
 
-      setUploadedFileName(data.fileName ?? file.name);
-      setUploadedDocumentType(
-        data.fileType === "docx"
-          ? "Word"
-          : data.fileType === "pptx"
-            ? "PowerPoint"
-            : data.fileType === "xlsx"
-              ? "Excel"
-              : "PDF",
-      );
-      documentTextRef.current = data.text ?? "";
+        try {
+          const data = await extractDocumentFromLocalUpload(file);
+          const normalizedType =
+            data.kind === "image"
+              ? "Image"
+              : data.fileType === "docx"
+                ? "Word"
+                : data.fileType === "pptx"
+                  ? "PowerPoint"
+                  : data.fileType === "xlsx"
+                    ? "Excel"
+                    : "PDF";
+
+          setUploadedAttachments((current) =>
+            current.map((attachment) =>
+              attachment.id === attachmentId
+                ? {
+                    ...attachment,
+                    fileName: data.fileName ?? file.name,
+                    fileType: normalizedType,
+                    kind: data.kind ?? attachment.kind,
+                    status: "loaded",
+                    text: data.text,
+                    mimeType: data.mimeType,
+                    data: data.data,
+                    error: "",
+                  }
+                : attachment,
+            ),
+          );
+        } catch (error) {
+          console.error(error);
+          setUploadedAttachments((current) =>
+            current.map((attachment) =>
+              attachment.id === attachmentId
+                ? {
+                    ...attachment,
+                    status: "error",
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "File belum bisa dibaca. Silakan coba file lain.",
+                  }
+                : attachment,
+            ),
+          );
+        }
+      }),
+    );
+
+    setUploadedAttachments((current) => {
+      const loadedDocuments = current
+        .filter(
+          (attachment) =>
+            attachment.kind === "document" &&
+            attachment.status === "loaded" &&
+            attachment.text,
+        )
+        .map(
+          (attachment) =>
+            `FILE: ${attachment.fileName} (${attachment.fileType})\n${attachment.text}`,
+        );
+
+      documentTextRef.current = loadedDocuments.join("\n\n---\n\n");
       setDocumentText(documentTextRef.current);
-      setDocumentStatus("loaded");
-      await loadUsage();
-    } catch (error) {
-      console.error(error);
-      setDocumentStatus("error");
-      setDocumentError(
-        error instanceof Error
-          ? error.message
-          : "Dokumen belum bisa dibaca. Silakan coba file lain.",
+      setDocumentStatus(
+        current.some((attachment) => attachment.status === "error")
+          ? "error"
+          : current.some((attachment) => attachment.status === "loading")
+            ? "loading"
+            : current.length
+              ? "loaded"
+              : "idle",
       );
-    } finally {
-      // Allows uploading the same file again after an error or update.
-      event.target.value = "";
-    }
+      setDocumentError(
+        current.find((attachment) => attachment.status === "error")?.error ?? "",
+      );
+
+      return current;
+    });
+
+    await loadUsage();
+    setIsAttachMenuOpen(false);
+    // Allows uploading the same files again after an error or update.
+    event.target.value = "";
   }
 
   async function handleKnowledgeUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1343,28 +1718,69 @@ export default function Home() {
     }
   }
 
-  async function sendMessage(messageOverride?: string) {
+  async function sendMessage(
+    messageOverride?: string,
+    options?: { hiddenInstruction?: boolean; appendToLastAssistant?: boolean },
+  ) {
     const userText = (messageOverride ?? input).trim();
+    const isHiddenInstruction = Boolean(options?.hiddenInstruction);
+    const appendTarget =
+      isHiddenInstruction && options?.appendToLastAssistant
+        ? [...messages].reverse().find((message) => message.role === "ai")
+        : undefined;
+    const canAppendToAssistant = Boolean(appendTarget?.id);
+    const appendBaseText = canAppendToAssistant
+      ? appendTarget?.text.replace(continuationMarker, "").trimEnd() ?? ""
+      : "";
 
     if (!userText || isSending || !hasMessageQuota) return;
 
     const currentDocumentContext = documentTextRef.current || documentText;
+    const documentContexts = uploadedAttachments
+      .filter(
+        (attachment) =>
+          attachment.kind === "document" &&
+          attachment.status === "loaded" &&
+          attachment.text,
+      )
+      .map((attachment) => ({
+        fileName: attachment.fileName,
+        fileType: attachment.fileType.toLowerCase(),
+        text: attachment.text ?? "",
+      }));
+    const imageContexts = uploadedAttachments
+      .filter(
+        (attachment) =>
+          attachment.kind === "image" &&
+          attachment.status === "loaded" &&
+          attachment.data &&
+          attachment.mimeType,
+      )
+      .map((attachment) => ({
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType ?? "image/jpeg",
+        data: attachment.data ?? "",
+      }));
     const documentMetadata = getCurrentDocumentMetadata();
     let conversation = activeConversation;
-    const nextMessages: Message[] = [
-      ...messages,
-      {
-        role: "user",
-        text: userText,
-        model: selectedModel,
-        studyMode: selectedStudyMode,
-        documentMetadata,
-      },
-    ];
-    const aiHistory = getRecentChatHistory(nextMessages);
+    const visibleUserMessage: Message = {
+      role: "user",
+      text: userText,
+      model: selectedModel,
+      studyMode: selectedStudyMode,
+      documentMetadata,
+    };
+    const nextMessages: Message[] = isHiddenInstruction
+      ? messages
+      : [...messages, visibleUserMessage];
+    const aiHistory = getRecentChatHistory(
+      isHiddenInstruction ? messages : nextMessages,
+    );
 
     setMessages(nextMessages);
-    setInput("");
+    if (!isHiddenInstruction) {
+      setInput("");
+    }
     setIsSending(true);
     setIsAwaitingFirstChunk(true);
 
@@ -1372,29 +1788,44 @@ export default function Home() {
       conversation ??= await createConversation(userText);
       const currentConversation = conversation;
 
-      const { error: userMessageError } = await supabase.from("messages").insert({
-        conversation_id: currentConversation.id,
-        role: "user",
-        content: userText,
-        selected_model: selectedModel,
-        study_mode: selectedStudyMode,
-        document_metadata: documentMetadata,
-      });
+      if (!isHiddenInstruction) {
+        const { error: userMessageError } = await supabase.from("messages").insert({
+          conversation_id: currentConversation.id,
+          role: "user",
+          content: userText,
+          selected_model: selectedModel,
+          study_mode: selectedStudyMode,
+          document_metadata: documentMetadata,
+        });
 
-      if (userMessageError) {
-        throw userMessageError;
+        if (userMessageError) {
+          throw userMessageError;
+        }
       }
 
-      setMessages([
-        ...nextMessages,
-        {
-          role: "ai",
-          text: "",
-          model: selectedModel,
-          studyMode: selectedStudyMode,
-          documentMetadata,
-        },
-      ]);
+      if (canAppendToAssistant) {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === appendTarget?.id
+              ? {
+                  ...message,
+                  continuationSuggested: false,
+                }
+              : message,
+          ),
+        );
+      } else {
+        setMessages([
+          ...nextMessages,
+          {
+            role: "ai",
+            text: "",
+            model: selectedModel,
+            studyMode: selectedStudyMode,
+            documentMetadata,
+          },
+        ]);
+      }
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -1403,7 +1834,10 @@ export default function Home() {
         },
         body: JSON.stringify({
           history: aiHistory,
+          internalInstruction: isHiddenInstruction ? userText : undefined,
           pdfContext: currentDocumentContext,
+          documentContexts,
+          imageContexts,
           selectedModel,
           selectedStudyMode,
         }),
@@ -1446,11 +1880,25 @@ export default function Home() {
           const lastMessage = updatedMessages.at(-1);
 
           if (lastMessage?.role === "ai") {
-            updatedMessages[updatedMessages.length - 1] = {
-              ...lastMessage,
-              text: parsedReply.text,
-              continuationSuggested: parsedReply.needsContinuation,
-            };
+            if (canAppendToAssistant && appendTarget?.id) {
+              const targetIndex = updatedMessages.findIndex(
+                (message) => message.id === appendTarget.id,
+              );
+
+              if (targetIndex >= 0) {
+                updatedMessages[targetIndex] = {
+                  ...updatedMessages[targetIndex],
+                  text: `${appendBaseText}\n\n${parsedReply.text}`.trim(),
+                  continuationSuggested: parsedReply.needsContinuation,
+                };
+              }
+            } else {
+              updatedMessages[updatedMessages.length - 1] = {
+                ...lastMessage,
+                text: parsedReply.text,
+                continuationSuggested: parsedReply.needsContinuation,
+              };
+            }
           }
 
           return updatedMessages;
@@ -1468,11 +1916,25 @@ export default function Home() {
           const lastMessage = updatedMessages.at(-1);
 
           if (lastMessage?.role === "ai") {
-            updatedMessages[updatedMessages.length - 1] = {
-              ...lastMessage,
-              text: parsedReply.text,
-              continuationSuggested: parsedReply.needsContinuation,
-            };
+            if (canAppendToAssistant && appendTarget?.id) {
+              const targetIndex = updatedMessages.findIndex(
+                (message) => message.id === appendTarget.id,
+              );
+
+              if (targetIndex >= 0) {
+                updatedMessages[targetIndex] = {
+                  ...updatedMessages[targetIndex],
+                  text: `${appendBaseText}\n\n${parsedReply.text}`.trim(),
+                  continuationSuggested: parsedReply.needsContinuation,
+                };
+              }
+            } else {
+              updatedMessages[updatedMessages.length - 1] = {
+                ...lastMessage,
+                text: parsedReply.text,
+                continuationSuggested: parsedReply.needsContinuation,
+              };
+            }
           }
 
           return updatedMessages;
@@ -1485,19 +1947,56 @@ export default function Home() {
         throw new Error("Chat stream returned an empty reply");
       }
 
-      const { error: assistantMessageError } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: currentConversation.id,
-          role: "assistant",
-          content: finalReply.text,
-          selected_model: selectedModel,
-          study_mode: selectedStudyMode,
-          document_metadata: documentMetadata,
-        });
+      const finalAssistantText = canAppendToAssistant
+        ? `${appendBaseText}\n\n${finalReply.text}`.trim()
+        : finalReply.text;
+      const assistantWrite = canAppendToAssistant && appendTarget?.id
+        ? await supabase
+            .from("messages")
+            .update({
+              content: finalAssistantText,
+              selected_model: selectedModel,
+              study_mode: selectedStudyMode,
+              document_metadata: documentMetadata,
+            })
+            .eq("id", appendTarget.id)
+        : await supabase
+            .from("messages")
+            .insert({
+              conversation_id: currentConversation.id,
+              role: "assistant",
+              content: finalAssistantText,
+              selected_model: selectedModel,
+              study_mode: selectedStudyMode,
+              document_metadata: documentMetadata,
+            })
+            .select("id")
+            .single();
+      const assistantMessageError = assistantWrite.error;
 
       if (assistantMessageError) {
         throw assistantMessageError;
+      }
+
+      if (!canAppendToAssistant && "data" in assistantWrite && assistantWrite.data) {
+        const assistantRow = assistantWrite.data as { id?: string };
+        if (assistantRow.id) {
+          setMessages((prev) => {
+            const updatedMessages = [...prev];
+            const lastMessage = updatedMessages.at(-1);
+
+            if (lastMessage?.role === "ai") {
+              updatedMessages[updatedMessages.length - 1] = {
+                ...lastMessage,
+                id: assistantRow.id,
+                text: finalAssistantText,
+                continuationSuggested: finalReply.needsContinuation,
+              };
+            }
+
+            return updatedMessages;
+          });
+        }
       }
 
       const updatedAt = new Date().toISOString();
@@ -1578,6 +2077,156 @@ export default function Home() {
   function continueAnswer() {
     void sendMessage(
       "Lanjutkan jawaban sebelumnya dari bagian terakhir. Jangan ulangi dari awal, lanjutkan secara runtut sampai selesai.",
+      {
+        hiddenInstruction: true,
+        appendToLastAssistant: true,
+      },
+    );
+  }
+
+  function renderAttachmentChips(extraClassName = "") {
+    if (!uploadedAttachments.length && !composerNotice) {
+      return null;
+    }
+
+    return (
+      <div className={`mx-auto max-w-3xl ${extraClassName}`}>
+        {uploadedAttachments.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {uploadedAttachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="flex min-w-[210px] max-w-[280px] items-center gap-3 rounded-2xl bg-white px-3 py-2 text-left shadow-sm ring-1 ring-[#d3e8dc]"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef8f1] text-[#008d54]">
+                  <Icon
+                    name={attachment.kind === "image" ? "idea" : "book"}
+                    className="h-5 w-5"
+                  />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-[#18392e]">
+                    {attachment.fileName}
+                  </span>
+                  <span
+                    className={
+                      attachment.status === "error"
+                        ? "block truncate text-xs font-semibold text-[#8a3b2b]"
+                        : "block truncate text-xs font-semibold text-[#4f665c]"
+                    }
+                  >
+                    {attachment.fileType} ·{" "}
+                    {attachment.status === "loading"
+                      ? "membaca..."
+                      : attachment.status === "loaded"
+                        ? attachment.kind === "image"
+                          ? "siap dianalisis"
+                          : "teks siap"
+                        : attachment.error || "gagal dibaca"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(attachment.id)}
+                  aria-label={`Hapus ${attachment.fileName}`}
+                  title="Hapus"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#6d8178] transition hover:bg-[#fff1ed] hover:text-[#8a3b2b]"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {composerNotice && (
+          <p className="mt-2 rounded-2xl bg-[#eef8f1] px-3 py-2 text-sm font-semibold text-[#008d54] ring-1 ring-[#d8eadf]">
+            {composerNotice}
+          </p>
+        )}
+
+        {documentStatus === "error" && documentError && (
+          <p className="mt-2 rounded-2xl bg-[#fff1ed] px-3 py-2 text-sm font-semibold text-[#8a3b2b] ring-1 ring-[#f0c8be]">
+            {documentError}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function renderAttachMenu() {
+    if (!isAttachMenuOpen) {
+      return null;
+    }
+
+    return (
+      <div className="absolute bottom-full left-0 z-20 mb-3 w-72 overflow-hidden rounded-3xl bg-white p-2 text-sm shadow-2xl shadow-emerald-950/10 ring-1 ring-[#d3e8dc]">
+        <label className="flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 font-bold text-[#18392e] transition hover:bg-[#eef8f1]">
+          <Icon name="book" className="h-5 w-5 text-[#008d54]" />
+          <span>Add photos & files</span>
+          <input
+            type="file"
+            multiple
+            accept={supportedDocumentAccept}
+            onChange={handleDocumentUpload}
+            className="hidden"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => showComposerNotice("Recent files akan tersedia segera.")}
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+        >
+          <Icon name="edit" className="h-5 w-5 text-[#008d54]" />
+          Recent files
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            showComposerNotice("Create image masih Coming soon sampai provider image generation dikonfigurasi.")
+          }
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+        >
+          <Icon name="idea" className="h-5 w-5 text-[#008d54]" />
+          Create image
+        </button>
+        {isKnowledgeAdmin && (
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSettingsTab("knowledge");
+              setIsSettingsOpen(true);
+              setIsAttachMenuOpen(false);
+            }}
+            className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+          >
+            <Icon name="lock" className="h-5 w-5 text-[#008d54]" />
+            Knowledge source upload
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setIsStudyModeMenuOpen(true);
+            setIsAttachMenuOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+        >
+          <Icon name="cap" className="h-5 w-5 text-[#008d54]" />
+          Study mode
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsSettingsOpen(true);
+            setIsAttachMenuOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+        >
+          <Icon name="settings" className="h-5 w-5 text-[#008d54]" />
+          Settings
+        </button>
+      </div>
     );
   }
 
@@ -2098,27 +2747,19 @@ export default function Home() {
             ))}
           </div>
 
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]">
-            <span className="text-xl text-[#008d54]">+</span>
-            Upload PDF / Word / PowerPoint / Excel
-            <input
-              type="file"
-              accept={supportedDocumentAccept}
-              onChange={handleDocumentUpload}
-              className="hidden"
-            />
-          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#18392e] shadow-sm ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+            >
+              <span className="text-xl text-[#008d54]">+</span>
+              Add photos & files
+            </button>
+            {renderAttachMenu()}
+          </div>
 
-          {uploadedFileName && (
-            <p className="mt-2 truncate text-sm text-[#4f665c]">
-              {uploadedFileName}
-              {documentStatus === "loading" &&
-                ` - membaca ${uploadedDocumentType}...`}
-              {documentStatus === "loaded" && ` - ${uploadedDocumentType} siap`}
-              {documentStatus === "error" &&
-                ` - ${documentError || "gagal dibaca"}`}
-            </p>
-          )}
+          {renderAttachmentChips("mt-2")}
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
@@ -2140,6 +2781,7 @@ export default function Home() {
               </section>
 
               <div className="w-full rounded-[34px] bg-white p-5 shadow-[0_22px_60px_rgba(27,77,50,0.08)] ring-1 ring-[#d3e8dc]">
+                {renderAttachmentChips("mb-3")}
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -2154,16 +2796,17 @@ export default function Home() {
                 />
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[#4f665c]">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full px-2 py-2 font-bold transition hover:bg-[#eef8f1]">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
+                      className="inline-flex items-center gap-2 rounded-full px-2 py-2 font-bold transition hover:bg-[#eef8f1]"
+                    >
                     <span aria-hidden="true" className="text-2xl">⌘</span>
                     Lampirkan
-                    <input
-                      type="file"
-                      accept={supportedDocumentAccept}
-                      onChange={handleDocumentUpload}
-                      className="hidden"
-                    />
-                  </label>
+                    </button>
+                    {renderAttachMenu()}
+                  </div>
 
                   <button
                     type="button"
@@ -2313,20 +2956,20 @@ export default function Home() {
 
         {messages.length > 1 && (
           <div className="border-t border-[#d9e9df] bg-[#fbfdfb] p-3 sm:p-4">
+            {renderAttachmentChips("mb-2")}
             <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-[#d3e8dc] focus-within:ring-[#95d6b9] sm:gap-3 sm:px-4">
-              <label
-                className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-[#4f665c] transition hover:bg-[#eef8f1]"
-                title="Lampirkan PDF, Word, PowerPoint, atau Excel"
-                aria-label="Lampirkan PDF, Word, PowerPoint, atau Excel"
+              <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#4f665c] transition hover:bg-[#eef8f1]"
+                title="Add photos & files"
+                aria-label="Add photos & files"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">+</span>
-                <input
-                  type="file"
-                  accept={supportedDocumentAccept}
-                  onChange={handleDocumentUpload}
-                  className="hidden"
-                />
-              </label>
+              </button>
+              {renderAttachMenu()}
+              </div>
 
               <input
                 value={input}
@@ -2379,17 +3022,6 @@ export default function Home() {
               </button>
             </div>
 
-            {uploadedFileName && (
-              <p className="mx-auto mt-2 max-w-3xl truncate px-3 text-sm text-[#4f665c]">
-                {uploadedFileName}
-                {documentStatus === "loading" &&
-                  ` - membaca ${uploadedDocumentType}...`}
-                {documentStatus === "loaded" &&
-                  ` - ${uploadedDocumentType} siap dianalisis`}
-                {documentStatus === "error" &&
-                  ` - ${documentError || "gagal dibaca"}`}
-              </p>
-            )}
           </div>
         )}
       </section>
@@ -2880,7 +3512,7 @@ export default function Home() {
                         Supported files
                       </p>
                       <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
-                        PDF, DOCX, PPTX, XLSX.
+                        PDF, DOCX, PPTX, XLSX, PNG, JPG, JPEG, WEBP.
                       </p>
                     </div>
                     <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf] sm:col-span-2">

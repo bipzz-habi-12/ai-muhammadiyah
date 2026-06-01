@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { streamChatReply, type ChatMessage } from "@/lib/ai/chat";
+import {
+  streamChatReply,
+  type ChatMessage,
+  type DocumentContext,
+  type ImageContext,
+} from "@/lib/ai/chat";
 import {
   createKnowledgePromptContext,
   retrieveKnowledgeChunks,
@@ -19,7 +24,10 @@ import {
 type ChatRequestBody = {
   history?: ChatMessage[];
   messages?: ChatMessage[];
+  internalInstruction?: string;
   pdfContext?: string;
+  documentContexts?: DocumentContext[];
+  imageContexts?: ImageContext[];
   selectedModel?: string;
   selectedStudyMode?: string;
 };
@@ -61,6 +69,35 @@ function createSafeHistory(history: ChatMessage[]) {
     }));
 }
 
+function isDocumentContext(context: unknown): context is DocumentContext {
+  if (!context || typeof context !== "object") {
+    return false;
+  }
+
+  const candidate = context as DocumentContext;
+
+  return (
+    typeof candidate.fileName === "string" &&
+    typeof candidate.fileType === "string" &&
+    typeof candidate.text === "string"
+  );
+}
+
+function isImageContext(context: unknown): context is ImageContext {
+  if (!context || typeof context !== "object") {
+    return false;
+  }
+
+  const candidate = context as ImageContext;
+
+  return (
+    typeof candidate.fileName === "string" &&
+    typeof candidate.mimeType === "string" &&
+    typeof candidate.data === "string" &&
+    candidate.data.length <= 18_000_000
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseAuthServerClient();
@@ -74,7 +111,10 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as ChatRequestBody;
     const rawHistory = body.history ?? body.messages ?? [];
+    const internalInstruction = body.internalInstruction ?? "";
     const pdfContext = body.pdfContext ?? "";
+    const documentContexts = body.documentContexts ?? [];
+    const imageContexts = body.imageContexts ?? [];
     const selectedModel = body.selectedModel ?? "auto";
     const selectedStudyMode = body.selectedStudyMode ?? "";
 
@@ -88,6 +128,30 @@ export async function POST(request: Request) {
     if (typeof pdfContext !== "string") {
       return NextResponse.json(
         { error: "Konteks dokumen tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    if (typeof internalInstruction !== "string") {
+      return NextResponse.json(
+        { error: "Instruksi internal tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      !Array.isArray(documentContexts) ||
+      !documentContexts.every(isDocumentContext)
+    ) {
+      return NextResponse.json(
+        { error: "Konteks multi-dokumen tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    if (!Array.isArray(imageContexts) || !imageContexts.every(isImageContext)) {
+      return NextResponse.json(
+        { error: "Konteks gambar tidak valid." },
         { status: 400 },
       );
     }
@@ -106,12 +170,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const safeHistory = createSafeHistory(rawHistory);
+    const safeHistory = createSafeHistory(
+      internalInstruction.trim()
+        ? [
+            ...rawHistory,
+            {
+              role: "user",
+              text: internalInstruction.trim(),
+            },
+          ]
+        : rawHistory,
+    );
     const latestUserMessage =
       safeHistory.findLast((message) => message.role === "user")?.text ?? "";
+    const combinedDocumentContext = [
+      pdfContext,
+      ...documentContexts.map(
+        (document) =>
+          `${document.fileName} (${document.fileType})\n${document.text}`,
+      ),
+    ].filter((context) => context.trim()).join("\n\n---\n\n");
     const estimatedInputTokens = estimateTokenUsage(
       latestUserMessage,
-      pdfContext,
+      combinedDocumentContext,
+      imageContexts.map((image) => image.fileName).join(" "),
     );
     const { data: limitCheck, error: limitError } = await supabase.rpc(
       "check_usage_limits",
@@ -189,13 +271,15 @@ export async function POST(request: Request) {
             userMemory ?? undefined,
             {
               knowledgeContext,
+              documentContexts,
+              imageContexts,
             },
           );
 
           const finalReply = chatResult.reply || streamedReply;
           const estimatedTotalTokens = estimateTokenUsage(
             latestUserMessage,
-            pdfContext,
+            combinedDocumentContext,
             finalReply,
           );
           const { data: usageData, error: usageError } = await supabase.rpc(
@@ -206,7 +290,20 @@ export async function POST(request: Request) {
               p_document_count: 0,
               p_estimated_tokens: estimatedTotalTokens,
               p_metadata: {
-                has_document_context: Boolean(pdfContext.trim()),
+                has_document_context: Boolean(combinedDocumentContext.trim()),
+                document_count: documentContexts.length,
+                image_count: imageContexts.length,
+                has_image_context: imageContexts.length > 0,
+                uploaded_documents: documentContexts.map((document) => ({
+                  file_name: document.fileName,
+                  file_type: document.fileType,
+                  text_length: document.text.length,
+                })),
+                uploaded_images: imageContexts.map((image) => ({
+                  file_name: image.fileName,
+                  mime_type: image.mimeType,
+                  data_length: image.data.length,
+                })),
                 has_knowledge_context: Boolean(knowledgeContext),
                 knowledge_sources: knowledgeChunks.map((chunk) => ({
                   source_id: chunk.sourceId,

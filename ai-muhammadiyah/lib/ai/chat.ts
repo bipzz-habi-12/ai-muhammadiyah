@@ -15,6 +15,18 @@ export type ChatMessage = {
   text: string;
 };
 
+export type DocumentContext = {
+  fileName: string;
+  fileType: string;
+  text: string;
+};
+
+export type ImageContext = {
+  fileName: string;
+  mimeType: string;
+  data: string;
+};
+
 type GenerateChatReplyResult = {
   reply: string;
   provider: AiProvider;
@@ -52,6 +64,8 @@ type OpenAiResponsesPayload = {
 };
 type ChatContextOptions = {
   knowledgeContext?: string;
+  documentContexts?: DocumentContext[];
+  imageContexts?: ImageContext[];
 };
 type SelectedModel = "auto" | "fast" | "smart" | "document";
 type AiRoute = Exclude<SelectedModel, "auto">;
@@ -89,6 +103,12 @@ const responseStyleSystemPrompt = [
   "- Use clean, modern Markdown with helpful headings, spacing, and readable paragraphs.",
   "- Use bullet points for lists and numbered steps for tutorials or procedures.",
   "- Use tables only when they make comparison or data easier to understand.",
+  "- Do not use LaTeX math delimiters such as $, $$, \\( \\), or \\[ \\].",
+  "- Do not wrap math in backticks unless it is actual code.",
+  "- Do not use \\frac, \\sqrt, raw ^, raw *, or raw / in normal explanations.",
+  "- Prefer clean plain math: x², x³, √x, √(x + 1), ×, ÷, and line breaks for steps.",
+  "- For math, avoid raw programming symbols when explaining. Prefer readable notation such as x² instead of x^2, × instead of *, √x or √(x + 1) instead of sqrt(x), and fractions or ÷ instead of raw /.",
+  "- Keep equations visually clean: one important step per line, short explanations beside or below the formula, readable fractions where possible, and no cluttered inline algebra when a small block is easier to read.",
   "- Keep the tone premium, concise, confident, and friendly.",
   "- Avoid repetitive self-disclaimer paragraphs and generic assistant caveats.",
   "- Use light emojis sparingly when they clarify the answer, not as decoration.",
@@ -196,6 +216,8 @@ function createOpenAiResponsesPayload({
   messages,
   pdfContext,
   knowledgeContext,
+  documentContexts,
+  imageContexts,
   studyMode,
   tier,
   memory,
@@ -205,6 +227,8 @@ function createOpenAiResponsesPayload({
   messages: ChatMessage[];
   pdfContext: string;
   knowledgeContext?: string;
+  documentContexts?: DocumentContext[];
+  imageContexts?: ImageContext[];
   studyMode?: StudyModeId;
   tier?: SubscriptionTier;
   memory?: UserMemory;
@@ -213,7 +237,14 @@ function createOpenAiResponsesPayload({
   const payload: OpenAiResponsesPayload = {
     model,
     instructions: createOpenAiInstructions(memory, studyMode, tier),
-    input: createOpenAiInput(messages, pdfContext, memory, knowledgeContext),
+    input: createOpenAiInput(
+      messages,
+      pdfContext,
+      memory,
+      knowledgeContext,
+      documentContexts,
+      imageContexts,
+    ),
     max_output_tokens: openAiMaxOutputTokens,
   };
 
@@ -241,10 +272,15 @@ function routeSelectedModel(
   selectedModel: SelectedModel,
   latestMessage: string,
   pdfContext: string,
+  hasImages = false,
   allowedModels: string[] = ["auto", "fast"],
 ): AiRoute {
   if (selectedModel !== "auto") {
     return selectedModel;
+  }
+
+  if (hasImages) {
+    return allowedModels.includes("document") ? "document" : "fast";
   }
 
   if (pdfContext && isDocumentQuestion(latestMessage)) {
@@ -302,6 +338,26 @@ function preparePdfContext(pdfContext: string) {
 
   // Keep the prompt beginner-friendly and avoid sending a very large document at once.
   return trimmedContext.slice(0, maxDocumentContextLength);
+}
+
+function createCombinedDocumentContext(
+  pdfContext: string,
+  documentContexts: DocumentContext[] = [],
+) {
+  const contexts = documentContexts
+    .filter((document) => document.text.trim())
+    .map((document, index) =>
+      [
+        `FILE ${index + 1}: ${document.fileName} (${document.fileType.toUpperCase()})`,
+        document.text.trim(),
+      ].join("\n"),
+    );
+
+  if (pdfContext.trim()) {
+    contexts.unshift(["FILE 1: Uploaded document", pdfContext.trim()].join("\n"));
+  }
+
+  return preparePdfContext(contexts.join("\n\n---\n\n"));
 }
 
 function isDocumentQuestion(question: string) {
@@ -369,6 +425,25 @@ function isDocumentQuestion(question: string) {
   );
 
   return mentionsDocument || asksDocumentTask;
+}
+
+function isImageQuestion(question: string) {
+  const normalizedQuestion = question.toLowerCase();
+  const imageWords = [
+    "gambar",
+    "foto",
+    "image",
+    "photo",
+    "visual",
+    "screenshot",
+    "diagram",
+    "lihat ini",
+    "apa isi gambar",
+    "jelaskan gambar",
+    "analisis foto",
+  ];
+
+  return imageWords.some((word) => normalizedQuestion.includes(word));
 }
 
 function isReasoningQuestion(question: string) {
@@ -480,6 +555,31 @@ function createPdfAnalysisPrompt(pdfContext: string, question: string) {
   ].join("\n");
 }
 
+function createImageAnalysisPrompt(
+  question: string,
+  imageContexts: ImageContext[],
+  documentPrompt = "",
+) {
+  const imageList = imageContexts
+    .map((image, index) => `- Image ${index + 1}: ${image.fileName} (${image.mimeType})`)
+    .join("\n");
+
+  return [
+    "IMAGE ANALYSIS INSTRUCTIONS:",
+    "- The user uploaded image/photo data with this message.",
+    "- Analyze all relevant uploaded images. If there are multiple images, compare or reference them clearly when useful.",
+    "- Do not claim you cannot view the image when image data is attached.",
+    "- If an image is unclear, say what is unclear and explain what can still be inferred.",
+    "",
+    "UPLOADED IMAGES:",
+    imageList,
+    documentPrompt ? ["", documentPrompt].join("\n") : "",
+    "",
+    "USER QUESTION:",
+    question,
+  ].filter(Boolean).join("\n");
+}
+
 function createKnowledgeGroundedPrompt(knowledgeContext: string, question: string) {
   return [
     "INTERNAL KNOWLEDGE BASE INSTRUCTIONS:",
@@ -523,9 +623,14 @@ function createOpenRouterMessages(
   tier?: SubscriptionTier,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ) {
   const recentMessages = prepareChatHistory(messages);
-  const preparedPdfContext = preparePdfContext(pdfContext);
+  const preparedPdfContext = createCombinedDocumentContext(
+    pdfContext,
+    documentContexts,
+  );
   const preparedKnowledgeContext = knowledgeContext.trim();
   const memorySystemPrompt = memory ? createUserMemorySystemPrompt(memory) : "";
   const studyModeSystemPrompt = createStudyModeSystemPrompt(
@@ -551,12 +656,24 @@ function createOpenRouterMessages(
         Boolean(preparedPdfContext) &&
         index === latestUserIndex &&
         isDocumentQuestion(message.text);
+      const shouldAttachImageContext =
+        imageContexts.length > 0 &&
+        index === latestUserIndex &&
+        (isImageQuestion(message.text) || !shouldAttachPdfContext);
       const shouldAttachKnowledgeContext =
         Boolean(preparedKnowledgeContext) && index === latestUserIndex;
 
       return {
         role,
-        content: shouldAttachPdfContext
+        content: shouldAttachImageContext
+          ? createImageAnalysisPrompt(
+              message.text,
+              imageContexts,
+              shouldAttachPdfContext
+                ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
+                : "",
+            )
+          : shouldAttachPdfContext
           ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
           : shouldAttachKnowledgeContext
             ? createKnowledgeGroundedPrompt(
@@ -574,20 +691,45 @@ function createOpenAiInput(
   pdfContext: string,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ) {
-  return createOpenRouterMessages(
+  const routerMessages = createOpenRouterMessages(
     messages,
     pdfContext,
     undefined,
     undefined,
     memory,
     knowledgeContext,
+    documentContexts,
+    imageContexts,
   )
     .filter((message) => message.role !== "system")
-    .map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+    .map((message, index, items) => {
+      const isLatestUserMessage =
+        message.role === "user" &&
+        index === items.findLastIndex((item) => item.role === "user");
+
+      if (!isLatestUserMessage || !imageContexts.length) {
+        return {
+          role: message.role,
+          content: message.content,
+        };
+      }
+
+      return {
+        role: message.role,
+        content: [
+          { type: "input_text", text: message.content },
+          ...imageContexts.map((image) => ({
+            type: "input_image",
+            image_url: `data:${image.mimeType};base64,${image.data}`,
+          })),
+        ],
+      };
+    });
+
+  return routerMessages;
 }
 
 function createOpenAiInstructions(
@@ -657,9 +799,14 @@ function createGeminiContents(
   messages: ChatMessage[],
   pdfContext: string,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ) {
   const recentMessages = prepareChatHistory(messages);
-  const preparedPdfContext = preparePdfContext(pdfContext);
+  const preparedPdfContext = createCombinedDocumentContext(
+    pdfContext,
+    documentContexts,
+  );
   const preparedKnowledgeContext = knowledgeContext.trim();
   const latestUserIndex = recentMessages.findLastIndex(
     (message) => message.role === "user",
@@ -670,22 +817,41 @@ function createGeminiContents(
       Boolean(preparedPdfContext) &&
       index === latestUserIndex &&
       isDocumentQuestion(message.text);
+    const shouldAttachImageContext =
+      imageContexts.length > 0 &&
+      index === latestUserIndex &&
+      (isImageQuestion(message.text) || !shouldAttachPdfContext);
     const shouldAttachKnowledgeContext =
       Boolean(preparedKnowledgeContext) && index === latestUserIndex;
+    const text = shouldAttachImageContext
+      ? createImageAnalysisPrompt(
+          message.text,
+          imageContexts,
+          shouldAttachPdfContext
+            ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
+            : "",
+        )
+      : shouldAttachPdfContext
+        ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
+        : shouldAttachKnowledgeContext
+          ? createKnowledgeGroundedPrompt(
+              preparedKnowledgeContext,
+              message.text,
+            )
+          : message.text;
 
     return {
       role: message.role === "ai" ? "model" : "user",
       parts: [
-        {
-          text: shouldAttachPdfContext
-            ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
-            : shouldAttachKnowledgeContext
-              ? createKnowledgeGroundedPrompt(
-                  preparedKnowledgeContext,
-                  message.text,
-                )
-              : message.text,
-        },
+        { text },
+        ...(shouldAttachImageContext
+          ? imageContexts.map((image) => ({
+              inlineData: {
+                mimeType: image.mimeType,
+                data: image.data,
+              },
+            }))
+          : []),
       ],
     };
   });
@@ -782,6 +948,8 @@ async function generateOpenRouterReply(
   studyMode: StudyModeId,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ) {
   const messagesForOpenRouter = createOpenRouterMessages(
     messages,
@@ -790,6 +958,8 @@ async function generateOpenRouterReply(
     tier,
     memory,
     knowledgeContext,
+    documentContexts,
+    imageContexts,
   );
   const openRouterModel = resolveOpenRouterModel(route);
 
@@ -903,6 +1073,8 @@ async function streamOpenRouterReply(
   studyMode: StudyModeId,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ): Promise<StreamProviderResult | null> {
   const messagesForOpenRouter = createOpenRouterMessages(
     messages,
@@ -911,6 +1083,8 @@ async function streamOpenRouterReply(
     tier,
     memory,
     knowledgeContext,
+    documentContexts,
+    imageContexts,
   );
   const openRouterModel = resolveOpenRouterModel(route);
   let streamedText = "";
@@ -1039,6 +1213,8 @@ async function generateOpenAiGptReply(
   tier: SubscriptionTier,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ): Promise<OpenAiReplyResult> {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = resolveOpenAiModel();
@@ -1068,6 +1244,8 @@ async function generateOpenAiGptReply(
         messages,
         pdfContext,
         knowledgeContext,
+        documentContexts,
+        imageContexts,
         studyMode,
         tier,
         memory,
@@ -1141,6 +1319,8 @@ async function generateGeminiReply(
   memory?: UserMemory,
   modelOverride?: string,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ): Promise<string | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
@@ -1167,7 +1347,13 @@ async function generateGeminiReply(
               },
             ],
           },
-          contents: createGeminiContents(messages, pdfContext, knowledgeContext),
+          contents: createGeminiContents(
+            messages,
+            pdfContext,
+            knowledgeContext,
+            documentContexts,
+            imageContexts,
+          ),
           generationConfig: {
             maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
@@ -1225,6 +1411,8 @@ async function streamGeminiReply(
   memory?: UserMemory,
   modelOverride?: string,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ): Promise<StreamProviderResult | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
@@ -1253,7 +1441,13 @@ async function streamGeminiReply(
               },
             ],
           },
-          contents: createGeminiContents(messages, pdfContext, knowledgeContext),
+          contents: createGeminiContents(
+            messages,
+            pdfContext,
+            knowledgeContext,
+            documentContexts,
+            imageContexts,
+          ),
           generationConfig: {
             maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
@@ -1347,6 +1541,8 @@ async function generateGeminiReplyWithFallback(
   studyMode: StudyModeId,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ) {
   const models = resolveGeminiFallbackModels(route, tier);
 
@@ -1360,6 +1556,8 @@ async function generateGeminiReplyWithFallback(
       memory,
       model,
       knowledgeContext,
+      documentContexts,
+      imageContexts,
     );
 
     if (reply) {
@@ -1389,6 +1587,8 @@ async function streamGeminiReplyWithFallback(
   studyMode: StudyModeId,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ) {
   const models = resolveGeminiFallbackModels(route, tier);
 
@@ -1403,6 +1603,8 @@ async function streamGeminiReplyWithFallback(
       memory,
       model,
       knowledgeContext,
+      documentContexts,
+      imageContexts,
     );
 
     if (result) {
@@ -1438,6 +1640,8 @@ async function streamOpenAiGptReply(
   tier: SubscriptionTier,
   memory?: UserMemory,
   knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
 ): Promise<OpenAiStreamResult | null> {
   const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAiModel = resolveOpenAiModel();
@@ -1470,6 +1674,8 @@ async function streamOpenAiGptReply(
         messages,
         pdfContext,
         knowledgeContext,
+        documentContexts,
+        imageContexts,
         studyMode,
         tier,
         memory,
@@ -1612,6 +1818,8 @@ async function generateProviderReply(
       access.tier,
       memory,
       options?.knowledgeContext,
+      options?.documentContexts,
+      options?.imageContexts,
     );
 
     if (openAiResult.reply) {
@@ -1661,6 +1869,8 @@ async function generateProviderReply(
       studyMode,
       memory,
       options?.knowledgeContext,
+      options?.documentContexts,
+      options?.imageContexts,
     );
 
     if (geminiResult) {
@@ -1714,6 +1924,8 @@ async function generateProviderReply(
     studyMode,
     memory,
     options?.knowledgeContext,
+    options?.documentContexts,
+    options?.imageContexts,
   );
 
   console.info("AI Muhammadiyah provider handled request:", {
@@ -1743,13 +1955,18 @@ export async function generateChatReply(
   const access = normalizeRoutingAccess(routingAccess);
   const studyMode = normalizeStudyMode(selectedStudyMode);
   const recentMessages = prepareChatHistory(messages);
-  const preparedPdfContext = preparePdfContext(pdfContext);
+  const preparedPdfContext = createCombinedDocumentContext(
+    pdfContext,
+    options?.documentContexts,
+  );
+  const hasImages = Boolean(options?.imageContexts?.length);
   const latestMessage = getLatestUserMessage(recentMessages);
   const normalizedModel = normalizeSelectedModel(selectedModel);
   const route = routeSelectedModel(
     normalizedModel,
     latestMessage,
     preparedPdfContext,
+    hasImages,
     access.allowedModels,
   );
   const shouldUsePdfContext =
@@ -1780,7 +1997,7 @@ export async function generateChatReply(
   const result = await generateProviderReply(
     route,
     recentMessages,
-    preparedPdfContext,
+    pdfContext,
     access,
     studyMode,
     memory,
@@ -1811,13 +2028,18 @@ export async function streamChatReply(
   const access = normalizeRoutingAccess(routingAccess);
   const studyMode = normalizeStudyMode(selectedStudyMode);
   const recentMessages = prepareChatHistory(messages);
-  const preparedPdfContext = preparePdfContext(pdfContext);
+  const preparedPdfContext = createCombinedDocumentContext(
+    pdfContext,
+    options?.documentContexts,
+  );
+  const hasImages = Boolean(options?.imageContexts?.length);
   const latestMessage = getLatestUserMessage(recentMessages);
   const normalizedModel = normalizeSelectedModel(selectedModel);
   const route = routeSelectedModel(
     normalizedModel,
     latestMessage,
     preparedPdfContext,
+    hasImages,
     access.allowedModels,
   );
   const shouldUsePdfContext =
@@ -1850,12 +2072,14 @@ export async function streamChatReply(
   if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
     const openAiResult = await streamOpenAiGptReply(
       recentMessages,
-      preparedPdfContext,
+      pdfContext,
       onChunk,
       studyMode,
       access.tier,
       memory,
       options?.knowledgeContext,
+      options?.documentContexts,
+      options?.imageContexts,
     );
 
     if (openAiResult?.reply) {
@@ -1910,13 +2134,15 @@ export async function streamChatReply(
   ) {
     const geminiResult = await streamGeminiReplyWithFallback(
       recentMessages,
-      preparedPdfContext,
+      pdfContext,
       onChunk,
       route,
       access.tier,
       studyMode,
       memory,
       options?.knowledgeContext,
+      options?.documentContexts,
+      options?.imageContexts,
     );
 
     if (geminiResult) {
@@ -1970,13 +2196,15 @@ export async function streamChatReply(
 
   const openRouterResult = await streamOpenRouterReply(
     recentMessages,
-    preparedPdfContext,
+    pdfContext,
     route,
     onChunk,
     access.tier,
     studyMode,
     memory,
     options?.knowledgeContext,
+    options?.documentContexts,
+    options?.imageContexts,
   );
 
   if (!openRouterResult) {
