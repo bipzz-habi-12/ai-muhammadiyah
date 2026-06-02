@@ -251,6 +251,27 @@ export async function POST(request: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         let streamedReply = "";
+        let isClosed = false;
+        const closeStream = () => {
+          if (!isClosed) {
+            isClosed = true;
+            try {
+              controller.close();
+            } catch {
+              // The browser may already have cancelled the stream.
+            }
+          }
+        };
+        const abortStream = () => {
+          closeStream();
+        };
+        const enqueueText = (text: string) => {
+          if (!isClosed) {
+            controller.enqueue(encoder.encode(text));
+          }
+        };
+
+        request.signal.addEventListener("abort", abortStream, { once: true });
 
         try {
           const chatResult = await streamChatReply(
@@ -259,8 +280,12 @@ export async function POST(request: Request) {
             selectedModel,
             normalizedStudyMode,
             (chunk) => {
+              if (request.signal.aborted) {
+                return;
+              }
+
               streamedReply += chunk;
-              controller.enqueue(encoder.encode(chunk));
+              enqueueText(chunk);
             },
             usageSnapshot
               ? {
@@ -335,7 +360,7 @@ export async function POST(request: Request) {
               estimatedTotalTokens,
               error: usageError,
             });
-          } else {
+          } else if (process.env.AI_MU_VERBOSE_LOGS === "true") {
             console.info("Chat usage increment succeeded:", {
               userId: user.id,
               selectedModel,
@@ -350,13 +375,10 @@ export async function POST(request: Request) {
           }
         } catch (error) {
           console.error("AI chat stream failed:", error);
-          controller.enqueue(
-            encoder.encode(
-              "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
-            ),
-          );
+          enqueueText("Maaf, chat AI sedang bermasalah. Silakan coba lagi.");
         } finally {
-          controller.close();
+          request.signal.removeEventListener("abort", abortStream);
+          closeStream();
         }
       },
     });

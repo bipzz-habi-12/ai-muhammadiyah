@@ -31,6 +31,8 @@ type UploadedDocumentResult =
     };
 
 const maxDocumentUploadBytes = 25 * 1024 * 1024;
+const verboseDocumentLogs = process.env.AI_MU_VERBOSE_LOGS === "true";
+const documentBackupTimeoutMs = 10_000;
 const supportedImageMimeTypes = new Set([
   "image/png",
   "image/jpeg",
@@ -83,7 +85,9 @@ async function uploadDocumentBackupToStorage(
   buffer: Buffer,
 ) {
   if (!hasAnySupabaseStorageConfig()) {
-    console.info("Supabase document backup skipped: storage is not configured.");
+    if (verboseDocumentLogs) {
+      console.info("Supabase document backup skipped: storage is not configured.");
+    }
     return;
   }
 
@@ -107,11 +111,13 @@ async function uploadDocumentBackupToStorage(
     return;
   }
 
-  console.info("Supabase document backup path generated:", {
-    bucket,
-    path,
-    fileSize: buffer.byteLength,
-  });
+  if (verboseDocumentLogs) {
+    console.info("Supabase document backup path generated:", {
+      bucket,
+      path,
+      fileSize: buffer.byteLength,
+    });
+  }
 
   const { error: bucketError } = await supabase.storage.getBucket(bucket);
 
@@ -137,6 +143,34 @@ async function uploadDocumentBackupToStorage(
       fileSize: buffer.byteLength,
       error: error.message,
     });
+  }
+}
+
+async function uploadDocumentBackupWithTimeout(
+  fileName: string,
+  mimeType: string | undefined,
+  buffer: Buffer,
+) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    await Promise.race([
+      uploadDocumentBackupToStorage(fileName, mimeType, buffer),
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(() => {
+          console.warn("Document backup skipped after timeout:", {
+            fileName,
+            fileSize: buffer.byteLength,
+            timeoutMs: documentBackupTimeoutMs,
+          });
+          resolve();
+        }, documentBackupTimeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
   }
 }
 
@@ -170,6 +204,13 @@ async function getUploadedDocument(
 
 export async function POST(request: Request) {
   let documentType: SupportedDocumentType | null = null;
+  let currentUpload:
+    | {
+        fileName: string;
+        mimeType?: string;
+        fileSize: number;
+      }
+    | null = null;
 
   try {
     const usageSupabase = await createSupabaseAuthServerClient();
@@ -184,11 +225,26 @@ export async function POST(request: Request) {
     const uploadedDocument = await getUploadedDocument(request);
 
     if ("error" in uploadedDocument) {
+      console.warn("Document upload rejected before extraction:", {
+        status: uploadedDocument.status,
+        error: uploadedDocument.error,
+      });
       return NextResponse.json(
         { error: uploadedDocument.error },
         { status: uploadedDocument.status },
       );
     }
+
+    console.info("Document upload received:", {
+      fileName: uploadedDocument.fileName,
+      mimeType: uploadedDocument.mimeType || "unknown",
+      fileSize: uploadedDocument.buffer.byteLength,
+    });
+    currentUpload = {
+      fileName: uploadedDocument.fileName,
+      mimeType: uploadedDocument.mimeType,
+      fileSize: uploadedDocument.buffer.byteLength,
+    };
 
     documentType = getDocumentType(
       uploadedDocument.fileName,
@@ -200,6 +256,11 @@ export async function POST(request: Request) {
     );
 
     if (!documentType && !imageType) {
+      console.warn("Document upload unsupported type:", {
+        fileName: uploadedDocument.fileName,
+        mimeType: uploadedDocument.mimeType || "unknown",
+        fileSize: uploadedDocument.buffer.byteLength,
+      });
       return NextResponse.json(
         {
           error:
@@ -208,6 +269,13 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    console.info("Document upload classified:", {
+      fileName: uploadedDocument.fileName,
+      kind: imageType ? "image" : "document",
+      fileType: imageType ?? documentType,
+      fileSize: uploadedDocument.buffer.byteLength,
+    });
 
     const { data: limitCheck, error: limitError } = await usageSupabase.rpc(
       "check_usage_limits",
@@ -235,11 +303,6 @@ export async function POST(request: Request) {
     }
 
     const buffer = uploadedDocument.buffer;
-    await uploadDocumentBackupToStorage(
-      uploadedDocument.fileName,
-      uploadedDocument.mimeType,
-      buffer,
-    );
 
     if (imageType) {
       const mimeType = getNormalizedImageMimeType(
@@ -264,6 +327,13 @@ export async function POST(request: Request) {
         console.error("Image upload usage increment failed:", usageError);
       }
 
+      console.info("Image upload ready:", {
+        fileName: uploadedDocument.fileName,
+        fileType: imageType,
+        mimeType,
+        fileSize: buffer.byteLength,
+      });
+
       return NextResponse.json({
         fileName: uploadedDocument.fileName,
         fileType: imageType,
@@ -274,20 +344,48 @@ export async function POST(request: Request) {
     }
 
     if (!documentType) {
+      console.warn("Document upload unsupported document type:", {
+        fileName: uploadedDocument.fileName,
+        mimeType: uploadedDocument.mimeType || "unknown",
+        fileSize: buffer.byteLength,
+      });
       return NextResponse.json(
         { error: "Format dokumen belum didukung." },
         { status: 400 },
       );
     }
 
+    await uploadDocumentBackupWithTimeout(
+      uploadedDocument.fileName,
+      uploadedDocument.mimeType,
+      buffer,
+    );
+
+    console.info("Document extraction started:", {
+      fileName: uploadedDocument.fileName,
+      fileType: documentType,
+      fileSize: buffer.byteLength,
+    });
     const text = await extractDocumentText(buffer, documentType);
 
     if (!text) {
+      console.warn("Document extraction returned empty text:", {
+        fileName: uploadedDocument.fileName,
+        fileType: documentType,
+        fileSize: buffer.byteLength,
+      });
       return NextResponse.json(
         { error: getEmptyDocumentMessage(documentType) },
         { status: 422 },
       );
     }
+
+    console.info("Document extraction succeeded:", {
+      fileName: uploadedDocument.fileName,
+      fileType: documentType,
+      fileSize: buffer.byteLength,
+      textLength: text.length,
+    });
 
     const { error: usageError } = await usageSupabase.rpc("increment_usage", {
       p_action: "document_upload",
@@ -313,7 +411,13 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message = getErrorMessage(error);
-    console.error("Document extraction error:", message);
+    console.error("Document extraction failed:", {
+      fileName: currentUpload?.fileName ?? "unknown",
+      mimeType: currentUpload?.mimeType || "unknown",
+      fileSize: currentUpload?.fileSize ?? 0,
+      fileType: documentType ?? "unknown",
+      error: message,
+    });
 
     if (message.toLowerCase().includes("password")) {
       return NextResponse.json(

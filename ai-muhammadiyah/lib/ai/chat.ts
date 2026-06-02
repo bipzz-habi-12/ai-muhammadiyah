@@ -134,6 +134,13 @@ const geminiFlashModel =
 const geminiProModel = process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro";
 const openAiDefaultModel = process.env.OPENAI_MODEL ?? "gpt-5-mini";
 const gptTestMode = process.env.GPT_TEST_MODE === "true";
+const verboseAiLogs = process.env.AI_MU_VERBOSE_LOGS === "true";
+
+function logAiSuccess(message: string, payload: Record<string, unknown>) {
+  if (verboseAiLogs) {
+    console.info(message, payload);
+  }
+}
 
 const openRouterFallbackModelMap: Record<AiRoute, string> = {
   fast: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -975,7 +982,9 @@ function logOpenAiRequestEvent(
     return;
   }
 
-  console.info(`OpenAI GPT ${event}:`, payload);
+  if (verboseAiLogs) {
+    console.info(`OpenAI GPT ${event}:`, payload);
+  }
 }
 
 function createOpenAiFailureReply(error?: OpenAiErrorDetails) {
@@ -1890,7 +1899,7 @@ async function generateProviderReply(
     );
 
     if (openAiResult.reply) {
-      console.info("AI Muhammadiyah provider handled request:", {
+      logAiSuccess("AI Muhammadiyah provider handled request:", {
         route,
         provider: "openai",
         model: resolveOpenAiModel(),
@@ -1941,7 +1950,7 @@ async function generateProviderReply(
     );
 
     if (geminiResult) {
-      console.info("AI Muhammadiyah provider handled request:", {
+      logAiSuccess("AI Muhammadiyah provider handled request:", {
         route,
         provider: "gemini",
         model: geminiResult.model,
@@ -1995,7 +2004,7 @@ async function generateProviderReply(
     options?.imageContexts,
   );
 
-  console.info("AI Muhammadiyah provider handled request:", {
+  logAiSuccess("AI Muhammadiyah provider handled request:", {
     route,
     provider: "openrouter",
     model: resolveOpenRouterModel(route),
@@ -2150,7 +2159,7 @@ export async function streamChatReply(
     );
 
     if (openAiResult?.reply) {
-      console.info("AI Muhammadiyah provider streamed request:", {
+      logAiSuccess("AI Muhammadiyah provider streamed request:", {
         route,
         provider: "openai",
         model: resolveOpenAiModel(),
@@ -2213,7 +2222,7 @@ export async function streamChatReply(
     );
 
     if (geminiResult) {
-      console.info("AI Muhammadiyah provider streamed request:", {
+      logAiSuccess("AI Muhammadiyah provider streamed request:", {
         route,
         provider: "gemini",
         model: geminiResult.model,
@@ -2285,7 +2294,7 @@ export async function streamChatReply(
     };
   }
 
-  console.info("AI Muhammadiyah provider streamed request:", {
+  logAiSuccess("AI Muhammadiyah provider streamed request:", {
     route,
     provider: "openrouter",
     model: resolveOpenRouterModel(route),

@@ -41,7 +41,9 @@ type KnowledgeSearchRow = {
 
 const maxChunkCharacters = 1200;
 const chunkOverlapCharacters = 160;
-const maxKnowledgeContextCharacters = 4200;
+const maxRetrievedKnowledgeChunks = 3;
+const maxKnowledgeChunkPromptCharacters = 900;
+const maxKnowledgeContextCharacters = 3000;
 
 const knowledgeIntentWords = [
   "muhammadiyah",
@@ -162,7 +164,7 @@ export async function listKnowledgeSources(supabase: SupabaseClient) {
 export async function retrieveKnowledgeChunks(
   supabase: SupabaseClient,
   question: string,
-  limit = 4,
+  limit = maxRetrievedKnowledgeChunks,
 ) {
   if (!isKnowledgeQuestion(question)) {
     return [];
@@ -177,13 +179,30 @@ export async function retrieveKnowledgeChunks(
     throw error;
   }
 
-  return ((data ?? []) as KnowledgeSearchRow[]).map((row) => ({
-    sourceId: row.source_id,
-    sourceTitle: row.source_title,
-    category: row.category,
-    chunkOrder: row.chunk_order,
-    content: row.content,
-  }));
+  const seenChunks = new Set<string>();
+
+  return ((data ?? []) as KnowledgeSearchRow[])
+    .filter((row) => {
+      const key = `${row.source_id}:${row.chunk_order}`;
+
+      if (seenChunks.has(key)) {
+        return false;
+      }
+
+      seenChunks.add(key);
+      return true;
+    })
+    .slice(0, Math.max(1, Math.min(limit, maxRetrievedKnowledgeChunks)))
+    .map((row) => ({
+      sourceId: row.source_id,
+      sourceTitle: row.source_title,
+      category: row.category,
+      chunkOrder: row.chunk_order,
+      content:
+        row.content.length > maxKnowledgeChunkPromptCharacters
+          ? `${row.content.slice(0, maxKnowledgeChunkPromptCharacters).trim()}...`
+          : row.content,
+    }));
 }
 
 export function createKnowledgePromptContext(chunks: KnowledgeChunk[]) {

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   emptyUserMemory,
   loadUserMemory,
@@ -152,6 +152,8 @@ const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
 const maxDocumentUploadBytes = 25 * 1024 * 1024;
 const maxRecentFiles = 6;
+const documentExtractionTimeoutMs = 60_000;
+const streamUiFlushMs = 48;
 const continuationMarker = "[[AI_MU_CONTINUE_SUGGESTED]]";
 
 const welcomeMessage: Message = {
@@ -404,6 +406,43 @@ function groupConversationsByWorkspace(
   return pinned.length ? [{ label: "Pinned", items: pinned }, ...groups] : groups;
 }
 
+function getLoadedDocumentText(attachments: UploadedAttachment[]) {
+  return attachments
+    .filter(
+      (attachment) =>
+        attachment.kind === "document" &&
+        attachment.status === "loaded" &&
+        attachment.text,
+    )
+    .map(
+      (attachment) =>
+        `FILE: ${attachment.fileName} (${attachment.fileType})\n${attachment.text}`,
+    )
+    .join("\n\n---\n\n");
+}
+
+function getAttachmentStatus(attachments: UploadedAttachment[]): DocumentStatus {
+  if (attachments.some((attachment) => attachment.status === "error")) {
+    return "error";
+  }
+
+  if (attachments.some((attachment) => attachment.status === "loading")) {
+    return "loading";
+  }
+
+  return attachments.length ? "loaded" : "idle";
+}
+
+function sanitizeRecentAttachment(attachment: UploadedAttachment) {
+  const compactAttachment = { ...attachment };
+
+  if (compactAttachment.kind === "image") {
+    delete compactAttachment.data;
+  }
+
+  return compactAttachment;
+}
+
 function getFriendlyChatError(error: unknown) {
   if (!(error instanceof Error)) {
     return "Maaf, chat AI sedang bermasalah. Silakan coba lagi.";
@@ -653,7 +692,7 @@ function toSuperscriptV2(value: string) {
     .join("");
 }
 
-function MarkdownMessage({ text }: { text: string }) {
+const MarkdownMessage = memo(function MarkdownMessage({ text }: { text: string }) {
   const lines = text.split(/\r?\n/);
   const elements: ReactNode[] = [];
   let listItems: ReactNode[] = [];
@@ -751,7 +790,7 @@ function MarkdownMessage({ text }: { text: string }) {
   flushLists();
 
   return <div className="space-y-1">{elements}</div>;
-}
+});
 
 async function fetchUsageSnapshot() {
   const response = await fetch("/api/usage", {
@@ -850,27 +889,49 @@ function isSupportedUpload(file: File) {
 async function extractDocumentFromLocalUpload(file: File) {
   const formData = new FormData();
   formData.append("document", file);
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeoutId = window.setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, documentExtractionTimeoutMs);
 
-  const response = await fetch("/api/document", {
-    method: "POST",
-    body: formData,
-  });
+  try {
+    const response = await fetch("/api/document", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+    });
 
-  const data = (await response.json()) as {
-    error?: string;
-    fileName?: string;
-    fileType?: "pdf" | "docx" | "pptx" | "xlsx" | "png" | "jpeg" | "webp";
-    kind?: UploadedAttachmentKind;
-    mimeType?: string;
-    data?: string;
-    text?: string;
-  };
+    const data = (await response.json()) as {
+      error?: string;
+      fileName?: string;
+      fileType?: "pdf" | "docx" | "pptx" | "xlsx" | "png" | "jpeg" | "webp";
+      kind?: UploadedAttachmentKind;
+      mimeType?: string;
+      data?: string;
+      text?: string;
+    };
 
-  if (!response.ok) {
-    throw new Error(data.error ?? "Dokumen belum bisa dibaca.");
+    if (!response.ok) {
+      throw new Error(data.error ?? "Dokumen belum bisa dibaca.");
+    }
+
+    return data;
+  } catch (error) {
+    if (
+      didTimeout ||
+      (error instanceof DOMException && error.name === "AbortError")
+    ) {
+      throw new Error(
+        "File belum selesai dibaca setelah 60 detik. Silakan coba lagi atau gunakan file yang lebih kecil.",
+      );
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-
-  return data;
 }
 
 async function fetchKnowledgeSources() {
@@ -1046,7 +1107,7 @@ function Icon({
 
 export default function Home() {
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchConversations, setSearchConversations] = useState<
@@ -1111,15 +1172,27 @@ export default function Home() {
   const [knowledgeMessage, setKnowledgeMessage] = useState("");
   const [knowledgeError, setKnowledgeError] = useState("");
   const documentTextRef = useRef("");
+  const activeRequestRef = useRef<AbortController | null>(null);
+  const uploadKeysInFlightRef = useRef(new Set<string>());
+  const uploadFilesByAttachmentIdRef = useRef(new Map<string, File>());
+  const scrollFrameRef = useRef<number | null>(null);
+  const hasLoadedKnowledgeRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const userInitials = getEmailInitials(userEmail);
-  const visibleConversations = searchConversations ?? conversations;
-  const conversationGroups = groupConversationsByWorkspace(
-    visibleConversations,
-    workspaces,
+  const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
+  const visibleConversations = useMemo(
+    () => searchConversations ?? conversations,
+    [conversations, searchConversations],
   );
-  const activeConversation = conversations.find(
-    (conversation) => conversation.id === activeConversationId,
+  const conversationGroups = useMemo(
+    () => groupConversationsByWorkspace(visibleConversations, workspaces),
+    [visibleConversations, workspaces],
+  );
+  const activeConversation = useMemo(
+    () =>
+      conversations.find(
+        (conversation) => conversation.id === activeConversationId,
+      ),
+    [activeConversationId, conversations],
   );
   const currentTierLabel = usageSnapshot
     ? tierLabels[usageSnapshot.tier]
@@ -1137,10 +1210,13 @@ export default function Home() {
     !usageSnapshot || usageSnapshot.remainingMessagesToday > 0;
   const hasUploadQuota =
     !usageSnapshot || usageSnapshot.remainingUploadsToday > 0;
-  const profileLabel =
-    learningProfile.displayName ||
-    learningProfile.schoolLevel ||
-    "Lengkapi profil";
+  const profileLabel = useMemo(
+    () =>
+      learningProfile.displayName ||
+      learningProfile.schoolLevel ||
+      "Lengkapi profil",
+    [learningProfile.displayName, learningProfile.schoolLevel],
+  );
 
   const loadConversations = useCallback(async () => {
     setHistoryError("");
@@ -1214,6 +1290,7 @@ export default function Home() {
       const data = await fetchKnowledgeSources();
       setKnowledgeSources(data.sources);
       setIsKnowledgeAdmin(data.isAdmin);
+      hasLoadedKnowledgeRef.current = true;
     } catch (error) {
       console.error(error);
       setKnowledgeError(
@@ -1267,14 +1344,12 @@ export default function Home() {
         loadConversations(),
         loadUsage(),
         loadLearningProfile(user.id),
-        loadKnowledge(),
       ]);
     }
 
     loadUser();
   }, [
     loadConversations,
-    loadKnowledge,
     loadLearningProfile,
     loadUsage,
     loadWorkspaces,
@@ -1283,12 +1358,46 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isSending]);
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+    }
+
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: isSending ? "auto" : "smooth",
+        block: "end",
+      });
+      scrollFrameRef.current = null;
+    });
+
+    return () => {
+      if (scrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
+        scrollFrameRef.current = null;
+      }
+    };
+  }, [messages.length, isSending]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = learningProfile.themePreference;
   }, [learningProfile.themePreference]);
+
+  useEffect(() => {
+    return () => {
+      activeRequestRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      isSettingsOpen &&
+      activeSettingsTab === "knowledge" &&
+      !hasLoadedKnowledgeRef.current &&
+      !isLoadingKnowledge
+    ) {
+      void loadKnowledge();
+    }
+  }, [activeSettingsTab, isLoadingKnowledge, isSettingsOpen, loadKnowledge]);
 
   useEffect(() => {
     window.localStorage.setItem("ai-mu-study-mode", selectedStudyMode);
@@ -1309,14 +1418,16 @@ export default function Home() {
 
     try {
       const parsedFiles = JSON.parse(storedRecentFiles) as UploadedAttachment[];
-      setRecentAttachments(
-        parsedFiles.filter(
-          (attachment) =>
-            typeof attachment.id === "string" &&
-            typeof attachment.fileName === "string" &&
-            attachment.status === "loaded",
-        ),
-      );
+      window.queueMicrotask(() => {
+        setRecentAttachments(
+          parsedFiles.filter(
+            (attachment) =>
+              typeof attachment.id === "string" &&
+              typeof attachment.fileName === "string" &&
+              attachment.status === "loaded",
+          ),
+        );
+      });
     } catch {
       window.localStorage.removeItem(`ai-mu-recent-files-${userId}`);
     }
@@ -1329,7 +1440,11 @@ export default function Home() {
 
     window.localStorage.setItem(
       `ai-mu-recent-files-${userId}`,
-      JSON.stringify(recentAttachments.slice(0, maxRecentFiles)),
+      JSON.stringify(
+        recentAttachments
+          .slice(0, maxRecentFiles)
+          .map(sanitizeRecentAttachment),
+      ),
     );
   }, [recentAttachments, userId]);
 
@@ -1337,7 +1452,7 @@ export default function Home() {
     const query = chatSearch.trim();
 
     if (!query) {
-      setSearchConversations(null);
+      window.queueMicrotask(() => setSearchConversations(null));
       return;
     }
 
@@ -1442,11 +1557,12 @@ export default function Home() {
       .filter(
         (attachment) =>
           attachment.status === "loaded" &&
-          (attachment.text || (attachment.kind === "image" && attachment.data)),
+          attachment.kind === "document" &&
+          attachment.text,
       )
       .map((attachment) => ({
-        ...attachment,
-        id: `${attachment.fileName}-${Date.now()}-${crypto.randomUUID()}`,
+        ...sanitizeRecentAttachment(attachment),
+        id: `${attachment.fileName}-${crypto.randomUUID()}`,
       }));
 
     if (!reusableAttachments.length) {
@@ -1468,20 +1584,16 @@ export default function Home() {
   function reuseRecentAttachment(attachment: UploadedAttachment) {
     const nextAttachment = {
       ...attachment,
-      id: `${attachment.fileName}-${Date.now()}-${crypto.randomUUID()}`,
+      id: `${attachment.fileName}-${crypto.randomUUID()}`,
     };
 
     setUploadedAttachments((current) => [...current, nextAttachment]);
 
     if (nextAttachment.kind === "document" && nextAttachment.text) {
-      const loadedDocuments = [...uploadedAttachments, nextAttachment]
-        .filter(
-          (item) =>
-            item.kind === "document" && item.status === "loaded" && item.text,
-        )
-        .map((item) => `FILE: ${item.fileName} (${item.fileType})\n${item.text}`);
-
-      documentTextRef.current = loadedDocuments.join("\n\n---\n\n");
+      documentTextRef.current = getLoadedDocumentText([
+        ...uploadedAttachments,
+        nextAttachment,
+      ]);
       setDocumentText(documentTextRef.current);
     }
 
@@ -1492,39 +1604,163 @@ export default function Home() {
   }
 
   function removeAttachment(attachmentId: string) {
+    uploadFilesByAttachmentIdRef.current.delete(attachmentId);
     setUploadedAttachments((current) => {
       const nextAttachments = current.filter(
         (attachment) => attachment.id !== attachmentId,
       );
-      const loadedDocuments = nextAttachments
-        .filter(
-          (attachment) =>
-            attachment.kind === "document" &&
-            attachment.status === "loaded" &&
-            attachment.text,
-        )
-        .map(
-          (attachment) =>
-            `FILE: ${attachment.fileName} (${attachment.fileType})\n${attachment.text}`,
-        );
 
-      documentTextRef.current = loadedDocuments.join("\n\n---\n\n");
+      documentTextRef.current = getLoadedDocumentText(nextAttachments);
       setDocumentText(documentTextRef.current);
-      setDocumentStatus(
-        nextAttachments.some((attachment) => attachment.status === "error")
-          ? "error"
-          : nextAttachments.some((attachment) => attachment.status === "loading")
-            ? "loading"
-            : nextAttachments.length
-              ? "loaded"
-              : "idle",
-      );
+      setDocumentStatus(getAttachmentStatus(nextAttachments));
       setDocumentError(
         nextAttachments.find((attachment) => attachment.status === "error")
           ?.error ?? "",
       );
 
       return nextAttachments;
+    });
+  }
+
+  function syncAttachmentState(attachments: UploadedAttachment[]) {
+    documentTextRef.current = getLoadedDocumentText(attachments);
+    setDocumentText(documentTextRef.current);
+    setDocumentStatus(getAttachmentStatus(attachments));
+    setDocumentError(
+      attachments.find((attachment) => attachment.status === "error")?.error ?? "",
+    );
+    rememberLoadedAttachments(attachments);
+  }
+
+  async function readUploadedAttachment(file: File, attachmentId: string) {
+    if (!isSupportedUpload(file)) {
+      setUploadedAttachments((current) =>
+        current.map((attachment) =>
+          attachment.id === attachmentId
+            ? {
+                ...attachment,
+                status: "error",
+                error:
+                  "Format belum didukung. Gunakan PDF, DOCX, PPTX, XLSX, PNG, JPG, JPEG, atau WEBP.",
+              }
+            : attachment,
+        ),
+      );
+      return;
+    }
+
+    if (file.size > maxDocumentUploadBytes) {
+      setUploadedAttachments((current) =>
+        current.map((attachment) =>
+          attachment.id === attachmentId
+            ? {
+                ...attachment,
+                status: "error",
+                error: "Ukuran file terlalu besar. Maksimal 25 MB per file.",
+              }
+            : attachment,
+        ),
+      );
+      return;
+    }
+
+    try {
+      const data = await extractDocumentFromLocalUpload(file);
+      const normalizedType =
+        data.kind === "image"
+          ? "Image"
+          : data.fileType === "docx"
+            ? "Word"
+            : data.fileType === "pptx"
+              ? "PowerPoint"
+              : data.fileType === "xlsx"
+                ? "Excel"
+                : "PDF";
+
+      setUploadedAttachments((current) =>
+        current.map((attachment) =>
+          attachment.id === attachmentId
+            ? {
+                ...attachment,
+                fileName: data.fileName ?? file.name,
+                fileType: normalizedType,
+                kind: data.kind ?? attachment.kind,
+                status: "loaded",
+                text: data.text,
+                mimeType: data.mimeType,
+                data: data.data,
+                error: "",
+              }
+            : attachment,
+        ),
+      );
+      uploadFilesByAttachmentIdRef.current.delete(attachmentId);
+    } catch (error) {
+      console.error(error);
+      setUploadedAttachments((current) =>
+        current.map((attachment) =>
+          attachment.id === attachmentId
+            ? {
+                ...attachment,
+                status: "error",
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "File belum bisa dibaca. Silakan coba file lain.",
+              }
+            : attachment,
+        ),
+      );
+    }
+  }
+
+  async function retryAttachment(attachmentId: string) {
+    const file = uploadFilesByAttachmentIdRef.current.get(attachmentId);
+
+    if (!file) {
+      setUploadedAttachments((current) => {
+        const nextAttachments = current.map((attachment) =>
+          attachment.id === attachmentId
+            ? {
+                ...attachment,
+                status: "error" as const,
+                error:
+                  "File asli tidak tersedia lagi. Hapus lalu upload ulang file ini.",
+              }
+            : attachment,
+        );
+        syncAttachmentState(nextAttachments);
+        return nextAttachments;
+      });
+      return;
+    }
+
+    const key = `${file.name}:${file.size}:${file.lastModified}`;
+
+    if (uploadKeysInFlightRef.current.has(key)) {
+      return;
+    }
+
+    uploadKeysInFlightRef.current.add(key);
+    setDocumentError("");
+    setDocumentStatus("loading");
+    setUploadedAttachments((current) =>
+      current.map((attachment) =>
+        attachment.id === attachmentId
+          ? { ...attachment, status: "loading", error: "" }
+          : attachment,
+      ),
+    );
+
+    try {
+      await readUploadedAttachment(file, attachmentId);
+    } finally {
+      uploadKeysInFlightRef.current.delete(key);
+    }
+
+    setUploadedAttachments((current) => {
+      syncAttachmentState(current);
+      return current;
     });
   }
 
@@ -1903,11 +2139,31 @@ export default function Home() {
   }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
+    const selectedFiles = Array.from(event.target.files ?? []);
+    const seenKeys = new Set<string>();
+    const files = selectedFiles.filter((file) => {
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
 
-    if (!files.length) return;
+      if (seenKeys.has(key) || uploadKeysInFlightRef.current.has(key)) {
+        return false;
+      }
+
+      seenKeys.add(key);
+      uploadKeysInFlightRef.current.add(key);
+      return true;
+    });
+
+    if (!files.length) {
+      event.target.value = "";
+      return;
+    }
 
     if (!hasUploadQuota) {
+      for (const file of files) {
+        uploadKeysInFlightRef.current.delete(
+          `${file.name}:${file.size}:${file.lastModified}`,
+        );
+      }
       setDocumentStatus("error");
       setDocumentError(
         "Limit upload dokumen harian paket kamu sudah habis. Silakan coba lagi besok atau upgrade paket.",
@@ -1923,127 +2179,32 @@ export default function Home() {
       kind: getAttachmentKind(file),
       status: "loading" as const,
     }));
+    pendingAttachments.forEach((attachment, index) => {
+      uploadFilesByAttachmentIdRef.current.set(attachment.id, files[index]);
+    });
 
     setUploadedAttachments((current) => [...current, ...pendingAttachments]);
     setDocumentError("");
     setDocumentStatus("loading");
     setComposerNotice("");
 
-    await Promise.all(
-      files.map(async (file, index) => {
-        const attachmentId = pendingAttachments[index].id;
-
-        if (!isSupportedUpload(file)) {
-          setUploadedAttachments((current) =>
-            current.map((attachment) =>
-              attachment.id === attachmentId
-                ? {
-                    ...attachment,
-                    status: "error",
-                    error:
-                      "Format belum didukung. Gunakan PDF, DOCX, PPTX, XLSX, PNG, JPG, JPEG, atau WEBP.",
-                  }
-                : attachment,
-            ),
-          );
-          return;
-        }
-
-        if (file.size > maxDocumentUploadBytes) {
-          setUploadedAttachments((current) =>
-            current.map((attachment) =>
-              attachment.id === attachmentId
-                ? {
-                    ...attachment,
-                    status: "error",
-                    error:
-                      "Ukuran file terlalu besar. Maksimal 25 MB per file.",
-                  }
-                : attachment,
-            ),
-          );
-          return;
-        }
-
-        try {
-          const data = await extractDocumentFromLocalUpload(file);
-          const normalizedType =
-            data.kind === "image"
-              ? "Image"
-              : data.fileType === "docx"
-                ? "Word"
-                : data.fileType === "pptx"
-                  ? "PowerPoint"
-                  : data.fileType === "xlsx"
-                    ? "Excel"
-                    : "PDF";
-
-          setUploadedAttachments((current) =>
-            current.map((attachment) =>
-              attachment.id === attachmentId
-                ? {
-                    ...attachment,
-                    fileName: data.fileName ?? file.name,
-                    fileType: normalizedType,
-                    kind: data.kind ?? attachment.kind,
-                    status: "loaded",
-                    text: data.text,
-                    mimeType: data.mimeType,
-                    data: data.data,
-                    error: "",
-                  }
-                : attachment,
-            ),
-          );
-        } catch (error) {
-          console.error(error);
-          setUploadedAttachments((current) =>
-            current.map((attachment) =>
-              attachment.id === attachmentId
-                ? {
-                    ...attachment,
-                    status: "error",
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "File belum bisa dibaca. Silakan coba file lain.",
-                  }
-                : attachment,
-            ),
-          );
-        }
-      }),
-    );
+    try {
+      await Promise.all(
+        files.map(async (file, index) => {
+          const attachmentId = pendingAttachments[index].id;
+          await readUploadedAttachment(file, attachmentId);
+        }),
+      );
+    } finally {
+      for (const file of files) {
+        uploadKeysInFlightRef.current.delete(
+          `${file.name}:${file.size}:${file.lastModified}`,
+        );
+      }
+    }
 
     setUploadedAttachments((current) => {
-      const loadedDocuments = current
-        .filter(
-          (attachment) =>
-            attachment.kind === "document" &&
-            attachment.status === "loaded" &&
-            attachment.text,
-        )
-        .map(
-          (attachment) =>
-            `FILE: ${attachment.fileName} (${attachment.fileType})\n${attachment.text}`,
-        );
-
-      documentTextRef.current = loadedDocuments.join("\n\n---\n\n");
-      setDocumentText(documentTextRef.current);
-      setDocumentStatus(
-        current.some((attachment) => attachment.status === "error")
-          ? "error"
-          : current.some((attachment) => attachment.status === "loading")
-            ? "loading"
-            : current.length
-              ? "loaded"
-              : "idle",
-      );
-      setDocumentError(
-        current.find((attachment) => attachment.status === "error")?.error ?? "",
-      );
-      rememberLoadedAttachments(current);
-
+      syncAttachmentState(current);
       return current;
     });
 
@@ -2197,6 +2358,57 @@ export default function Home() {
     }
     setIsSending(true);
     setIsAwaitingFirstChunk(true);
+    const requestController = new AbortController();
+    let streamFlushTimer: number | null = null;
+    let latestParsedReply = {
+      text: "",
+      needsContinuation: false,
+    };
+    let didReceiveFirstChunk = false;
+    activeRequestRef.current?.abort();
+    activeRequestRef.current = requestController;
+
+    const applyStreamedReply = (parsedReply = latestParsedReply) => {
+      setMessages((prev) => {
+        const updatedMessages = [...prev];
+        const lastMessage = updatedMessages.at(-1);
+
+        if (lastMessage?.role === "ai") {
+          if (canAppendToAssistant && appendTarget?.id) {
+            const targetIndex = updatedMessages.findIndex(
+              (message) => message.id === appendTarget.id,
+            );
+
+            if (targetIndex >= 0) {
+              updatedMessages[targetIndex] = {
+                ...updatedMessages[targetIndex],
+                text: `${appendBaseText}\n\n${parsedReply.text}`.trim(),
+                continuationSuggested: parsedReply.needsContinuation,
+              };
+            }
+          } else {
+            updatedMessages[updatedMessages.length - 1] = {
+              ...lastMessage,
+              text: parsedReply.text,
+              continuationSuggested: parsedReply.needsContinuation,
+            };
+          }
+        }
+
+        return updatedMessages;
+      });
+    };
+
+    const scheduleStreamFlush = () => {
+      if (streamFlushTimer !== null) {
+        return;
+      }
+
+      streamFlushTimer = window.setTimeout(() => {
+        streamFlushTimer = null;
+        applyStreamedReply();
+      }, streamUiFlushMs);
+    };
 
     try {
       conversation ??= await createConversation(userText);
@@ -2246,6 +2458,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
+        signal: requestController.signal,
         body: JSON.stringify({
           history: aiHistory,
           internalInstruction: isHiddenInstruction ? userText : undefined,
@@ -2287,73 +2500,30 @@ export default function Home() {
         }
 
         streamedReply += chunk;
-        const parsedReply = parseContinuationMarker(streamedReply);
-        setIsAwaitingFirstChunk(false);
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-          const lastMessage = updatedMessages.at(-1);
+        latestParsedReply = parseContinuationMarker(streamedReply);
 
-          if (lastMessage?.role === "ai") {
-            if (canAppendToAssistant && appendTarget?.id) {
-              const targetIndex = updatedMessages.findIndex(
-                (message) => message.id === appendTarget.id,
-              );
+        if (!didReceiveFirstChunk) {
+          didReceiveFirstChunk = true;
+          setIsAwaitingFirstChunk(false);
+        }
 
-              if (targetIndex >= 0) {
-                updatedMessages[targetIndex] = {
-                  ...updatedMessages[targetIndex],
-                  text: `${appendBaseText}\n\n${parsedReply.text}`.trim(),
-                  continuationSuggested: parsedReply.needsContinuation,
-                };
-              }
-            } else {
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                text: parsedReply.text,
-                continuationSuggested: parsedReply.needsContinuation,
-              };
-            }
-          }
-
-          return updatedMessages;
-        });
+        scheduleStreamFlush();
       }
 
       const finalChunk = decoder.decode();
 
       if (finalChunk) {
         streamedReply += finalChunk;
-        const parsedReply = parseContinuationMarker(streamedReply);
+        latestParsedReply = parseContinuationMarker(streamedReply);
         setIsAwaitingFirstChunk(false);
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-          const lastMessage = updatedMessages.at(-1);
-
-          if (lastMessage?.role === "ai") {
-            if (canAppendToAssistant && appendTarget?.id) {
-              const targetIndex = updatedMessages.findIndex(
-                (message) => message.id === appendTarget.id,
-              );
-
-              if (targetIndex >= 0) {
-                updatedMessages[targetIndex] = {
-                  ...updatedMessages[targetIndex],
-                  text: `${appendBaseText}\n\n${parsedReply.text}`.trim(),
-                  continuationSuggested: parsedReply.needsContinuation,
-                };
-              }
-            } else {
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                text: parsedReply.text,
-                continuationSuggested: parsedReply.needsContinuation,
-              };
-            }
-          }
-
-          return updatedMessages;
-        });
       }
+
+      if (streamFlushTimer !== null) {
+        window.clearTimeout(streamFlushTimer);
+        streamFlushTimer = null;
+      }
+
+      applyStreamedReply(latestParsedReply);
 
       const finalReply = parseContinuationMarker(streamedReply);
 
@@ -2449,6 +2619,10 @@ export default function Home() {
           ),
       );
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
       console.error(error);
       const errorText = getFriendlyChatError(error);
 
@@ -2487,6 +2661,14 @@ export default function Home() {
             ],
       );
     } finally {
+      if (streamFlushTimer !== null) {
+        window.clearTimeout(streamFlushTimer);
+      }
+
+      if (activeRequestRef.current === requestController) {
+        activeRequestRef.current = null;
+      }
+
       await loadUsage();
       setIsAwaitingFirstChunk(false);
       setIsSending(false);
@@ -2614,6 +2796,17 @@ export default function Home() {
                         : attachment.error || "gagal dibaca"}
                   </span>
                 </span>
+                {attachment.status === "error" && (
+                  <button
+                    type="button"
+                    onClick={() => void retryAttachment(attachment.id)}
+                    aria-label={`Coba lagi ${attachment.fileName}`}
+                    title="Coba lagi"
+                    className="shrink-0 rounded-full px-2 py-1 text-xs font-bold text-[#008d54] transition hover:bg-[#eef8f1]"
+                  >
+                    Retry
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => removeAttachment(attachment.id)}
