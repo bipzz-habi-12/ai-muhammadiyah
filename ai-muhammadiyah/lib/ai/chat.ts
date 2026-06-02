@@ -784,14 +784,81 @@ function isMaxTokenFinishReason(finishReason?: string | null) {
   );
 }
 
-function appendContinuationMarkerIfNeeded(result: StreamProviderResult) {
-  if (!result.needsContinuation) {
-    return result;
+function looksLikeIncompleteAnswer(reply: string) {
+  const trimmedReply = reply
+    .replace(continuationMarker, "")
+    .trim();
+
+  if (!trimmedReply) {
+    return false;
   }
+
+  const lowerReply = trimmedReply.toLowerCase();
+  const lastLine = trimmedReply.split(/\r?\n/).filter(Boolean).at(-1)?.trim() ?? "";
+  const lowerLastLine = lastLine.toLowerCase();
+
+  if (/[.!?。؟)]$/.test(trimmedReply)) {
+    return false;
+  }
+
+  if (trimmedReply.endsWith(":")) {
+    return true;
+  }
+
+  if (/^([-*•]|\d+[.)])\s*$/.test(lastLine)) {
+    return true;
+  }
+
+  if (/^([-*•]|\d+[.)])\s+\S{0,32}$/.test(lastLine) && !/[.!?)]$/.test(lastLine)) {
+    return true;
+  }
+
+  const unfinishedPhrases = [
+    "berikut",
+    "yaitu",
+    "antara lain",
+    "sebagai berikut",
+    "di antaranya",
+    "mencakup",
+    "meliputi",
+    "contohnya",
+    "adalah",
+    "then",
+    "such as",
+    "including",
+  ];
+
+  return unfinishedPhrases.some(
+    (phrase) =>
+      lowerReply.endsWith(phrase) ||
+      lowerLastLine.endsWith(phrase) ||
+      lowerLastLine.endsWith(`${phrase}:`),
+  );
+}
+
+function shouldSuggestContinuation(result: StreamProviderResult) {
+  return (
+    Boolean(result.needsContinuation) ||
+    isMaxTokenFinishReason(result.finishReason) ||
+    result.reply.includes(continuationMarker) ||
+    looksLikeIncompleteAnswer(result.reply)
+  );
+}
+
+function appendContinuationMarkerIfNeeded(result: StreamProviderResult) {
+  if (!shouldSuggestContinuation(result)) {
+    return {
+      ...result,
+      needsContinuation: false,
+    };
+  }
+
+  const replyWithoutMarker = result.reply.replace(continuationMarker, "").trimEnd();
 
   return {
     ...result,
-    reply: `${result.reply}${continuationMarker}`,
+    reply: `${replyWithoutMarker}${continuationMarker}`,
+    needsContinuation: true,
   };
 }
 
@@ -2092,7 +2159,7 @@ export async function streamChatReply(
 
       const finalResult = appendContinuationMarkerIfNeeded(openAiResult);
 
-      if (openAiResult.needsContinuation) {
+      if (finalResult.needsContinuation) {
         await onChunk(continuationMarker);
       }
 
@@ -2101,7 +2168,7 @@ export async function streamChatReply(
         provider: "openai" as const,
         model: resolveOpenAiModel(),
         finishReason: openAiResult.finishReason,
-        needsContinuation: openAiResult.needsContinuation,
+        needsContinuation: finalResult.needsContinuation,
       };
     }
 
@@ -2155,7 +2222,7 @@ export async function streamChatReply(
 
       const finalResult = appendContinuationMarkerIfNeeded(geminiResult);
 
-      if (geminiResult.needsContinuation) {
+      if (finalResult.needsContinuation) {
         await onChunk(continuationMarker);
       }
 
@@ -2169,7 +2236,7 @@ export async function streamChatReply(
             ? "openai_to_gemini"
             : undefined),
         finishReason: geminiResult.finishReason,
-        needsContinuation: geminiResult.needsContinuation,
+        needsContinuation: finalResult.needsContinuation,
       };
     }
 
@@ -2228,7 +2295,7 @@ export async function streamChatReply(
   const finalOpenRouterResult =
     appendContinuationMarkerIfNeeded(openRouterResult);
 
-  if (openRouterResult.needsContinuation) {
+  if (finalOpenRouterResult.needsContinuation) {
     await onChunk(continuationMarker);
   }
 
@@ -2238,6 +2305,6 @@ export async function streamChatReply(
     model: resolveOpenRouterModel(route),
     fallbackEvent: "gemini_to_openrouter",
     finishReason: openRouterResult.finishReason,
-    needsContinuation: openRouterResult.needsContinuation,
+    needsContinuation: finalOpenRouterResult.needsContinuation,
   };
 }
