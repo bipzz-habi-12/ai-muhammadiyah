@@ -98,6 +98,8 @@ type Conversation = {
   model: SelectedModel;
   studyMode: SelectedStudyMode;
   documentMetadata: DocumentMetadata | null;
+  workspaceId: string | null;
+  isPinned: boolean;
 };
 
 type ConversationRow = {
@@ -108,6 +110,8 @@ type ConversationRow = {
   selected_model: string | null;
   study_mode: string | null;
   document_metadata: DocumentMetadata | null;
+  workspace_id: string | null;
+  is_pinned: boolean | null;
 };
 
 type MessageRow = {
@@ -132,9 +136,22 @@ type KnowledgeSource = {
   createdAt: string;
 };
 
+type Workspace = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
+type WorkspaceRow = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
 const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
 const maxDocumentUploadBytes = 25 * 1024 * 1024;
+const maxRecentFiles = 6;
 const continuationMarker = "[[AI_MU_CONTINUE_SUGGESTED]]";
 
 const welcomeMessage: Message = {
@@ -269,6 +286,16 @@ function mapConversationRow(row: ConversationRow): Conversation {
     model: normalizeSelectedModel(row.selected_model),
     studyMode: normalizeStudyMode(row.study_mode),
     documentMetadata: row.document_metadata,
+    workspaceId: row.workspace_id,
+    isPinned: Boolean(row.is_pinned),
+  };
+}
+
+function mapWorkspaceRow(row: WorkspaceRow): Workspace {
+  return {
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at,
   };
 }
 
@@ -285,61 +312,96 @@ function mapMessageRow(row: MessageRow): Message {
 }
 
 function createConversationTitle(text: string) {
-  const normalizedText = text.replace(/\s+/g, " ").trim();
+  const stopWords = new Set([
+    "aku",
+    "apa",
+    "bantu",
+    "buat",
+    "dan",
+    "dengan",
+    "di",
+    "ini",
+    "itu",
+    "jelaskan",
+    "ke",
+    "mohon",
+    "saya",
+    "tentang",
+    "tolong",
+    "untuk",
+    "yang",
+  ]);
+  const normalizedText = text
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[`*_>#-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (!normalizedText) {
     return "Obrolan baru";
   }
 
-  return normalizedText.length > 48
-    ? `${normalizedText.slice(0, 48)}...`
-    : normalizedText;
+  const words = normalizedText
+    .split(" ")
+    .map((word) => word.replace(/[^\p{L}\p{N}+/.-]/gu, ""))
+    .filter((word) => word.length > 2 && !stopWords.has(word.toLowerCase()))
+    .slice(0, 8);
+  const title = words.length >= 3 ? words.join(" ") : normalizedText;
+  const tidyTitle = title.charAt(0).toUpperCase() + title.slice(1);
+
+  return tidyTitle.length > 56 ? `${tidyTitle.slice(0, 56)}...` : tidyTitle;
 }
 
-function getConversationGroupLabel(dateValue: string) {
-  const date = new Date(dateValue);
-  const today = new Date();
-  const startOfToday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const startOfDate = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-  );
-  const dayDifference = Math.floor(
-    (startOfToday.getTime() - startOfDate.getTime()) / 86_400_000,
-  );
+function sortConversations(conversations: Conversation[]) {
+  return [...conversations].sort((first, second) => {
+    if (first.isPinned !== second.isPinned) {
+      return first.isPinned ? -1 : 1;
+    }
 
-  if (dayDifference <= 0) {
-    return "HARI INI";
-  }
-
-  if (dayDifference === 1) {
-    return "KEMARIN";
-  }
-
-  if (dayDifference <= 7) {
-    return "7 HARI LALU";
-  }
-
-  return "30 HARI LALU";
+    return (
+      new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
+    );
+  });
 }
 
-function groupConversations(conversations: Conversation[]) {
-  const groups = new Map<string, Conversation[]>();
+function groupConversationsByWorkspace(
+  conversations: Conversation[],
+  workspaces: Workspace[],
+) {
+  const workspaceById = new Map(
+    workspaces.map((workspace) => [workspace.id, workspace.name]),
+  );
+  const pinned = sortConversations(
+    conversations.filter((conversation) => conversation.isPinned),
+  );
+  const workspaceGroups = new Map<string, Conversation[]>();
 
   for (const conversation of conversations) {
-    const label = getConversationGroupLabel(conversation.updatedAt);
-    groups.set(label, [...(groups.get(label) ?? []), conversation]);
+    if (conversation.isPinned) {
+      continue;
+    }
+
+    const workspaceName = conversation.workspaceId
+      ? workspaceById.get(conversation.workspaceId) ?? "Workspace lama"
+      : "General";
+    workspaceGroups.set(workspaceName, [
+      ...(workspaceGroups.get(workspaceName) ?? []),
+      conversation,
+    ]);
   }
 
-  return Array.from(groups.entries()).map(([label, items]) => ({
-    label,
-    items,
-  }));
+  const groups = Array.from(workspaceGroups.entries())
+    .map(([label, items]) => ({
+      label,
+      items: sortConversations(items),
+    }))
+    .sort((first, second) => {
+      if (first.label === "General") return -1;
+      if (second.label === "General") return 1;
+      return first.label.localeCompare(second.label);
+    });
+
+  return pinned.length ? [{ label: "Pinned", items: pinned }, ...groups] : groups;
 }
 
 function getFriendlyChatError(error: unknown) {
@@ -902,6 +964,17 @@ function Icon({
     );
   }
 
+  if (name === "pin") {
+    return (
+      <svg {...common}>
+        <path d="m15 4 5 5" />
+        <path d="m14 10 4-4" />
+        <path d="M5 19l5-5" />
+        <path d="m9 15-2-2 6-6 4 4-6 6-2-2Z" />
+      </svg>
+    );
+  }
+
   if (name === "settings") {
     return (
       <svg {...common}>
@@ -923,6 +996,13 @@ export default function Home() {
   const supabase = createSupabaseBrowserClient();
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [searchConversations, setSearchConversations] = useState<
+    Conversation[] | null
+  >(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState("");
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState("");
@@ -936,6 +1016,10 @@ export default function Home() {
   const [uploadedAttachments, setUploadedAttachments] = useState<
     UploadedAttachment[]
   >([]);
+  const [recentAttachments, setRecentAttachments] = useState<
+    UploadedAttachment[]
+  >([]);
+  const [sharePreview, setSharePreview] = useState("");
   const [documentText, setDocumentText] = useState("");
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>("idle");
   const [documentError, setDocumentError] = useState("");
@@ -976,10 +1060,11 @@ export default function Home() {
   const documentTextRef = useRef("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const userInitials = getEmailInitials(userEmail);
-  const filteredConversations = conversations.filter((conversation) =>
-    conversation.title.toLowerCase().includes(chatSearch.toLowerCase().trim()),
+  const visibleConversations = searchConversations ?? conversations;
+  const conversationGroups = groupConversationsByWorkspace(
+    visibleConversations,
+    workspaces,
   );
-  const conversationGroups = groupConversations(filteredConversations);
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeConversationId,
   );
@@ -1011,7 +1096,7 @@ export default function Home() {
     const { data, error } = await supabase
       .from("conversations")
       .select(
-        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata",
+        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
       )
       .order("updated_at", { ascending: false })
       .limit(40);
@@ -1023,8 +1108,25 @@ export default function Home() {
       return;
     }
 
-    setConversations(((data ?? []) as ConversationRow[]).map(mapConversationRow));
+    setConversations(
+      sortConversations(((data ?? []) as ConversationRow[]).map(mapConversationRow)),
+    );
     setIsLoadingConversations(false);
+  }, [supabase]);
+
+  const loadWorkspaces = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("chat_workspaces")
+      .select("id,name,created_at")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Workspace belum bisa dimuat.");
+      return;
+    }
+
+    setWorkspaces(((data ?? []) as WorkspaceRow[]).map(mapWorkspaceRow));
   }, [supabase]);
 
   const loadUsage = useCallback(async () => {
@@ -1108,6 +1210,7 @@ export default function Home() {
       setUserId(user.id);
       setUserEmail(user.email ?? "");
       await Promise.all([
+        loadWorkspaces(),
         loadConversations(),
         loadUsage(),
         loadLearningProfile(user.id),
@@ -1121,6 +1224,7 @@ export default function Home() {
     loadKnowledge,
     loadLearningProfile,
     loadUsage,
+    loadWorkspaces,
     router,
     supabase,
   ]);
@@ -1136,6 +1240,112 @@ export default function Home() {
   useEffect(() => {
     window.localStorage.setItem("ai-mu-study-mode", selectedStudyMode);
   }, [selectedStudyMode]);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    const storedRecentFiles = window.localStorage.getItem(
+      `ai-mu-recent-files-${userId}`,
+    );
+
+    if (!storedRecentFiles) {
+      return;
+    }
+
+    try {
+      const parsedFiles = JSON.parse(storedRecentFiles) as UploadedAttachment[];
+      setRecentAttachments(
+        parsedFiles.filter(
+          (attachment) =>
+            typeof attachment.id === "string" &&
+            typeof attachment.fileName === "string" &&
+            attachment.status === "loaded",
+        ),
+      );
+    } catch {
+      window.localStorage.removeItem(`ai-mu-recent-files-${userId}`);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      `ai-mu-recent-files-${userId}`,
+      JSON.stringify(recentAttachments.slice(0, maxRecentFiles)),
+    );
+  }, [recentAttachments, userId]);
+
+  useEffect(() => {
+    const query = chatSearch.trim();
+
+    if (!query) {
+      setSearchConversations(null);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setHistoryError("");
+
+      const titleMatches = await supabase
+        .from("conversations")
+        .select(
+          "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+        )
+        .ilike("title", `%${query}%`)
+        .limit(30);
+      const messageMatches = await supabase
+        .from("messages")
+        .select("conversation_id")
+        .ilike("content", `%${query}%`)
+        .limit(60);
+
+      if (titleMatches.error || messageMatches.error) {
+        console.error(titleMatches.error ?? messageMatches.error);
+        setHistoryError("Pencarian obrolan belum bisa dijalankan.");
+        return;
+      }
+
+      const conversationIds = Array.from(
+        new Set(
+          ((messageMatches.data ?? []) as { conversation_id: string }[]).map(
+            (row) => row.conversation_id,
+          ),
+        ),
+      );
+      const messageConversationMatches = conversationIds.length
+        ? await supabase
+            .from("conversations")
+            .select(
+              "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+            )
+            .in("id", conversationIds)
+        : { data: [], error: null };
+
+      if (messageConversationMatches.error) {
+        console.error(messageConversationMatches.error);
+        setHistoryError("Hasil pesan belum bisa dimuat.");
+        return;
+      }
+
+      const byId = new Map<string, Conversation>();
+      for (const row of [
+        ...((titleMatches.data ?? []) as ConversationRow[]),
+        ...((messageConversationMatches.data ?? []) as ConversationRow[]),
+      ]) {
+        const conversation = mapConversationRow(row);
+        byId.set(conversation.id, conversation);
+      }
+
+      setSearchConversations(sortConversations(Array.from(byId.values())));
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [chatSearch, supabase]);
 
   function getCurrentDocumentMetadata(): DocumentMetadata | null {
     if (!uploadedAttachments.length) {
@@ -1172,6 +1382,60 @@ export default function Home() {
     setDocumentStatus("idle");
     setDocumentError("");
     setComposerNotice("");
+  }
+
+  function rememberLoadedAttachments(attachments: UploadedAttachment[]) {
+    const reusableAttachments = attachments
+      .filter(
+        (attachment) =>
+          attachment.status === "loaded" &&
+          (attachment.text || (attachment.kind === "image" && attachment.data)),
+      )
+      .map((attachment) => ({
+        ...attachment,
+        id: `${attachment.fileName}-${Date.now()}-${crypto.randomUUID()}`,
+      }));
+
+    if (!reusableAttachments.length) {
+      return;
+    }
+
+    setRecentAttachments((current) => {
+      const next = [...reusableAttachments, ...current].filter(
+        (attachment, index, allAttachments) =>
+          allAttachments.findIndex(
+            (candidate) => candidate.fileName === attachment.fileName,
+          ) === index,
+      );
+
+      return next.slice(0, maxRecentFiles);
+    });
+  }
+
+  function reuseRecentAttachment(attachment: UploadedAttachment) {
+    const nextAttachment = {
+      ...attachment,
+      id: `${attachment.fileName}-${Date.now()}-${crypto.randomUUID()}`,
+    };
+
+    setUploadedAttachments((current) => [...current, nextAttachment]);
+
+    if (nextAttachment.kind === "document" && nextAttachment.text) {
+      const loadedDocuments = [...uploadedAttachments, nextAttachment]
+        .filter(
+          (item) =>
+            item.kind === "document" && item.status === "loaded" && item.text,
+        )
+        .map((item) => `FILE: ${item.fileName} (${item.fileType})\n${item.text}`);
+
+      documentTextRef.current = loadedDocuments.join("\n\n---\n\n");
+      setDocumentText(documentTextRef.current);
+    }
+
+    setDocumentStatus("loaded");
+    setDocumentError("");
+    setComposerNotice(`${attachment.fileName} dipakai lagi di chat ini.`);
+    setIsAttachMenuOpen(false);
   }
 
   function removeAttachment(attachmentId: string) {
@@ -1223,6 +1487,7 @@ export default function Home() {
     resetDocumentState();
     setRenamingConversationId("");
     setRenameValue("");
+    setSharePreview("");
   }
 
   function openUpgradeModal(model: SelectedModel = "smart") {
@@ -1263,6 +1528,7 @@ export default function Home() {
     setSelectedStudyMode(
       resolveAllowedStudyMode(conversation.studyMode, usageSnapshot?.tier),
     );
+    setSelectedWorkspaceId(conversation.workspaceId ?? "");
 
     const { data, error } = await supabase
       .from("messages")
@@ -1327,9 +1593,10 @@ export default function Home() {
         selected_model: selectedModel,
         study_mode: selectedStudyMode,
         document_metadata: documentMetadata,
+        workspace_id: selectedWorkspaceId || null,
       })
       .select(
-        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata",
+        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
       )
       .single();
 
@@ -1338,10 +1605,44 @@ export default function Home() {
     }
 
     const conversation = mapConversationRow(data as ConversationRow);
-    setConversations((prev) => [conversation, ...prev]);
+    setConversations((prev) => sortConversations([conversation, ...prev]));
     setActiveConversationId(conversation.id);
 
     return conversation;
+  }
+
+  async function createWorkspace() {
+    const name = newWorkspaceName.trim();
+
+    if (!name || isCreatingWorkspace) {
+      return;
+    }
+
+    setIsCreatingWorkspace(true);
+    setHistoryError("");
+
+    const { data, error } = await supabase
+      .from("chat_workspaces")
+      .insert({ name })
+      .select("id,name,created_at")
+      .single();
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Workspace belum bisa dibuat.");
+      setIsCreatingWorkspace(false);
+      return;
+    }
+
+    const workspace = mapWorkspaceRow(data as WorkspaceRow);
+    setWorkspaces((current) =>
+      [...current, workspace].sort((first, second) =>
+        first.name.localeCompare(second.name),
+      ),
+    );
+    setSelectedWorkspaceId(workspace.id);
+    setNewWorkspaceName("");
+    setIsCreatingWorkspace(false);
   }
 
   async function renameConversation(conversationId: string) {
@@ -1393,6 +1694,64 @@ export default function Home() {
     if (activeConversationId === conversationId) {
       resetMemory();
     }
+  }
+
+  async function toggleConversationPin(conversation: Conversation) {
+    const nextPinned = !conversation.isPinned;
+    const { error } = await supabase
+      .from("conversations")
+      .update({ is_pinned: nextPinned })
+      .eq("id", conversation.id);
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Status pin belum bisa diubah.");
+      return;
+    }
+
+    setConversations((prev) =>
+      sortConversations(
+        prev.map((item) =>
+          item.id === conversation.id ? { ...item, isPinned: nextPinned } : item,
+        ),
+      ),
+    );
+    setSearchConversations((prev) =>
+      prev
+        ? sortConversations(
+            prev.map((item) =>
+              item.id === conversation.id
+                ? { ...item, isPinned: nextPinned }
+                : item,
+            ),
+          )
+        : prev,
+    );
+  }
+
+  async function updateConversationWorkspace(
+    conversationId: string,
+    workspaceId: string,
+  ) {
+    const nextWorkspaceId = workspaceId || null;
+    const { error } = await supabase
+      .from("conversations")
+      .update({ workspace_id: nextWorkspaceId })
+      .eq("id", conversationId);
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Workspace obrolan belum bisa diubah.");
+      return;
+    }
+
+    const updateItem = (conversation: Conversation) =>
+      conversation.id === conversationId
+        ? { ...conversation, workspaceId: nextWorkspaceId }
+        : conversation;
+
+    setConversations((prev) => prev.map(updateItem));
+    setSearchConversations((prev) => (prev ? prev.map(updateItem) : prev));
   }
 
   async function handleLogout() {
@@ -1486,7 +1845,8 @@ export default function Home() {
   }
 
   function exportChatHistoryPlaceholder() {
-    setSettingsDataMessage("Export chat history akan tersedia di versi berikutnya.");
+    exportActiveChatMarkdown();
+    setSettingsDataMessage("Chat aktif diexport sebagai Markdown.");
   }
 
   async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1629,6 +1989,7 @@ export default function Home() {
       setDocumentError(
         current.find((attachment) => attachment.status === "error")?.error ?? "",
       );
+      rememberLoadedAttachments(current);
 
       return current;
     });
@@ -2006,6 +2367,8 @@ export default function Home() {
           selected_model: selectedModel,
           study_mode: selectedStudyMode,
           document_metadata: documentMetadata,
+          workspace_id:
+            currentConversation.workspaceId ?? (selectedWorkspaceId || null),
           updated_at: updatedAt,
         })
         .eq("id", currentConversation.id);
@@ -2019,6 +2382,9 @@ export default function Home() {
                   model: selectedModel,
                   studyMode: selectedStudyMode,
                   documentMetadata,
+                  workspaceId:
+                    currentConversation.workspaceId ??
+                    (selectedWorkspaceId || null),
                   updatedAt,
                 }
               : item,
@@ -2081,6 +2447,76 @@ export default function Home() {
         hiddenInstruction: true,
         appendToLastAssistant: true,
       },
+    );
+  }
+
+  function getActiveChatMarkdown() {
+    const title = activeConversation?.title ?? "Obrolan baru";
+    const workspaceName =
+      workspaces.find((workspace) => workspace.id === activeConversation?.workspaceId)
+        ?.name ?? "General";
+    const lines = [
+      `# ${title}`,
+      "",
+      `Workspace: ${workspaceName}`,
+      `Exported: ${new Date().toISOString()}`,
+      "",
+    ];
+
+    for (const message of messages.filter((item) => item.text.trim())) {
+      lines.push(`## ${message.role === "user" ? "User" : "AI Muhammadiyah"}`);
+      lines.push("");
+      lines.push(message.text.trim());
+      lines.push("");
+    }
+
+    return lines.join("\n");
+  }
+
+  function exportActiveChatMarkdown() {
+    if (messages.length <= 1) {
+      setHistoryError("Belum ada isi obrolan untuk diexport.");
+      return;
+    }
+
+    const markdown = getActiveChatMarkdown();
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${(activeConversation?.title ?? "ai-mu-chat")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "ai-mu-chat"}.md`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  function openSharePreview() {
+    if (messages.length <= 1) {
+      setHistoryError("Belum ada isi obrolan untuk dibuat preview.");
+      return;
+    }
+
+    const previewMessages = messages
+      .filter((message) => message.text.trim())
+      .slice(0, 6)
+      .map(
+        (message) =>
+          `${message.role === "user" ? "User" : "AI"}: ${message.text
+            .trim()
+            .slice(0, 360)}`,
+      )
+      .join("\n\n");
+
+    setSharePreview(
+      [
+        `Local share preview: ${activeConversation?.title ?? "Obrolan baru"}`,
+        "",
+        previewMessages,
+        "",
+        "Public link sharing belum diaktifkan. Preview ini disiapkan untuk alur share link berikutnya.",
+      ].join("\n"),
     );
   }
 
@@ -2172,14 +2608,39 @@ export default function Home() {
             className="hidden"
           />
         </label>
-        <button
-          type="button"
-          onClick={() => showComposerNotice("Recent files akan tersedia segera.")}
-          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
-        >
-          <Icon name="edit" className="h-5 w-5 text-[#008d54]" />
-          Recent files
-        </button>
+        <div className="rounded-2xl px-3 py-2">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-normal text-[#6b8178]">
+            <Icon name="edit" className="h-4 w-4 text-[#008d54]" />
+            Recent files
+          </div>
+          {recentAttachments.length ? (
+            <div className="space-y-1">
+              {recentAttachments.map((attachment) => (
+                <button
+                  key={attachment.id}
+                  type="button"
+                  onClick={() => reuseRecentAttachment(attachment)}
+                  className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-semibold text-[#18392e] transition hover:bg-[#eef8f1]"
+                >
+                  <Icon
+                    name={attachment.kind === "image" ? "idea" : "book"}
+                    className="h-4 w-4 shrink-0 text-[#008d54]"
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {attachment.fileName}
+                  </span>
+                  <span className="text-xs text-[#6b8178]">
+                    {attachment.fileType}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs font-semibold text-[#6b8178]">
+              Belum ada file terbaru.
+            </p>
+          )}
+        </div>
         <button
           type="button"
           onClick={() =>
@@ -2261,6 +2722,44 @@ export default function Home() {
             <span className="text-3xl font-light text-[#008d54]">+</span>
             Obrolan baru
           </button>
+          <label className="mt-3 block">
+            <span className="sr-only">Workspace untuk obrolan baru</span>
+            <select
+              value={selectedWorkspaceId}
+              onChange={(event) => setSelectedWorkspaceId(event.target.value)}
+              className="h-11 w-full rounded-2xl bg-white px-4 text-sm font-bold text-[#18392e] outline-none ring-1 ring-[#d8eadf] transition focus:ring-[#95d6b9]"
+            >
+              <option value="">General workspace</option>
+              {workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createWorkspace();
+            }}
+            className="mt-2 flex gap-2"
+          >
+            <input
+              value={newWorkspaceName}
+              onChange={(event) => setNewWorkspaceName(event.target.value)}
+              placeholder="Workspace baru"
+              className="min-w-0 flex-1 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+            />
+            <button
+              type="submit"
+              disabled={!newWorkspaceName.trim() || isCreatingWorkspace}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#009252] text-white transition hover:bg-[#007c46] disabled:cursor-not-allowed disabled:bg-[#95d6b9]"
+              aria-label="Buat workspace"
+              title="Buat workspace"
+            >
+              <span className="text-xl leading-none">+</span>
+            </button>
+          </form>
         </div>
 
         <div className="mt-6 flex items-center gap-3 px-6 text-[#536b60]">
@@ -2280,7 +2779,7 @@ export default function Home() {
           <input
             value={chatSearch}
             onChange={(event) => setChatSearch(event.target.value)}
-            placeholder="Cari obrolan"
+            placeholder="Cari judul atau isi chat"
             className="min-w-0 flex-1 bg-transparent text-lg outline-none placeholder:text-[#536b60]"
           />
         </div>
@@ -2306,8 +2805,11 @@ export default function Home() {
 
           {conversationGroups.map((group) => (
             <div key={group.label} className="mb-8">
-              <h2 className="mb-5 text-sm font-bold tracking-wide text-[#4f665c]">
-                {group.label}
+              <h2 className="mb-5 flex items-center justify-between text-sm font-bold tracking-wide text-[#4f665c]">
+                <span>{group.label}</span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#008d54] ring-1 ring-[#d8eadf]">
+                  {group.items.length}
+                </span>
               </h2>
 
               <div className="space-y-3">
@@ -2358,6 +2860,27 @@ export default function Home() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => toggleConversationPin(conversation)}
+                          className={
+                            conversation.isPinned
+                              ? "grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eef8f1] text-[#008d54]"
+                              : "grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
+                          }
+                          aria-label={
+                            conversation.isPinned
+                              ? "Lepas pin obrolan"
+                              : "Pin obrolan"
+                          }
+                          title={
+                            conversation.isPinned
+                              ? "Lepas pin obrolan"
+                              : "Pin obrolan"
+                          }
+                        >
+                          <Icon name="pin" className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             setRenamingConversationId(conversation.id);
                             setRenameValue(conversation.title);
@@ -2378,6 +2901,28 @@ export default function Home() {
                           <Icon name="trash" className="h-4 w-4" />
                         </button>
                       </div>
+                    )}
+                    {renamingConversationId !== conversation.id && (
+                      <label className="mt-2 block">
+                        <span className="sr-only">Workspace obrolan</span>
+                        <select
+                          value={conversation.workspaceId ?? ""}
+                          onChange={(event) =>
+                            updateConversationWorkspace(
+                              conversation.id,
+                              event.target.value,
+                            )
+                          }
+                          className="h-9 w-full rounded-xl bg-white px-3 text-xs font-bold text-[#4f665c] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                        >
+                          <option value="">General</option>
+                          {workspaces.map((workspace) => (
+                            <option key={workspace.id} value={workspace.id}>
+                              {workspace.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     )}
                   </div>
                 ))}
@@ -2645,6 +3190,41 @@ export default function Home() {
           </div>
 
           <div className="relative flex items-center gap-3">
+            {activeConversation && (
+              <div className="hidden items-center gap-2 sm:flex">
+                <button
+                  type="button"
+                  onClick={() => toggleConversationPin(activeConversation)}
+                  className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#4f665c] ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1] hover:text-[#008d54]"
+                  aria-label={
+                    activeConversation.isPinned
+                      ? "Lepas pin obrolan"
+                      : "Pin obrolan"
+                  }
+                  title={
+                    activeConversation.isPinned
+                      ? "Lepas pin obrolan"
+                      : "Pin obrolan"
+                  }
+                >
+                  <Icon name="pin" className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={exportActiveChatMarkdown}
+                  className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
+                  onClick={openSharePreview}
+                  className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+                >
+                  Share
+                </button>
+              </div>
+            )}
             <span className="hidden rounded-full bg-[#eef8f1] px-3 py-1 text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf] sm:inline-flex">
               {currentTierLabel}
             </span>
@@ -2723,6 +3303,26 @@ export default function Home() {
         </header>
 
         <div className="border-b border-[#d9e9df] px-4 py-3 md:hidden">
+          <div className="mb-3 grid gap-2">
+            <input
+              value={chatSearch}
+              onChange={(event) => setChatSearch(event.target.value)}
+              placeholder="Cari chat"
+              className="h-11 rounded-full bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] placeholder:text-[#6d8178] focus:ring-[#95d6b9]"
+            />
+            <select
+              value={selectedWorkspaceId}
+              onChange={(event) => setSelectedWorkspaceId(event.target.value)}
+              className="h-11 rounded-full bg-white px-4 text-sm font-bold text-[#18392e] outline-none ring-1 ring-[#d8eadf]"
+            >
+              <option value="">General workspace</option>
+              {workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
@@ -2731,7 +3331,7 @@ export default function Home() {
             >
               + Obrolan baru
             </button>
-            {conversations.slice(0, 8).map((conversation) => (
+            {visibleConversations.slice(0, 8).map((conversation) => (
               <button
                 key={conversation.id}
                 type="button"
@@ -2746,6 +3346,31 @@ export default function Home() {
               </button>
             ))}
           </div>
+          {activeConversation && (
+            <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => toggleConversationPin(activeConversation)}
+                className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf]"
+              >
+                {activeConversation.isPinned ? "Unpin" : "Pin"}
+              </button>
+              <button
+                type="button"
+                onClick={exportActiveChatMarkdown}
+                className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf]"
+              >
+                Export
+              </button>
+              <button
+                type="button"
+                onClick={openSharePreview}
+                className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf]"
+              >
+                Share
+              </button>
+            </div>
+          )}
 
           <div className="relative">
             <button
@@ -3025,6 +3650,35 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {sharePreview && (
+        <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">
+          <div className="max-h-[86vh] w-full max-w-2xl overflow-hidden rounded-[28px] bg-[#f7fbf8] shadow-2xl ring-1 ring-[#d8eadf]">
+            <div className="flex items-center justify-between border-b border-[#d9e9df] px-5 py-4">
+              <div>
+                <p className="text-sm font-bold text-[#008d54]">
+                  Share preview
+                </p>
+                <h2 className="text-xl font-bold text-[#05150d]">
+                  Local chat preview
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSharePreview("")}
+                className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#4f665c] ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+                aria-label="Tutup preview"
+                title="Tutup preview"
+              >
+                x
+              </button>
+            </div>
+            <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap p-5 text-sm leading-relaxed text-[#18392e]">
+              {sharePreview}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {isUpgradeOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">
@@ -3449,14 +4103,14 @@ export default function Home() {
                     >
                       <span>
                         <span className="block text-sm font-bold text-[#18392e]">
-                          Export chat history
+                          Export active chat
                         </span>
                         <span className="mt-1 block text-sm text-[#4f665c]">
-                          Placeholder untuk unduhan arsip obrolan.
+                          Unduh Markdown dengan format pesan tetap terjaga.
                         </span>
                       </span>
                       <span className="text-sm font-bold text-[#008d54]">
-                        Soon
+                        MD
                       </span>
                     </button>
                     {settingsDataMessage && (
