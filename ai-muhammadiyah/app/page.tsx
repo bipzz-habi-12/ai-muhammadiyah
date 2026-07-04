@@ -11,15 +11,12 @@ import {
   type UserMemory,
 } from "@/lib/memory/user-memory";
 import {
-  canUseStudyMode,
-  defaultStudyMode,
-  getStudyModeBadge,
-  normalizeStudyMode,
-  resolveAllowedStudyMode,
-  studyModeCatalog,
-  studyModeOptions,
-  type StudyModeId,
-} from "@/lib/study-modes";
+  canAccessTier,
+  fetchSkills,
+  getSkillBadge,
+  resolveAllowedSkill,
+  type Skill,
+} from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   getPlanByTier,
@@ -40,7 +37,7 @@ type Message = {
   text: string;
   createdAt?: string;
   model?: SelectedModel;
-  studyMode?: SelectedStudyMode;
+  skillId?: string | null;
   documentMetadata?: DocumentMetadata | null;
   continuationSuggested?: boolean;
 };
@@ -56,7 +53,6 @@ type UploadedDocumentType =
 type UploadedAttachmentKind = "document" | "image";
 
 type SelectedModel = PlanModelId;
-type SelectedStudyMode = StudyModeId;
 type SettingsTab =
   | "general"
   | "personalization"
@@ -96,7 +92,7 @@ type Conversation = {
   createdAt: string;
   updatedAt: string;
   model: SelectedModel;
-  studyMode: SelectedStudyMode;
+  skillId: string | null;
   documentMetadata: DocumentMetadata | null;
   workspaceId: string | null;
   isPinned: boolean;
@@ -187,20 +183,73 @@ function getLockedModelRequirement(model: SelectedModel) {
   return `Mulai dari ${getUpgradePlanForModel(model).name}`;
 }
 
-function getLockedStudyModeRequirement(mode: SelectedStudyMode) {
-  if (mode === "osn_coach") {
-    return "Requires Premium for olympiad coaching";
+function getLockedSkillRequirement(skill: Skill) {
+  if (skill.minTier === "free") {
+    return "Available in your plan";
   }
 
-  if (mode === "research_mode") {
-    return "Requires Premium for academic depth";
+  return `Mulai dari ${getPlanByTier(skill.minTier).name}`;
+}
+
+// Legacy compat: conversations/messages.study_mode and user_memory.default_study_mode
+// still store the old study-mode text values (no skill_id column exists yet on those
+// tables). Map those legacy values to a platform skill name so historical data and
+// existing localStorage/profile defaults still resolve to a real skill.
+const legacyStudyModeSkillNames: Record<string, string> = {
+  quick_explain: "Quick Explain",
+  cambridge_tutor: "Cambridge Tutor",
+  osn_coach: "OSN Coach",
+  islamic_teacher: "Islamic Teacher",
+  coding_mentor: "Coding Mentor",
+  research_mode: "Research Mode",
+  step_by_step: "Step-by-Step",
+  "Kajian umum": "Cambridge Tutor",
+  "Persiapan ujian": "Cambridge Tutor",
+  "Ringkasan materi": "Cambridge Tutor",
+  "Tanya jawab cepat": "Quick Explain",
+  "Latihan soal": "Step-by-Step",
+};
+
+const skillNameToLegacyStudyMode: Record<string, string> = {
+  "Quick Explain": "quick_explain",
+  "Cambridge Tutor": "cambridge_tutor",
+  "OSN Coach": "osn_coach",
+  "Islamic Teacher": "islamic_teacher",
+  "Coding Mentor": "coding_mentor",
+  "Research Mode": "research_mode",
+  "Step-by-Step": "step_by_step",
+};
+
+function resolveSkillIdFromLegacyValue(
+  value: string | null | undefined,
+  skills: Skill[],
+): string | null {
+  if (!value) {
+    return null;
   }
 
-  if (mode === "step_by_step") {
-    return "Requires Premium for full guided solving";
+  const byId = skills.find((skill) => skill.id === value);
+
+  if (byId) {
+    return byId.id;
   }
 
-  return "Available in your plan";
+  const legacyName = legacyStudyModeSkillNames[value];
+  const byName = legacyName
+    ? skills.find(
+        (skill) => skill.ownerId === null && skill.name === legacyName,
+      )
+    : undefined;
+
+  return byName?.id ?? null;
+}
+
+function skillToLegacyStudyMode(skill: Skill | null): string {
+  if (skill && skillNameToLegacyStudyMode[skill.name]) {
+    return skillNameToLegacyStudyMode[skill.name];
+  }
+
+  return "cambridge_tutor";
 }
 
 const settingsTabs: { id: SettingsTab; label: string }[] = [
@@ -279,14 +328,14 @@ function normalizeSelectedModel(value?: string | null): SelectedModel {
   return "auto";
 }
 
-function mapConversationRow(row: ConversationRow): Conversation {
+function mapConversationRow(row: ConversationRow, skills: Skill[]): Conversation {
   return {
     id: row.id,
     title: row.title,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     model: normalizeSelectedModel(row.selected_model),
-    studyMode: normalizeStudyMode(row.study_mode),
+    skillId: resolveSkillIdFromLegacyValue(row.study_mode, skills),
     documentMetadata: row.document_metadata,
     workspaceId: row.workspace_id,
     isPinned: Boolean(row.is_pinned),
@@ -301,14 +350,14 @@ function mapWorkspaceRow(row: WorkspaceRow): Workspace {
   };
 }
 
-function mapMessageRow(row: MessageRow): Message {
+function mapMessageRow(row: MessageRow, skills: Skill[]): Message {
   return {
     id: row.id,
     role: row.role === "assistant" ? "ai" : "user",
     text: row.content,
     createdAt: row.created_at,
     model: normalizeSelectedModel(row.selected_model),
-    studyMode: normalizeStudyMode(row.study_mode),
+    skillId: resolveSkillIdFromLegacyValue(row.study_mode, skills),
     documentMetadata: row.document_metadata,
   };
 }
@@ -1142,8 +1191,9 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
-  const [selectedStudyMode, setSelectedStudyMode] =
-    useState<SelectedStudyMode>(defaultStudyMode);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -1172,6 +1222,7 @@ export default function Home() {
   const [knowledgeMessage, setKnowledgeMessage] = useState("");
   const [knowledgeError, setKnowledgeError] = useState("");
   const documentTextRef = useRef("");
+  const skillsRef = useRef<Skill[]>([]);
   const activeRequestRef = useRef<AbortController | null>(null);
   const uploadKeysInFlightRef = useRef(new Set<string>());
   const uploadFilesByAttachmentIdRef = useRef(new Map<string, File>());
@@ -1199,11 +1250,13 @@ export default function Home() {
     : "Memuat";
   const allowedModels = usageSnapshot?.allowedModels ?? ["auto", "fast"];
   const selectedModelInfo = modelCatalog[selectedModel];
-  const selectedStudyModeInfo = studyModeCatalog[selectedStudyMode];
-  const selectedStudyModeBadge = getStudyModeBadge(
-    selectedStudyMode,
-    usageSnapshot?.tier,
+  const selectedSkill = useMemo(
+    () => skills.find((skill) => skill.id === selectedSkillId) ?? null,
+    [skills, selectedSkillId],
   );
+  const selectedSkillBadge = selectedSkill
+    ? getSkillBadge(selectedSkill, usageSnapshot?.tier)
+    : "";
   const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
   const currentPlan = usageSnapshot ? getPlanByTier(usageSnapshot.tier) : null;
   const hasMessageQuota =
@@ -1217,6 +1270,10 @@ export default function Home() {
       "Lengkapi profil",
     [learningProfile.displayName, learningProfile.schoolLevel],
   );
+
+  useEffect(() => {
+    skillsRef.current = skills;
+  }, [skills]);
 
   const loadConversations = useCallback(async () => {
     setHistoryError("");
@@ -1238,10 +1295,30 @@ export default function Home() {
     }
 
     setConversations(
-      sortConversations(((data ?? []) as ConversationRow[]).map(mapConversationRow)),
+      sortConversations(
+        ((data ?? []) as ConversationRow[]).map((row) =>
+          mapConversationRow(row, skillsRef.current),
+        ),
+      ),
     );
     setIsLoadingConversations(false);
   }, [supabase]);
+
+  const loadSkills = useCallback(
+    async (currentUserId: string) => {
+      setSkillsLoading(true);
+
+      try {
+        const data = await fetchSkills(supabase, currentUserId);
+        setSkills(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setSkillsLoading(false);
+      }
+    },
+    [supabase],
+  );
 
   const loadWorkspaces = useCallback(async () => {
     const { data, error } = await supabase
@@ -1269,8 +1346,9 @@ export default function Home() {
           ? "auto"
           : currentModel,
       );
-      setSelectedStudyMode((currentMode) =>
-        resolveAllowedStudyMode(currentMode, snapshot?.tier),
+      setSelectedSkillId((currentId) =>
+        resolveAllowedSkill(currentId, snapshot?.tier, skillsRef.current)?.id ??
+          null,
       );
     } catch (error) {
       console.error(error);
@@ -1312,10 +1390,11 @@ export default function Home() {
         setProfileDraft(memory);
         setFavoriteSubjectsDraft(memory.favoriteSubjects.join(", "));
         setSelectedModel(memory.defaultModel);
-        setSelectedStudyMode(
-          normalizeStudyMode(
+        setSelectedSkillId(
+          resolveSkillIdFromLegacyValue(
             window.localStorage.getItem("ai-mu-study-mode") ??
               memory.defaultStudyMode,
+            skillsRef.current,
           ),
         );
       } catch (error) {
@@ -1344,6 +1423,7 @@ export default function Home() {
         loadConversations(),
         loadUsage(),
         loadLearningProfile(user.id),
+        loadSkills(user.id),
       ]);
     }
 
@@ -1351,11 +1431,24 @@ export default function Home() {
   }, [
     loadConversations,
     loadLearningProfile,
+    loadSkills,
     loadUsage,
     loadWorkspaces,
     router,
     supabase,
   ]);
+
+  useEffect(() => {
+    if (skillsLoading || selectedSkillId || !skills.length) {
+      return;
+    }
+
+    const fallback = resolveAllowedSkill(null, usageSnapshot?.tier, skills);
+
+    if (fallback) {
+      setSelectedSkillId(fallback.id);
+    }
+  }, [skillsLoading, skills, selectedSkillId, usageSnapshot?.tier]);
 
   useEffect(() => {
     if (scrollFrameRef.current !== null) {
@@ -1400,8 +1493,10 @@ export default function Home() {
   }, [activeSettingsTab, isLoadingKnowledge, isSettingsOpen, loadKnowledge]);
 
   useEffect(() => {
-    window.localStorage.setItem("ai-mu-study-mode", selectedStudyMode);
-  }, [selectedStudyMode]);
+    if (selectedSkillId) {
+      window.localStorage.setItem("ai-mu-study-mode", selectedSkillId);
+    }
+  }, [selectedSkillId]);
 
   useEffect(() => {
     if (!userId) {
@@ -1505,7 +1600,7 @@ export default function Home() {
         ...((titleMatches.data ?? []) as ConversationRow[]),
         ...((messageConversationMatches.data ?? []) as ConversationRow[]),
       ]) {
-        const conversation = mapConversationRow(row);
+        const conversation = mapConversationRow(row, skillsRef.current);
         byId.set(conversation.id, conversation);
       }
 
@@ -1795,14 +1890,16 @@ export default function Home() {
     setIsModelMenuOpen(false);
   }
 
-  function selectStudyMode(mode: SelectedStudyMode) {
-    if (!canUseStudyMode(mode, usageSnapshot?.tier)) {
+  function selectSkill(skillId: string) {
+    const skill = skills.find((item) => item.id === skillId);
+
+    if (!skill || !canAccessTier(usageSnapshot?.tier, skill.minTier)) {
       setIsStudyModeMenuOpen(false);
       router.push("/plans");
       return;
     }
 
-    setSelectedStudyMode(mode);
+    setSelectedSkillId(skillId);
     setIsStudyModeMenuOpen(false);
   }
 
@@ -1814,8 +1911,9 @@ export default function Home() {
     setSelectedModel(
       allowedModels.includes(conversation.model) ? conversation.model : "auto",
     );
-    setSelectedStudyMode(
-      resolveAllowedStudyMode(conversation.studyMode, usageSnapshot?.tier),
+    setSelectedSkillId(
+      resolveAllowedSkill(conversation.skillId, usageSnapshot?.tier, skills)?.id ??
+        null,
     );
     setSelectedWorkspaceId(conversation.workspaceId ?? "");
 
@@ -1833,7 +1931,9 @@ export default function Home() {
       return;
     }
 
-    const loadedMessages = ((data ?? []) as MessageRow[]).map(mapMessageRow);
+    const loadedMessages = ((data ?? []) as MessageRow[]).map((row) =>
+      mapMessageRow(row, skills),
+    );
     setMessages(loadedMessages.length ? loadedMessages : [welcomeMessage]);
 
     const latestDocumentMetadata =
@@ -1880,7 +1980,7 @@ export default function Home() {
       .insert({
         title,
         selected_model: selectedModel,
-        study_mode: selectedStudyMode,
+        study_mode: skillToLegacyStudyMode(selectedSkill),
         document_metadata: documentMetadata,
         workspace_id: selectedWorkspaceId || null,
       })
@@ -1893,7 +1993,7 @@ export default function Home() {
       throw error;
     }
 
-    const conversation = mapConversationRow(data as ConversationRow);
+    const conversation = mapConversationRow(data as ConversationRow, skills);
     setConversations((prev) => sortConversations([conversation, ...prev]));
     setActiveConversationId(conversation.id);
 
@@ -2102,8 +2202,12 @@ export default function Home() {
       setProfileDraft(savedMemory);
       setFavoriteSubjectsDraft(savedMemory.favoriteSubjects.join(", "));
       setSelectedModel(savedMemory.defaultModel);
-      setSelectedStudyMode(
-        resolveAllowedStudyMode(savedMemory.defaultStudyMode, usageSnapshot?.tier),
+      setSelectedSkillId(
+        resolveAllowedSkill(
+          resolveSkillIdFromLegacyValue(savedMemory.defaultStudyMode, skills),
+          usageSnapshot?.tier,
+          skills,
+        )?.id ?? null,
       );
       setProfileSavedMessage("Learning Profile tersimpan.");
     } catch (error) {
@@ -2310,6 +2414,17 @@ export default function Home() {
 
     if (!userText || isSending || !hasMessageQuota) return;
 
+    const activeSkill = resolveAllowedSkill(
+      selectedSkillId,
+      usageSnapshot?.tier,
+      skills,
+    );
+
+    if (!activeSkill) {
+      setComposerNotice("Skill masih dimuat, coba lagi sebentar.");
+      return;
+    }
+
     const currentDocumentContext = documentTextRef.current || documentText;
     const documentContexts = uploadedAttachments
       .filter(
@@ -2342,7 +2457,7 @@ export default function Home() {
       role: "user",
       text: userText,
       model: selectedModel,
-      studyMode: selectedStudyMode,
+      skillId: activeSkill.id,
       documentMetadata,
     };
     const nextMessages: Message[] = isHiddenInstruction
@@ -2420,7 +2535,7 @@ export default function Home() {
           role: "user",
           content: userText,
           selected_model: selectedModel,
-          study_mode: selectedStudyMode,
+          study_mode: skillToLegacyStudyMode(activeSkill),
           document_metadata: documentMetadata,
         });
 
@@ -2447,7 +2562,7 @@ export default function Home() {
             role: "ai",
             text: "",
             model: selectedModel,
-            studyMode: selectedStudyMode,
+            skillId: activeSkill.id,
             documentMetadata,
           },
         ]);
@@ -2466,7 +2581,7 @@ export default function Home() {
           documentContexts,
           imageContexts,
           selectedModel,
-          selectedStudyMode,
+          skillId: activeSkill.id,
         }),
       });
 
@@ -2540,7 +2655,7 @@ export default function Home() {
             .update({
               content: finalAssistantText,
               selected_model: selectedModel,
-              study_mode: selectedStudyMode,
+              study_mode: skillToLegacyStudyMode(activeSkill),
               document_metadata: documentMetadata,
             })
             .eq("id", appendTarget.id)
@@ -2551,7 +2666,7 @@ export default function Home() {
               role: "assistant",
               content: finalAssistantText,
               selected_model: selectedModel,
-              study_mode: selectedStudyMode,
+              study_mode: skillToLegacyStudyMode(activeSkill),
               document_metadata: documentMetadata,
             })
             .select("id")
@@ -2588,7 +2703,7 @@ export default function Home() {
         .from("conversations")
         .update({
           selected_model: selectedModel,
-          study_mode: selectedStudyMode,
+          study_mode: skillToLegacyStudyMode(activeSkill),
           document_metadata: documentMetadata,
           workspace_id:
             currentConversation.workspaceId ?? (selectedWorkspaceId || null),
@@ -2603,7 +2718,7 @@ export default function Home() {
               ? {
                   ...item,
                   model: selectedModel,
-                  studyMode: selectedStudyMode,
+                  skillId: activeSkill.id,
                   documentMetadata,
                   workspaceId:
                     currentConversation.workspaceId ??
@@ -2632,7 +2747,7 @@ export default function Home() {
           role: "assistant",
           content: errorText,
           selected_model: selectedModel,
-          study_mode: selectedStudyMode,
+          study_mode: skillToLegacyStudyMode(activeSkill),
           document_metadata: documentMetadata,
         });
       }
@@ -2645,7 +2760,7 @@ export default function Home() {
                 role: "ai",
                 text: errorText,
                 model: selectedModel,
-                studyMode: selectedStudyMode,
+                skillId: activeSkill.id,
                 documentMetadata,
               },
             ]
@@ -2655,7 +2770,7 @@ export default function Home() {
                 role: "ai",
                 text: errorText,
                 model: selectedModel,
-                studyMode: selectedStudyMode,
+                skillId: activeSkill.id,
                 documentMetadata,
               },
             ],
@@ -3323,10 +3438,14 @@ export default function Home() {
                 aria-expanded={isStudyModeMenuOpen}
                 className="mt-2 inline-flex max-w-[210px] items-center gap-2 rounded-full bg-[#eef8f1] px-3 py-2 text-sm font-semibold text-[#38534a] shadow-sm ring-1 ring-[#d8eadf] outline-none transition hover:bg-white focus:ring-[#95d6b9] sm:mt-0 sm:max-w-none"
               >
-                <span className="truncate">{selectedStudyModeInfo.label}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-normal text-[#008d54] ring-1 ring-[#d8eadf]">
-                  {selectedStudyModeBadge}
+                <span className="truncate">
+                  {selectedSkill ? selectedSkill.name : "Memuat skill..."}
                 </span>
+                {selectedSkill && (
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-normal text-[#008d54] ring-1 ring-[#d8eadf]">
+                    {selectedSkillBadge}
+                  </span>
+                )}
                 <span className="text-xs text-[#6b8178]">⌄</span>
               </button>
 
@@ -3387,17 +3506,25 @@ export default function Home() {
 
               {isStudyModeMenuOpen && (
                 <div className="absolute left-0 top-24 z-30 w-[min(88vw,390px)] overflow-hidden rounded-[24px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf] sm:left-44 sm:top-12">
-                  {studyModeOptions.map((mode) => {
-                    const isAllowed = canUseStudyMode(mode.id, usageSnapshot?.tier);
-                    const badge = getStudyModeBadge(mode.id, usageSnapshot?.tier);
+                  {skillsLoading && !skills.length && (
+                    <div className="p-3 text-xs font-semibold text-[#6b8178]">
+                      Memuat skill...
+                    </div>
+                  )}
+                  {skills.map((skill) => {
+                    const isAllowed = canAccessTier(
+                      usageSnapshot?.tier,
+                      skill.minTier,
+                    );
+                    const badge = getSkillBadge(skill, usageSnapshot?.tier);
 
                     return (
                       <button
-                        key={mode.id}
+                        key={skill.id}
                         type="button"
-                        onClick={() => selectStudyMode(mode.id)}
+                        onClick={() => selectSkill(skill.id)}
                         className={
-                          selectedStudyMode === mode.id
+                          selectedSkillId === skill.id
                             ? "flex w-full items-start gap-3 rounded-[18px] bg-[#eef8f1] p-3 text-left"
                             : "flex w-full items-start gap-3 rounded-[18px] p-3 text-left transition hover:bg-[#f7fbf8]"
                         }
@@ -3410,7 +3537,7 @@ export default function Home() {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2 font-bold text-[#18392e]">
-                            {mode.label}
+                            {skill.name}
                             <span
                               className={
                                 isAllowed
@@ -3423,8 +3550,8 @@ export default function Home() {
                           </span>
                           <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#4f665c]">
                             {isAllowed
-                              ? mode.description
-                              : getLockedStudyModeRequirement(mode.id)}
+                              ? (skill.category ?? "")
+                              : getLockedSkillRequirement(skill)}
                           </span>
                         </span>
                       </button>
@@ -3685,7 +3812,7 @@ export default function Home() {
                     className="inline-flex items-center gap-2 rounded-full px-2 py-2 font-bold transition hover:bg-[#eef8f1]"
                   >
                     <Icon name="book" className="h-6 w-6" />
-                    {selectedStudyModeInfo.shortLabel}
+                    {selectedSkill ? selectedSkill.name : "Memuat..."}
                   </button>
 
                   <button
@@ -3863,9 +3990,9 @@ export default function Home() {
                 }}
                 className="hidden shrink-0 items-center gap-2 rounded-full bg-[#eef8f1] px-3 py-2 text-xs font-bold text-[#008d54] ring-1 ring-[#d8eadf] transition hover:bg-white sm:inline-flex"
               >
-                {selectedStudyModeInfo.shortLabel}
+                {selectedSkill ? selectedSkill.name : "Memuat..."}
                 <span className="text-[10px] text-[#4f665c]">
-                  {selectedStudyModeBadge}
+                  {selectedSkillBadge}
                 </span>
               </button>
 
@@ -4154,16 +4281,25 @@ export default function Home() {
                         onChange={(event) =>
                           updateProfileDraft(
                             "defaultStudyMode",
-                            normalizeStudyMode(event.target.value),
+                            event.target.value as UserMemory["defaultStudyMode"],
                           )
                         }
                         className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
                       >
-                        {studyModeOptions.map((mode) => (
-                          <option key={mode.id} value={mode.id}>
-                            {mode.label}
-                          </option>
-                        ))}
+                        {skills
+                          .filter(
+                            (skill) =>
+                              skill.ownerId === null &&
+                              skillNameToLegacyStudyMode[skill.name],
+                          )
+                          .map((skill) => (
+                            <option
+                              key={skill.id}
+                              value={skillToLegacyStudyMode(skill)}
+                            >
+                              {skill.name} ({getSkillBadge(skill, usageSnapshot?.tier)})
+                            </option>
+                          ))}
                       </select>
                     </label>
                   </div>

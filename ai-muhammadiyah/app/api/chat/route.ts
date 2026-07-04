@@ -11,9 +11,11 @@ import {
 } from "@/lib/knowledge";
 import { loadUserMemory } from "@/lib/memory/user-memory";
 import {
-  canUseStudyMode,
-  normalizeStudyMode,
-} from "@/lib/study-modes";
+  canAccessTier,
+  fetchSkills,
+  getSkillSystemPrompt,
+  resolveAllowedSkill,
+} from "@/lib/skills";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import {
   estimateTokenUsage,
@@ -29,7 +31,7 @@ type ChatRequestBody = {
   documentContexts?: DocumentContext[];
   imageContexts?: ImageContext[];
   selectedModel?: string;
-  selectedStudyMode?: string;
+  skillId?: string;
 };
 
 const maxRecentChatMessages = 10;
@@ -116,7 +118,7 @@ export async function POST(request: Request) {
     const documentContexts = body.documentContexts ?? [];
     const imageContexts = body.imageContexts ?? [];
     const selectedModel = body.selectedModel ?? "auto";
-    const selectedStudyMode = body.selectedStudyMode ?? "";
+    const skillId = body.skillId ?? "";
 
     if (!Array.isArray(rawHistory) || !rawHistory.every(isChatMessage)) {
       return NextResponse.json(
@@ -163,9 +165,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (typeof selectedStudyMode !== "string") {
+    if (typeof skillId !== "string") {
       return NextResponse.json(
-        { error: "Pilihan study mode tidak valid." },
+        { error: "Pilihan skill tidak valid." },
         { status: 400 },
       );
     }
@@ -215,7 +217,6 @@ export async function POST(request: Request) {
 
     const canUse = Boolean(limitCheck?.allowed);
     const usageSnapshot = normalizeUsageSnapshot(limitCheck);
-    const normalizedStudyMode = normalizeStudyMode(selectedStudyMode);
 
     if (!canUse) {
       return NextResponse.json(
@@ -224,15 +225,42 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!canUseStudyMode(normalizedStudyMode, usageSnapshot?.tier)) {
+    const skills = await fetchSkills(supabase, user.id).catch((error) => {
+      console.error("Skills load failed:", error);
+      return [];
+    });
+    const requestedSkill = skillId
+      ? skills.find((skill) => skill.id === skillId)
+      : undefined;
+
+    if (skillId && !requestedSkill) {
       return NextResponse.json(
-        {
-          error:
-            "Study mode ini memerlukan paket Premium. Paket Free dapat memakai Quick Explain dan Cambridge Tutor Basic.",
-        },
+        { error: "Skill tidak ditemukan." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      requestedSkill &&
+      !canAccessTier(usageSnapshot?.tier, requestedSkill.minTier)
+    ) {
+      return NextResponse.json(
+        { error: "Skill ini memerlukan paket Premium." },
         { status: 403 },
       );
     }
+
+    const activeSkill =
+      requestedSkill ?? resolveAllowedSkill(null, usageSnapshot?.tier, skills);
+
+    if (!activeSkill) {
+      return NextResponse.json(
+        { error: "Skill belum tersedia. Coba lagi sebentar." },
+        { status: 503 },
+      );
+    }
+
+    const systemPrompt = getSkillSystemPrompt(activeSkill, usageSnapshot?.tier);
 
     const userMemory = await loadUserMemory(supabase, user.id).catch((error) => {
       console.error("User memory load failed:", error);
@@ -278,7 +306,7 @@ export async function POST(request: Request) {
             safeHistory,
             pdfContext,
             selectedModel,
-            normalizedStudyMode,
+            systemPrompt,
             (chunk) => {
               if (request.signal.aborted) {
                 return;
@@ -338,7 +366,8 @@ export async function POST(request: Request) {
                 has_user_memory: Boolean(userMemory),
                 provider_used: chatResult.provider,
                 model_used: chatResult.model,
-                study_mode: normalizedStudyMode,
+                skill_id: activeSkill.id,
+                skill_name: activeSkill.name,
                 fallback_event: chatResult.fallbackEvent ?? null,
                 finish_reason: chatResult.finishReason ?? null,
                 needs_continuation: Boolean(chatResult.needsContinuation),
