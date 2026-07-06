@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import {
   getFriendlyChatError,
   parseContinuationMarker,
@@ -242,9 +243,7 @@ export default function Home() {
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState("");
   const [input, setInput] = useState("");
-  const [userId, setUserId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { userId, userEmail, isLoggingOut, handleLogout } = useAuthSession();
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [renamingConversationId, setRenamingConversationId] = useState("");
@@ -480,36 +479,28 @@ export default function Home() {
   );
 
   useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    if (!userId) {
+      return;
+    }
 
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-
-      setUserId(user.id);
-      setUserEmail(user.email ?? "");
+    async function loadInitialData() {
       await Promise.all([
         loadWorkspaces(),
         loadConversations(),
         loadUsage(),
-        loadLearningProfile(user.id),
-        loadSkills(user.id),
+        loadLearningProfile(userId),
+        loadSkills(userId),
       ]);
     }
 
-    loadUser();
+    loadInitialData();
   }, [
+    userId,
     loadConversations,
     loadLearningProfile,
     loadSkills,
     loadUsage,
     loadWorkspaces,
-    router,
-    supabase,
   ]);
 
   useEffect(() => {
@@ -1215,13 +1206,6 @@ export default function Home() {
 
     setConversations((prev) => prev.map(updateItem));
     setSearchConversations((prev) => (prev ? prev.map(updateItem) : prev));
-  }
-
-  async function handleLogout() {
-    setIsLoggingOut(true);
-    await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
   }
 
   function openSettings(tab: SettingsTab = "general") {
