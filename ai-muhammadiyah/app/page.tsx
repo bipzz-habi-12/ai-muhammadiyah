@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
   getFriendlyChatError,
   parseContinuationMarker,
@@ -36,7 +37,6 @@ import {
   skillToLegacyStudyMode,
 } from "@/lib/mappers/legacy-study-mode";
 import { getRecentChatHistory, mapMessageRow } from "@/lib/mappers/message";
-import { mapWorkspaceRow } from "@/lib/mappers/workspace";
 import {
   canAccessTier,
   fetchSkills,
@@ -164,18 +164,6 @@ type KnowledgeSource = {
   createdAt: string;
 };
 
-type Workspace = {
-  id: string;
-  name: string;
-  createdAt: string;
-};
-
-type WorkspaceRow = {
-  id: string;
-  name: string;
-  created_at: string;
-};
-
 const maxDocumentUploadBytes = 25 * 1024 * 1024;
 const maxRecentFiles = 6;
 const streamUiFlushMs = 48;
@@ -237,15 +225,21 @@ export default function Home() {
   const [searchConversations, setSearchConversations] = useState<
     Conversation[] | null
   >(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
-  const [newWorkspaceName, setNewWorkspaceName] = useState("");
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState("");
   const [input, setInput] = useState("");
   const { userId, userEmail, isLoggingOut, handleLogout } = useAuthSession();
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  const {
+    workspaces,
+    selectedWorkspaceId,
+    setSelectedWorkspaceId,
+    newWorkspaceName,
+    setNewWorkspaceName,
+    isCreatingWorkspace,
+    loadWorkspaces,
+    createWorkspace,
+  } = useWorkspaces(setHistoryError);
   const [renamingConversationId, setRenamingConversationId] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [chatSearch, setChatSearch] = useState("");
@@ -392,21 +386,6 @@ export default function Home() {
     },
     [supabase],
   );
-
-  const loadWorkspaces = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("chat_workspaces")
-      .select("id,name,created_at")
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Workspace belum bisa dimuat.");
-      return;
-    }
-
-    setWorkspaces(((data ?? []) as WorkspaceRow[]).map(mapWorkspaceRow));
-  }, [supabase]);
 
   const loadUsage = useCallback(async () => {
     try {
@@ -1063,40 +1042,6 @@ export default function Home() {
     setActiveConversationId(conversation.id);
 
     return conversation;
-  }
-
-  async function createWorkspace() {
-    const name = newWorkspaceName.trim();
-
-    if (!name || isCreatingWorkspace) {
-      return;
-    }
-
-    setIsCreatingWorkspace(true);
-    setHistoryError("");
-
-    const { data, error } = await supabase
-      .from("chat_workspaces")
-      .insert({ name })
-      .select("id,name,created_at")
-      .single();
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Workspace belum bisa dibuat.");
-      setIsCreatingWorkspace(false);
-      return;
-    }
-
-    const workspace = mapWorkspaceRow(data as WorkspaceRow);
-    setWorkspaces((current) =>
-      [...current, workspace].sort((first, second) =>
-        first.name.localeCompare(second.name),
-      ),
-    );
-    setSelectedWorkspaceId(workspace.id);
-    setNewWorkspaceName("");
-    setIsCreatingWorkspace(false);
   }
 
   async function renameConversation(conversationId: string) {
