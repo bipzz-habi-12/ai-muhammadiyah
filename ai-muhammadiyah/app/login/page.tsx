@@ -1,5 +1,5 @@
-import AuthPage from "@/components/AuthPage";
+import AuthCardPreview from "@/components/auth/AuthCardPreview";
 
 export default function LoginPage() {
-  return <AuthPage mode="login" />;
+  return <AuthCardPreview mode="login" />;
 }

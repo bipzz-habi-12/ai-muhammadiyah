@@ -1,5 +1,5 @@
-import AuthPage from "@/components/AuthPage";
+import AuthCardPreview from "@/components/auth/AuthCardPreview";
 
 export default function RegisterPage() {
-  return <AuthPage mode="register" />;
+  return <AuthCardPreview mode="register" />;
 }

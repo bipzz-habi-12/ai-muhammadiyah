@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="AI Muhammadiyah">
+  <g transform="translate(50, 50) scale(0.22)">
+    <g>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(0)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(45)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(90)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(135)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(180)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(225)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(270)"/>
+      <rect x="-15" y="-180" width="30" height="80" rx="15" fill="#006837" transform="rotate(315)"/>
+    </g>
+    <circle cx="0" cy="0" r="110" fill="#006837"/>
+    <circle cx="0" cy="0" r="85" fill="white"/>
+    <text x="0" y="22" font-family="Inter, sans-serif" font-weight="800" font-size="72" fill="#006837" text-anchor="middle">AI</text>
+  </g>
+</svg>
