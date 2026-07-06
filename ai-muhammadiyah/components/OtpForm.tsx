@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { logAuthError } from "@/lib/auth/errors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const otpLength = 6;
@@ -46,14 +47,7 @@ export default function OtpForm({ initialEmail = "" }: OtpFormProps) {
       });
 
       if (verifyResponse.error) {
-        console.error("[Supabase Auth] OTP verify error", {
-          status: verifyResponse.error.status,
-          message: verifyResponse.error.message,
-          code: verifyResponse.error.code,
-          name: verifyResponse.error.name,
-          error: verifyResponse.error,
-        });
-
+        logAuthError("OTP verify error", verifyResponse.error);
         setErrorMessage("Kode OTP salah atau kedaluwarsa.");
         return;
       }
@@ -90,14 +84,7 @@ export default function OtpForm({ initialEmail = "" }: OtpFormProps) {
       });
 
       if (resendResponse.error) {
-        console.error("[Supabase Auth] OTP resend error", {
-          status: resendResponse.error.status,
-          message: resendResponse.error.message,
-          code: resendResponse.error.code,
-          name: resendResponse.error.name,
-          error: resendResponse.error,
-        });
-
+        logAuthError("OTP resend error", resendResponse.error);
         setErrorMessage("Kode OTP belum bisa dikirim ulang. Silakan coba lagi.");
         return;
       }
