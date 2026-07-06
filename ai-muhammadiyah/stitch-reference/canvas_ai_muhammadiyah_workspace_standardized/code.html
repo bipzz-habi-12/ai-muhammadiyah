@@ -1,0 +1,279 @@
+<!DOCTYPE html><html class="h-full" lang="en" style="width: 1280px; height: 1024px; overflow: hidden; position: relative;"><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Canvas - AI Muhammadiyah</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "tertiary-container": "#4851aa",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed": "#e0e0ff",
+                        "surface-container": "#edeeef",
+                        "primary": "#004d27",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-primary-fixed": "#00210e",
+                        "on-background": "#191c1d",
+                        "secondary-fixed-dim": "#fabd00",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e7e8e9",
+                        "surface-bright": "#f8f9fa",
+                        "primary-container": "#006837",
+                        "on-primary-container": "#8ee4a6",
+                        "inverse-primary": "#83d99c",
+                        "secondary": "#785900",
+                        "on-tertiary-fixed": "#000767",
+                        "on-tertiary-container": "#cbceff",
+                        "secondary-container": "#fdc003",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3f4940",
+                        "outline": "#6f7a70",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-highest": "#e1e3e4",
+                        "background": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "on-secondary-fixed": "#261a00",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#2f3891",
+                        "muhammadiyah-green": "#006837",
+                        "muhammadiyah-dark": "#004d27",
+                        "muhammadiyah-gold": "#fabd00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "lg": "48px",
+                        "xl": "80px",
+                        "xs": "8px",
+                        "base": "4px",
+                        "margin": "32px",
+                        "sm": "16px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "code": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Geist"],
+                        "headline-md": ["Inter"],
+                        "display": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .pattern-dots {
+            background-image: radial-gradient(circle at center, #e1e3e4 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="h-full bg-background text-on-background flex overflow-hidden font-body-md">
+<!-- Rail Navigation -->
+<nav class="bg-muhammadiyah-green text-white font-body-md text-body-md w-20 h-full fixed left-0 top-0 border-r border-muhammadiyah-dark flex flex-col items-center py-sm space-y-md z-50">
+<div class="mb-lg">
+<span class="material-symbols-outlined text-white text-[32px]">cruelty_free</span>
+</div>
+<a class="flex flex-col items-center justify-center p-2 rounded-lg text-white/70 hover:text-white hover:bg-muhammadiyah-dark transition-colors scale-95 duration-150 group" href="#">
+<span class="material-symbols-outlined" data-icon="space_dashboard">space_dashboard</span>
+<span class="font-label-md text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Workspace</span>
+</a>
+<a class="flex flex-col items-center justify-center p-2 rounded-lg text-white bg-muhammadiyah-dark border-l-4 border-muhammadiyah-gold transition-colors scale-95 duration-150 group" href="#">
+<span class="material-symbols-outlined" data-icon="library_books" style="font-variation-settings: 'FILL' 1;">library_books</span>
+<span class="font-label-md text-[10px] mt-1">Library</span>
+</a>
+<a class="flex flex-col items-center justify-center p-2 rounded-lg text-white/70 hover:text-white hover:bg-muhammadiyah-dark transition-colors scale-95 duration-150 group" href="#">
+<span class="material-symbols-outlined" data-icon="menu_book">menu_book</span>
+<span class="font-label-md text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Knowledge</span>
+</a>
+<a class="flex flex-col items-center justify-center p-2 rounded-lg text-white/70 hover:text-white hover:bg-muhammadiyah-dark transition-colors scale-95 duration-150 group mt-auto mb-4" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Settings</span>
+</a>
+</nav>
+<!-- Drawer Navigation -->
+<aside class="bg-muhammadiyah-green text-white font-label-md text-label-md w-64 h-full fixed left-20 top-0 border-r border-muhammadiyah-dark flex flex-col px-sm py-md z-40 hidden md:flex">
+<div class="mb-lg px-2">
+<h2 class="font-headline-md text-headline-md font-bold text-white">Workspace</h2>
+<p class="text-white/70 text-sm mt-1">Active Session</p>
+</div>
+<button class="mb-lg mx-2 bg-muhammadiyah-gold text-muhammadiyah-dark py-2 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined text-sm">add</span>
+            New Entry
+        </button>
+<nav class="space-y-1 flex-1">
+<a class="flex items-center gap-3 px-3 py-2 text-white/80 hover:bg-muhammadiyah-dark hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="folder">folder</span>
+                Current Project
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/80 hover:bg-muhammadiyah-dark hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="sticky_note_2">sticky_note_2</span>
+                Research Notes
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/80 hover:bg-muhammadiyah-dark hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="menu_book">menu_book</span>
+                Literature Review
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-muhammadiyah-dark text-white border-r-4 border-muhammadiyah-gold rounded-lg transition-opacity" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit_document">edit_document</span>
+                Drafts
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/80 hover:bg-muhammadiyah-dark hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="archive">archive</span>
+                Archive
+            </a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-20 md:ml-[336px] flex flex-col h-full relative">
+<!-- Top App Bar -->
+<header class="bg-surface-container-lowest text-primary font-headline-md text-headline-md fixed top-0 left-0 right-0 h-16 ml-[336px] border-b border-surface-variant flex items-center justify-between px-margin w-full z-30 transition-transform">
+<div class="flex items-center gap-8 h-full">
+<h1 class="font-headline-md text-headline-md font-bold text-primary mr-4">Workspace Alpha</h1>
+<nav class="hidden lg:flex items-center h-full gap-6">
+<a class="text-on-surface-variant hover:text-primary transition-all h-full flex items-center mt-1" href="#">Chat</a>
+<a class="text-on-surface-variant hover:text-primary transition-all h-full flex items-center mt-1" href="#">Docs</a>
+<a class="text-on-surface-variant hover:text-primary transition-all h-full flex items-center mt-1" href="#">Tasks</a>
+<a class="text-on-surface-variant hover:text-primary transition-all h-full flex items-center mt-1" href="#">Sheets</a>
+<a class="text-primary border-b-2 border-primary pb-base h-full flex items-center mt-1 font-medium" href="#">Canvas</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-surface-bright border border-surface-variant rounded-full text-sm focus:outline-none focus:border-primary transition-colors w-48" placeholder="Search..." type="text">
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container p-2 rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container p-2 rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity ml-2">
+                    Share
+                </button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-surface-variant ml-2 object-cover" data-alt="A professional headshot of a user in a well-lit modern office setting. Light mode aesthetic, sharp focus, neutral background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBeYqFrtWGEeRo7lKtVWuGJvpnDKIzr3BbFWgfdwHG8lZnPAlIQdoB03xXKKCjMcjoqskexnwU2nhmjGmpq9hJgDtxkwOqkigO4fNMg4-IgVodMZXMZhDFL_DQU3KQcOY9MrEBcM1C3S28q8VP53VFOi-5Gj2P577GdK7Ac-lwOaqZFWKK2dalbCOdOk1umqPdow70zmd9Qfp25bdhTThpXrRD9BkLEPz2Bov2ZsTJrppgOolfi_J9lLPrmvjMsi2WcAyoCv7aJVDg">
+</div>
+</header>
+<!-- Canvas Area -->
+<div class="flex-1 mt-16 pattern-dots relative overflow-hidden bg-background cursor-grab active:cursor-grabbing" id="canvas-container">
+<!-- Nodes -->
+<div class="absolute inset-0" style="transform: translate(50%, 40%) scale(1);">
+<!-- SVG Connectors (Simulated) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="min-width: 2000px; min-height: 2000px; left: -1000px; top: -1000px; z-index: 0;">
+<path class="animate-[dash_3s_linear_infinite]" d="M 0 0 C 100 0, 150 150, 250 150" fill="none" stroke="#bec9be" stroke-dasharray="8 8" stroke-width="2"></path>
+<path d="M 120 40 L 250 40" fill="none" marker-end="url(#arrowhead)" stroke="#bec9be" stroke-width="2"></path>
+<path d="M 450 40 L 580 40" fill="none" marker-end="url(#arrowhead)" stroke="#bec9be" stroke-width="2"></path>
+<path d="M 780 40 L 910 40" fill="none" marker-end="url(#arrowhead)" stroke="#bec9be" stroke-width="2"></path>
+<defs>
+<marker id="arrowhead" markerHeight="7" markerWidth="10" orient="auto" refX="9" refY="3.5">
+<polygon fill="#bec9be" points="0 0, 10 3.5, 0 7"></polygon>
+</marker>
+</defs>
+</svg>
+<!-- Node 1: Pengumpulan Data -->
+<div class="absolute top-0 left-0 -ml-[60px] -mt-[40px] w-[200px] bg-surface-container-lowest border border-surface-variant rounded-xl p-4 shadow-sm z-10 hover:shadow-md transition-shadow cursor-pointer group">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-tertiary-container text-sm">dataset</span>
+<h3 class="font-label-md text-on-surface font-semibold">Pengumpulan Data</h3>
+</div>
+<p class="text-xs text-on-surface-variant font-code leading-relaxed">Scraping jurnal terbaru &amp; dataset relevan dari repositori.</p>
+</div>
+<!-- Node 2: Analisis (Highlighted) -->
+<div class="absolute top-0 left-[330px] -ml-[60px] -mt-[40px] w-[200px] bg-surface-container-lowest border-2 border-primary rounded-xl p-4 shadow-[0_4px_20px_rgba(0,104,55,0.1)] z-10 hover:shadow-[0_8px_30px_rgba(0,104,55,0.15)] transition-all cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-sm">analytics</span>
+<h3 class="font-label-md text-primary font-bold">Analisis</h3>
+</div>
+<p class="text-xs text-on-surface-variant font-code leading-relaxed">Ekstraksi pola utama dan identifikasi kesenjangan literatur.</p>
+<div class="mt-3 flex gap-1">
+<span class="px-2 py-0.5 bg-surface-container-high rounded text-[10px] text-on-surface-variant">Running...</span>
+</div>
+</div>
+<!-- Node 3: Drafting -->
+<div class="absolute top-0 left-[660px] -ml-[60px] -mt-[40px] w-[200px] bg-surface-container-lowest border border-surface-variant rounded-xl p-4 shadow-sm z-10 hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-sm">edit_note</span>
+<h3 class="font-label-md text-on-surface font-semibold">Drafting</h3>
+</div>
+<p class="text-xs text-on-surface-variant font-code leading-relaxed">Penyusunan struktur awal kerangka teoritis.</p>
+</div>
+<!-- Node 4: Review -->
+<div class="absolute top-0 left-[990px] -ml-[60px] -mt-[40px] w-[200px] bg-surface-container-lowest border border-surface-variant rounded-xl p-4 shadow-sm z-10 hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">rate_review</span>
+<h3 class="font-label-md text-on-surface font-semibold">Review</h3>
+</div>
+<p class="text-xs text-on-surface-variant font-code leading-relaxed">Evaluasi koherensi dan sitasi dokumen akhir.</p>
+</div>
+</div>
+<!-- Floating Toolbar -->
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-surface-container-lowest border border-surface-variant rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] px-4 py-2 flex items-center gap-2 z-20">
+<div class="flex items-center bg-surface-container-low rounded-full p-1">
+<button class="p-1.5 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">remove</span>
+</button>
+<span class="text-xs font-code px-2 text-on-surface-variant">100%</span>
+<button class="p-1.5 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="w-px h-6 bg-surface-variant mx-2"></div>
+<button class="flex items-center gap-2 bg-surface-container-high text-on-surface px-3 py-1.5 rounded-full text-sm font-medium hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-[18px]">add_box</span>
+                    + Tambah node
+                </button>
+<button class="p-2 text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-container transition-colors" title="Shape Picker">
+<span class="material-symbols-outlined text-[20px]">category</span>
+</button>
+<div class="w-px h-6 bg-surface-variant mx-2"></div>
+<button class="flex items-center gap-2 bg-primary-container text-on-primary-container px-4 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                    Generate dari chat
+                </button>
+</div>
+</div>
+</main>
+</body></html>

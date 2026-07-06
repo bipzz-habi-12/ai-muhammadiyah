@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="id" style="width: 1280px; height: 1024px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Settings - AI Muhammadiyah</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "tertiary-container": "#4851aa",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed": "#e0e0ff",
+                        "surface-container": "#edeeef",
+                        "primary": "#004d27",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-primary-fixed": "#00210e",
+                        "on-background": "#191c1d",
+                        "secondary-fixed-dim": "#fabd00",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e7e8e9",
+                        "surface-bright": "#f8f9fa",
+                        "primary-container": "#006837",
+                        "on-secondary-container": "#6c5000",
+                        "surface-tint": "#0b6d3b",
+                        "on-primary-container": "#8ee4a6",
+                        "inverse-primary": "#83d99c",
+                        "secondary": "#785900",
+                        "on-tertiary-fixed": "#000767",
+                        "on-tertiary-container": "#cbceff",
+                        "secondary-container": "#fdc003",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3f4940",
+                        "outline": "#6f7a70",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-highest": "#e1e3e4",
+                        "background": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "on-secondary-fixed": "#261a00",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#2f3891"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "16px",
+                        "xs": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "base": "4px",
+                        "md": "24px",
+                        "margin": "32px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+        }
+        .sang-surya-bg {
+            background-image: radial-gradient(circle at center, rgba(0, 104, 55, 0.03) 0%, transparent 70%);
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden antialiased font-body-md text-body-md sang-surya-bg">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col bg-primary fixed left-0 top-0 h-screen w-64 rounded-r-none border-r border-primary/20 py-margin px-sm z-40 text-on-primary">
+<!-- Brand Header -->
+<div class="mb-lg px-2">
+<h1 class="font-headline-md text-headline-md font-bold text-white">AI Muhammadiyah</h1>
+<p class="font-label-md text-label-md text-primary-fixed-dim mt-1">Sistem Riset Cerdas</p>
+</div>
+<!-- Navigation Tabs -->
+<nav class="flex-1 flex flex-col gap-2">
+<!-- Active Tab: Profil -->
+<a class="flex items-center gap-3 px-4 py-3 bg-[#004223] text-white rounded-lg font-bold border-l-4 border-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label-md text-label-md">Profil</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary-fixed hover:text-white hover:bg-white/10 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">security</span>
+<span class="font-label-md text-label-md">Keamanan</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary-fixed hover:text-white hover:bg-white/10 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-md text-label-md">Notifikasi</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary-fixed hover:text-white hover:bg-white/10 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-label-md text-label-md">Langganan</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary-fixed hover:text-white hover:bg-white/10 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">privacy_tip</span>
+<span class="font-label-md text-label-md">Privasi</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary-fixed hover:text-white hover:bg-white/10 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-label-md text-label-md">Skill saya</span>
+</a>
+</nav>
+<!-- Footer Actions -->
+<div class="mt-auto flex flex-col gap-2 pt-4 border-t border-white/10">
+<button class="w-full bg-secondary-container text-on-secondary-container rounded-lg py-2 px-4 font-label-md text-label-md font-bold hover:brightness-110 transition-all mb-4">
+                Upgrade ke Pro
+            </button>
+<a class="flex items-center gap-3 px-4 py-2 text-primary-fixed hover:text-white hover:bg-white/10 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Bantuan</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-red-200 hover:bg-red-900/30 rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 left-0 md:left-64 z-30 flex justify-between items-center px-md h-16 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+<!-- Mobile Brand (Hidden on Desktop) -->
+<div class="md:hidden flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer">menu</span>
+<span class="font-headline-md text-headline-md font-black text-primary">AI Muhammadiyah</span>
+</div>
+<!-- Desktop Breadcrumb/Context -->
+<div class="hidden md:block"></div>
+<!-- Right Actions -->
+<div class="flex items-center gap-2">
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-full p-2 transition-all focus:ring-2 focus:ring-primary outline-none flex items-center justify-center">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-full p-2 transition-all focus:ring-2 focus:ring-primary outline-none flex items-center justify-center">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-0 md:ml-64 mt-16 p-md md:p-lg overflow-y-auto w-full">
+<div class="max-w-[800px] mx-auto">
+<!-- Page Header -->
+<div class="mb-lg">
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-2">Profil</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Kelola informasi dasar dan identitas akun Anda.</p>
+</div>
+<!-- Profile Settings Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md md:p-margin shadow-sm">
+<!-- Avatar Section -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-sm md:gap-md mb-lg pb-lg border-b border-outline-variant">
+<div class="relative w-24 h-24 rounded-full bg-surface-container-high overflow-hidden border-2 border-surface flex items-center justify-center shrink-0">
+<!-- Placeholder Image -->
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A clean, professional portrait of an Indonesian academic in an office setting. The lighting is bright and even, highlighting a calm, focused expression. High-end corporate photography style with a shallow depth of field, adhering to a minimalist light-mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPTfT2JZ9haSpxtOJY1qa_JfcnnJ0sT_AoYjpvGOmF29ki_hpqyxCbHSFnHKFKihBds20U5mc6n3hx4cc7Ua0GXCRxCUgTF7JWHqk2TWwF9YR_hs4PmBNQDAGechKb3uXHRKMAz6MyX-KcNTkZEZ2czvEhaXBgW0XnjXSlY-BF30pJOqDGLVTkMGS34GEBKT3uUZJNnbStQC3mGQ21ioUdAycQ27U-BAnA8uFqH6rCpTU938YRaCQcXsQIgScWg_tBlJDxzuD8FiYx">
+</div>
+<div class="flex flex-col gap-2">
+<button class="bg-surface text-on-surface border border-outline-variant font-label-md text-label-md py-2 px-4 rounded-lg hover:bg-surface-container-low transition-colors w-fit">
+                            Ubah foto
+                        </button>
+<p class="font-label-md text-label-md text-on-surface-variant text-sm">Rekomendasi ukuran: 512x512px. Format: JPG, PNG.</p>
+</div>
+</div>
+<!-- Form Section -->
+<form class="flex flex-col gap-md">
+<!-- Nama Lengkap -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="nama_lengkap">Nama lengkap</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" id="nama_lengkap" type="text" value="Muhamad Rizal">
+</div>
+<!-- Email -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="email">Email</label>
+<div class="relative flex items-center">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 font-body-md text-body-md text-on-surface-variant opacity-80 cursor-not-allowed" disabled="" id="email" type="email" value="rizal@example.com">
+<div class="absolute right-3 flex items-center gap-1 bg-primary-fixed/20 text-primary-container px-2 py-1 rounded-full">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span class="font-label-md text-label-md text-[12px]">Verified</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant mt-1 text-xs">Email digunakan untuk login dan tidak dapat diubah secara langsung.</p>
+</div>
+<!-- Institusi -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="institusi">Institusi/organisasi</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" id="institusi" type="text" value="Universitas Muhammadiyah Yogyakarta">
+</div>
+<!-- Action Area -->
+<div class="mt-sm flex justify-end">
+<button class="bg-primary text-on-primary font-label-md text-label-md px-6 py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2" type="button">
+                            Simpan perubahan
+                        </button>
+</div>
+</form>
+</div>
+</div>
+</main>
+</body></html>

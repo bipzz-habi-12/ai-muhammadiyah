@@ -144,6 +144,21 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
   };
 }
 
+export async function fetchUsageSnapshot() {
+  const response = await fetch("/api/usage", {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = (await response.json()) as unknown;
+
+  if (!response.ok) {
+    const errorData = data as { error?: string };
+    throw new Error(errorData.error ?? "Status penggunaan belum bisa dimuat.");
+  }
+
+  return normalizeUsageSnapshot(data);
+}
+
 export function getLimitErrorMessage(error: string | undefined) {
   if (error === "daily_message_limit_exceeded") {
     return "Limit pesan harian paket kamu sudah habis. Silakan coba lagi besok atau upgrade paket.";

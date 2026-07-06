@@ -233,3 +233,24 @@ export function createKnowledgePromptContext(chunks: KnowledgeChunk[]) {
 export function estimateKnowledgeUploadTokens(text: string) {
   return estimateTokenUsage(text);
 }
+
+export async function fetchKnowledgeSources() {
+  const response = await fetch("/api/knowledge", {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = (await response.json()) as {
+    error?: string;
+    isAdmin?: boolean;
+    sources?: KnowledgeSource[];
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Knowledge base belum bisa dimuat.");
+  }
+
+  return {
+    isAdmin: Boolean(data.isAdmin),
+    sources: data.sources ?? [],
+  };
+}

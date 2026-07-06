@@ -1,0 +1,265 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Personalization - AI Muhammadiyah</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config from Guidance -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e1e3e4",
+                        "secondary-fixed": "#ffdf9e",
+                        "secondary-fixed-dim": "#fabd00",
+                        "primary-container": "#006837",
+                        "inverse-surface": "#2e3132",
+                        "on-secondary-fixed": "#261a00",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f2",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#8ee4a6",
+                        "tertiary-container": "#4851aa",
+                        "secondary": "#785900",
+                        "primary-fixed": "#9ef6b6",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#000767",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "surface-container-high": "#e7e8e9",
+                        "outline-variant": "#bec9be",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#00522a",
+                        "on-error": "#ffffff",
+                        "background": "#f8f9fa",
+                        "on-background": "#191c1d",
+                        "primary": "#004d27",
+                        "surface": "#f8f9fa",
+                        "on-surface": "#191c1d",
+                        "on-secondary-container": "#6c5000",
+                        "surface-dim": "#d9dadb",
+                        "primary-fixed-dim": "#83d99c",
+                        "on-tertiary-container": "#cbceff",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#3f4940",
+                        "tertiary-fixed": "#e0e0ff",
+                        "secondary-container": "#fdc003",
+                        "tertiary": "#2f3891",
+                        "surface-tint": "#0b6d3b",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#edeeef",
+                        "inverse-primary": "#83d99c",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "outline": "#6f7a70",
+                        "on-primary-fixed": "#00210e",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "surface-container-low": "#f3f4f5",
+                        "surface-bright": "#f8f9fa"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "base": "4px",
+                        "sm": "16px",
+                        "lg": "48px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "margin": "32px",
+                        "md": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-md": ["Geist"],
+                        "body-md": ["Inter"],
+                        "code": ["Geist"],
+                        "display": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased flex min-h-screen">
+<!-- TopNavBar (Mobile Shell) -->
+<nav class="lg:hidden fixed top-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+<div class="flex items-center gap-sm">
+<span class="font-headline-md text-headline-md font-bold text-primary">AI Muhammadiyah</span>
+</div>
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">notifications</span>
+<img alt="User profile" class="w-8 h-8 rounded-full object-cover" data-alt="A professional headshot of a user in a well-lit modern office environment, wearing a light colored shirt, soft neutral background, high resolution, minimalist aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1dQoHGM4aDdfJ5GSmE3FPXEg8YB9zJSad1Se9rP7JcMyD-oymgRsFWozHSEIV77B58UZ-F0xojv4jZLTUw5MDCdURzEMMrVQqOOWLeWLJa-BTSU79btQSCOoBcUp9EE2UzHoDm2pFiO9nQY5XnhqVwnqG5LqaFWPRlZePw_yMtkSKOFkuyJYk5K5XuadSjvCYDhY3KCvoc_P62QrL0bCaWaPaKnz6fuoAGprC_4jdFSlOnXaKZ22i1d6aOk0m1gQTPSfzyzjLOzBQ">
+</div>
+</nav>
+<!-- SideNavBar (Desktop Shell) -->
+<aside class="hidden lg:flex flex-col gap-md p-md w-64 bg-primary fixed left-0 top-0 h-full">
+<div class="mb-lg">
+<span class="font-headline-md text-headline-md font-bold text-on-primary">AI Muhammadiyah</span>
+</div>
+<nav class="flex flex-col gap-xs flex-1">
+<!-- Inactive Nav Items -->
+<a class="flex items-center gap-sm text-on-primary/80 px-sm py-xs hover:bg-white/10 transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="flex items-center gap-sm text-on-primary/80 px-sm py-xs hover:bg-white/10 transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Assistant</span>
+</a>
+<a class="flex items-center gap-sm text-on-primary/80 px-sm py-xs hover:bg-white/10 transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">workspaces</span>
+<span class="font-label-md text-label-md">Workspaces</span>
+</a>
+<a class="flex items-center gap-sm text-on-primary/80 px-sm py-xs hover:bg-white/10 transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">extension</span>
+<span class="font-label-md text-label-md">Skills</span>
+</a>
+<!-- Active Nav Item -->
+<a class="flex items-center gap-sm bg-black/20 border-l-4 border-secondary-container text-on-primary rounded-r-lg px-sm py-xs duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col pt-16 lg:pt-0 lg:ml-64 relative">
+<!-- Subtle Sang Surya radial background motif -->
+<div class="absolute inset-0 pointer-events-none opacity-20" style="background: radial-gradient(circle at top right, rgba(0, 104, 55, 0.15) 0%, transparent 60%);"></div>
+<div class="max-w-[800px] w-full mx-auto px-gutter py-xl flex-1 relative z-10 flex flex-col">
+<!-- Header Section -->
+<header class="mb-lg">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-background mb-xs">Personalization</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Atur bagaimana AI berbicara dan menjelaskan sesuatu kepada Anda — dengan kata-kata Anda sendiri.</p>
+</header>
+<!-- Default Persona Editor (Main Card) -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm mb-lg flex flex-col">
+<div class="relative w-full">
+<textarea class="w-full min-h-[160px] bg-transparent border-none p-0 focus:ring-0 resize-none font-body-lg text-body-lg text-on-surface placeholder:text-outline" placeholder="Contoh: Jelaskan seperti dosen MIT, selalu sertakan sumber, dan jawab singkat kalau memungkinkan."></textarea>
+</div>
+<div class="flex flex-wrap gap-xs mt-sm pb-md border-b border-outline-variant/50">
+<button class="inline-flex items-center px-sm py-[4px] rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+                        Jelaskan seperti dosen MIT
+                    </button>
+<button class="inline-flex items-center px-sm py-[4px] rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+                        Selalu sertakan sumber
+                    </button>
+<button class="inline-flex items-center px-sm py-[4px] rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+                        Jawab sangat singkat
+                    </button>
+<button class="inline-flex items-center px-sm py-[4px] rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+                        Jadi mentor software engineering
+                    </button>
+</div>
+<div class="flex justify-end pt-md">
+<button class="px-md py-xs bg-primary text-on-primary rounded-full font-label-md text-label-md hover:opacity-90 transition-opacity">
+                        Simpan sebagai default
+                    </button>
+</div>
+</section>
+<!-- Saved Persona Presets -->
+<section class="mb-lg">
+<h2 class="font-headline-md text-headline-md text-on-background mb-sm">Preset Tersimpan</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Active Preset Card -->
+<div class="relative border-2 border-primary bg-surface-container-lowest p-md rounded-xl flex flex-col group">
+<div class="absolute top-sm right-sm bg-primary text-on-primary px-xs py-base rounded-full font-label-md text-[10px] leading-none uppercase tracking-wider">
+                            Aktif
+                        </div>
+<div class="flex justify-between items-start mb-xs pr-lg">
+<h3 class="font-label-md text-label-md text-on-background font-bold">Default System</h3>
+<button class="text-on-surface-variant hover:text-on-background transition-colors absolute top-sm right-sm mt-6 mr-1">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2">Gaya bawaan AI Muhammadiyah. Ramah, informatif, dan seimbang.</p>
+</div>
+<!-- Inactive Preset Card 1 -->
+<div class="relative border border-outline-variant bg-surface-container-lowest p-md rounded-xl flex flex-col group hover:border-outline transition-colors">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-label-md text-label-md text-on-background font-bold">Mode Singkat</h3>
+<button class="text-on-surface-variant hover:text-on-background transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2">Jawab langsung ke intinya tanpa basa-basi. Gunakan bullet points.</p>
+</div>
+<!-- Inactive Preset Card 2 -->
+<div class="relative border border-outline-variant bg-surface-container-lowest p-md rounded-xl flex flex-col group hover:border-outline transition-colors">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-label-md text-label-md text-on-background font-bold">Gaya Akademis</h3>
+<button class="text-on-surface-variant hover:text-on-background transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2">Gunakan bahasa formal, analisis mendalam, dan selalu sertakan sitasi.</p>
+</div>
+<!-- Add New Card -->
+<button class="border border-dashed border-outline-variant bg-transparent hover:bg-surface-container-low transition-colors p-md rounded-xl flex flex-col items-center justify-center min-h-[120px] text-on-surface-variant group">
+<span class="material-symbols-outlined mb-xs group-hover:text-primary transition-colors">add</span>
+<span class="font-label-md text-label-md group-hover:text-primary transition-colors">Persona baru</span>
+</button>
+</div>
+</section>
+<!-- Info Banner -->
+<div class="mb-xl p-sm border border-outline-variant rounded-lg bg-surface flex items-start gap-sm">
+<span class="material-symbols-outlined text-outline mt-[2px]">info</span>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                    Anda juga bisa mengatur persona khusus untuk workspace tertentu — buka Workspace tersebut lalu pilih 'Ubah persona' di pengaturan workspace.
+                </p>
+</div>
+<!-- Skills Section -->
+<section class="border-t border-outline-variant pt-lg mb-xl">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-md">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-background mb-xs">Skill custom Anda</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Skill mengatur fokus keahlian AI, persona mengatur gaya bicaranya. Kelola skill custom Anda di sini.</p>
+</div>
+<button class="inline-flex items-center gap-xs px-md py-xs rounded-full border border-outline-variant text-on-background font-label-md text-label-md hover:bg-surface-container-low transition-colors whitespace-nowrap">
+                        Kelola skill
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Footer -->
+<footer class="w-full py-lg px-gutter flex flex-col md:flex-row justify-between items-center gap-md border-t border-outline-variant bg-surface mt-auto">
+<span class="font-label-md text-label-md text-on-surface-variant">© 2024 AI Muhammadiyah. Intellectual excellence through AI.</span>
+<div class="flex gap-md">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary hover:underline opacity-90" href="#">Privacy Policy</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary hover:underline opacity-90" href="#">Terms of Service</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary hover:underline opacity-90" href="#">Help Center</a>
+</div>
+</footer>
+</main>
+</body></html>

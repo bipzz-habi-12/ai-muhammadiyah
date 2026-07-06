@@ -1,0 +1,335 @@
+<!DOCTYPE html><html lang="id" style="width: 1280px; height: 979px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Sheets - AI Muhammadiyah Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "tertiary-container": "#4851aa",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed": "#e0e0ff",
+                        "surface-container": "#edeeef",
+                        "primary": "#004d27",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-primary-fixed": "#00210e",
+                        "on-background": "#191c1d",
+                        "secondary-fixed-dim": "#fabd00",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e7e8e9",
+                        "surface-bright": "#f8f9fa",
+                        "primary-container": "#006837",
+                        "on-secondary-container": "#6c5000",
+                        "surface-tint": "#0b6d3b",
+                        "on-primary-container": "#8ee4a6",
+                        "inverse-primary": "#83d99c",
+                        "secondary": "#785900",
+                        "on-tertiary-fixed": "#000767",
+                        "on-tertiary-container": "#cbceff",
+                        "secondary-container": "#fdc003",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3f4940",
+                        "outline": "#6f7a70",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-highest": "#e1e3e4",
+                        "background": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "on-secondary-fixed": "#261a00",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#2f3891",
+                        "muhammadiyah-green": "#006837",
+                        "muhammadiyah-dark": "#004d27",
+                        "muhammadiyah-gold": "#fdc003"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "16px",
+                        "xs": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "base": "4px",
+                        "md": "24px",
+                        "margin": "32px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen overflow-hidden flex">
+<!-- Rail Navigation (SideNavBar - Rail) -->
+<nav class="w-20 h-full fixed left-0 top-0 bg-muhammadiyah-green border-r border-muhammadiyah-dark flex flex-col items-center py-sm space-y-md z-50">
+<div class="mb-lg">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1; font-size: 32px;">language</span>
+</div>
+<div class="flex flex-col gap-6">
+<a class="flex flex-col items-center gap-1 group text-white" href="#">
+<div class="p-2 rounded-lg bg-muhammadiyah-dark shadow-sm border-l-4 border-muhammadiyah-gold scale-95 transition-all duration-150">
+<span class="material-symbols-outlined text-white">space_dashboard</span>
+</div>
+<span class="font-label-md text-label-md text-[10px] text-white">Workspace</span>
+</a>
+<a class="flex flex-col items-center gap-1 group text-white/70" href="#">
+<div class="p-2 rounded-lg hover:bg-muhammadiyah-dark/50 transition-colors scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined">library_books</span>
+</div>
+<span class="font-label-md text-label-md text-[10px] text-white/70 group-hover:text-white">Library</span>
+</a>
+<a class="flex flex-col items-center gap-1 group text-white/70" href="#">
+<div class="p-2 rounded-lg hover:bg-muhammadiyah-dark/50 transition-colors scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<span class="font-label-md text-label-md text-[10px] text-white/70 group-hover:text-white">Knowledge</span>
+</a>
+<a class="flex flex-col items-center gap-1 group text-white/70 mt-auto pt-lg" href="#">
+<div class="p-2 rounded-lg hover:bg-muhammadiyah-dark/50 transition-colors scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined">settings</span>
+</div>
+<span class="font-label-md text-label-md text-[10px] text-white/70 group-hover:text-white">Settings</span>
+</a>
+</div>
+</nav>
+<!-- Drawer Navigation (SideNavBar - Drawer) -->
+<aside class="w-64 h-full fixed left-20 top-0 bg-muhammadiyah-green border-r border-muhammadiyah-dark flex flex-col px-sm py-md z-40">
+<div class="mb-xl">
+<h2 class="font-headline-md text-headline-md font-bold text-white">Workspace</h2>
+<p class="font-body-md text-body-md text-white/80 text-sm">Active Session</p>
+</div>
+<button class="mb-lg w-full flex items-center justify-center gap-2 bg-muhammadiyah-gold text-muhammadiyah-dark py-2 px-4 rounded-lg hover:opacity-90 transition-opacity font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-sm">add</span> New Entry
+        </button>
+<div class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white bg-muhammadiyah-dark/40 border-r-4 border-muhammadiyah-gold transition-all" href="#">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span class="font-label-md text-label-md">Current Project</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/70 hover:bg-muhammadiyah-dark/30 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">sticky_note_2</span>
+<span class="font-label-md text-label-md">Research Notes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/70 hover:bg-muhammadiyah-dark/30 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">menu_book</span>
+<span class="font-label-md text-label-md">Literature Review</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/70 hover:bg-muhammadiyah-dark/30 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">edit_document</span>
+<span class="font-label-md text-label-md">Drafts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/70 hover:bg-muhammadiyah-dark/30 transition-all mt-8" href="#">
+<span class="material-symbols-outlined text-sm">archive</span>
+<span class="font-label-md text-label-md">Archive</span>
+</a>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 left-0 right-0 h-16 ml-[336px] bg-surface-lowest border-b border-surface-variant flex items-center justify-between px-margin z-30">
+<div class="flex items-center gap-8">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Workspace Alpha</h1>
+<nav class="hidden md:flex gap-6 h-full items-end pb-base">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all pb-1" href="#">Chat</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all pb-1" href="#">Docs</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all pb-1" href="#">Tasks</a>
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-1" href="#">Sheets</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all pb-1" href="#">Canvas</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-surface-container-low border border-surface-variant rounded-full text-sm focus:outline-none focus:border-primary transition-colors" placeholder="Search..." type="text">
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="px-4 py-1.5 border border-primary text-primary rounded-lg font-label-md text-label-md hover:bg-primary-container hover:text-on-primary-container transition-colors ml-2">Share</button>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden ml-2 border border-surface-variant">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a person looking forward slightly smiling, in a bright modern office setting, well lit, high quality photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA44kYZ1qDY0s25d-iqT-H-0hd73Gm4dhVDDEVBohIykAVIIKmnxTQfJmMiBlCf0TU1fl8M-_CoP2DCoG8ylbVCJ0Wyxfgz0BC4Ru-kvMO34VQ5Va4KMr36jZ4gxfF1PaGv_mR8YXPmVTK6kk3bb5yefR1jrzqWJFbprbS_-QtPAUWz66nnzBZgLM_gLVNI-7kyO6CRMF3H-7hnMY7AdW9krK1nGEBjXzCJoBu4C5dNl4jserGGfg84zCbkq0eUFNayeAwQhJe22F9a">
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[336px] mt-16 p-lg w-full h-[calc(100vh-64px)] overflow-y-auto flex gap-lg">
+<!-- Spreadsheet Section -->
+<div class="flex-1 flex flex-col gap-4">
+<!-- Toolbar -->
+<div class="flex items-center justify-between bg-surface py-2 px-4 rounded-lg border border-surface-variant">
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-container rounded transition-colors" title="Filter">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+</button>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-container rounded transition-colors" title="Sort">
+<span class="material-symbols-outlined text-[20px]">sort</span>
+</button>
+<div class="w-px h-5 bg-surface-variant mx-1"></div>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-container rounded transition-colors" title="Insert Chart">
+<span class="material-symbols-outlined text-[20px]">insert_chart</span>
+</button>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-container rounded transition-colors" title="Functions">
+<span class="material-symbols-outlined text-[20px]">functions</span>
+</button>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-3 py-1.5 border border-surface-variant text-on-surface rounded-lg font-label-md text-label-md hover:bg-surface-container transition-colors text-sm">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+                        Generate dari chat
+                    </button>
+<button class="flex items-center gap-2 px-3 py-1.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity text-sm">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                        Sheet baru
+                    </button>
+</div>
+</div>
+<!-- Grid Container -->
+<div class="border border-surface-variant rounded-lg overflow-hidden bg-surface-lowest shadow-sm flex-1 flex flex-col">
+<!-- Headers -->
+<div class="grid grid-cols-[50px_minmax(150px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)] bg-surface-container-low border-b border-surface-variant text-xs font-label-md text-on-surface-variant">
+<div class="p-2 border-r border-surface-variant flex items-center justify-center bg-surface-variant/50"></div>
+<div class="p-2 border-r border-surface-variant flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer">
+                        A
+                        <span class="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_drop_down</span>
+</div>
+<div class="p-2 border-r border-surface-variant flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer">
+                        B
+                        <span class="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_drop_down</span>
+</div>
+<div class="p-2 border-r border-surface-variant flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer">
+                        C
+                        <span class="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_drop_down</span>
+</div>
+<div class="p-2 flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer">
+                        D
+                        <span class="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">arrow_drop_down</span>
+</div>
+</div>
+<!-- First Row Data (Headers) -->
+<div class="grid grid-cols-[50px_minmax(150px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)] border-b border-surface-variant font-label-md text-on-surface bg-surface-bright">
+<div class="p-2 border-r border-surface-variant flex items-center justify-center text-xs text-on-surface-variant bg-surface-container-low">1</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent">Bulan</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent">Pendapatan</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent">Pengeluaran</div>
+<div class="p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset bg-transparent">Profit</div>
+</div>
+<!-- Data Rows -->
+<div class="grid grid-cols-[50px_minmax(150px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)] border-b border-surface-variant font-code text-code text-on-surface">
+<div class="p-2 border-r border-surface-variant flex items-center justify-center text-xs text-on-surface-variant bg-surface-container-low font-label-md">2</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset">Januari</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right">Rp 45.000.000</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right text-error">Rp 30.000.000</div>
+<div class="p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right text-primary-container">Rp 15.000.000</div>
+</div>
+<div class="grid grid-cols-[50px_minmax(150px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)] border-b border-surface-variant font-code text-code text-on-surface">
+<div class="p-2 border-r border-surface-variant flex items-center justify-center text-xs text-on-surface-variant bg-surface-container-low font-label-md">3</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset bg-primary/10">Februari</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right bg-primary/10">Rp 52.000.000</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right text-error bg-primary/10">Rp 28.000.000</div>
+<div class="p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right text-primary-container font-bold bg-primary/10 relative">
+                        Rp 24.000.000
+                        <div class="absolute inset-0 border-2 border-primary pointer-events-none"></div>
+<div class="absolute -bottom-1 -right-1 w-2 h-2 bg-primary cursor-crosshair"></div>
+</div>
+</div>
+<div class="grid grid-cols-[50px_minmax(150px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)] border-b border-surface-variant font-code text-code text-on-surface">
+<div class="p-2 border-r border-surface-variant flex items-center justify-center text-xs text-on-surface-variant bg-surface-container-low font-label-md">4</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset">Maret</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right">Rp 48.000.000</div>
+<div class="p-2 border-r border-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right text-error">Rp 32.000.000</div>
+<div class="p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset text-right text-primary-container">Rp 16.000.000</div>
+</div>
+<!-- Empty Rows to fill space -->
+<div class="grid grid-cols-[50px_minmax(150px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)] border-b border-surface-variant font-code text-code text-on-surface flex-1">
+<div class="p-2 border-r border-surface-variant flex items-center justify-center text-xs text-on-surface-variant bg-surface-container-low font-label-md">5</div>
+<div class="p-2 border-r border-surface-variant"></div>
+<div class="p-2 border-r border-surface-variant"></div>
+<div class="p-2 border-r border-surface-variant"></div>
+<div class="p-2"></div>
+</div>
+</div>
+</div>
+<!-- Sidebar / Insights Pane -->
+<aside class="w-80 flex flex-col gap-4">
+<div class="bg-surface rounded-xl border border-surface-variant p-4 shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">insights</span>
+                        AI Insights
+                    </h3>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+<div class="bg-surface-bright border border-surface-variant rounded-lg p-3 h-40 flex items-end justify-around gap-2 pb-0 pt-4 relative overflow-hidden group cursor-pointer hover:border-primary transition-colors">
+<!-- Simple CSS Bar Chart -->
+<div class="w-8 bg-surface-variant rounded-t-sm h-[45%] relative group-hover:bg-primary-container/20 transition-colors"></div>
+<div class="w-8 bg-primary rounded-t-sm h-[70%] relative"></div>
+<div class="w-8 bg-surface-variant rounded-t-sm h-[50%] relative group-hover:bg-primary-container/20 transition-colors"></div>
+<!-- Chart Overlay Icon -->
+<div class="absolute inset-0 bg-surface/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-[1px]">
+<span class="material-symbols-outlined text-primary bg-white p-2 rounded-full shadow-sm">open_in_full</span>
+</div>
+</div>
+<p class="font-label-md text-[12px] text-on-surface-variant italic text-center">
+                    Dibuat otomatis dari data
+                </p>
+<div class="mt-2 text-sm text-on-surface">
+<p class="font-body-md text-[13px] leading-relaxed">
+                        Tren profit menunjukkan peningkatan signifikan sebesar <span class="text-primary font-medium">60%</span> pada bulan Februari dibandingkan bulan sebelumnya, didorong oleh efisiensi pengeluaran.
+                    </p>
+</div>
+<button class="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 border border-surface-variant text-on-surface rounded-lg font-label-md text-label-md hover:bg-surface-container transition-colors text-sm">
+<span class="material-symbols-outlined text-[16px]">add_chart</span>
+                    Tambahkan ke Canvas
+                </button>
+</div>
+</aside>
+</main>
+</body></html>

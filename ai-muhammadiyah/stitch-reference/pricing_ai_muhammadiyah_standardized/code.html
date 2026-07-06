@@ -1,0 +1,407 @@
+<!DOCTYPE html><html lang="id"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI Muhammadiyah - Pricing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e1e3e4",
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "secondary": "#785900",
+                        "outline-variant": "#bec9be",
+                        "surface-container-high": "#e7e8e9",
+                        "background": "#f8f9fa",
+                        "on-background": "#191c1d",
+                        "tertiary-container": "#4851aa",
+                        "on-tertiary-fixed": "#000767",
+                        "tertiary": "#2f3891",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#8ee4a6",
+                        "secondary-container": "#fdc003",
+                        "on-secondary-fixed": "#261a00",
+                        "tertiary-fixed": "#e0e0ff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#f8f9fa",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-container": "#6c5000",
+                        "secondary-fixed": "#ffdf9e",
+                        "surface-tint": "#0b6d3b",
+                        "inverse-primary": "#83d99c",
+                        "on-surface": "#191c1d",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "primary-container": "#006837",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#fabd00",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#9ef6b6",
+                        "on-surface-variant": "#3f4940",
+                        "primary": "#004d27",
+                        "surface-container": "#edeeef",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "inverse-surface": "#2e3132",
+                        "surface": "#f8f9fa",
+                        "on-tertiary-container": "#cbceff",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed": "#00210e",
+                        "inverse-on-surface": "#f0f1f2",
+                        "outline": "#6f7a70",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "base": "4px",
+                        "sm": "16px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "lg": "48px",
+                        "xl": "80px",
+                        "md": "24px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Geist"],
+                        "headline-lg-mobile": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "code": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .sang-surya-bg {
+            background: radial-gradient(circle at top center, rgba(0, 104, 55, 0.03) 0%, rgba(248, 249, 250, 1) 60%);
+        }
+        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #004d27;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #004d27;
+        }
+
+        /* Sidebar scroll customization */
+        aside::-webkit-scrollbar {
+            width: 4px;
+        }
+        aside::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md sang-surya-bg min-h-screen flex antialiased">
+<!-- Left Sidebar (New Navigation) -->
+<aside class="fixed inset-y-0 left-0 w-64 bg-[#006837] text-white flex flex-col z-50 border-r border-white/10">
+<div class="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
+<a class="text-xl font-bold tracking-tight flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">auto_awesome</span>
+            AI Muhammadiyah
+        </a>
+</div>
+<div class="flex-grow overflow-y-auto py-6 px-4">
+<nav class="space-y-1">
+<p class="px-2 text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Main Menu</p>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">history_edu</span>
+                Research
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">local_library</span>
+                Library
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-[#004d27] border-l-4 border-[#fdc003] -ml-4 pl-[calc(0.75rem+12px)]" href="#">
+<span class="material-symbols-outlined text-[20px]">payments</span>
+                Pricing
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">person_outline</span>
+                Personalization
+            </a>
+<div class="pt-6">
+<p class="px-2 text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Muhammadiyah Hub</p>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">school</span>
+                    Pendidikan
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">health_and_safety</span>
+                    Kesehatan
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">volunteer_activism</span>
+                    Sosial
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">hub</span>
+                    Organisasi
+                </a>
+</div>
+</nav>
+</div>
+<div class="p-4 border-t border-white/10">
+<div class="bg-white/5 rounded-xl p-3 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">
+<img alt="User profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADyBuKMQc5CwZymFJvd4UEZR3HHPB_Q9TxzTbvv9ahHSLYqiOfzltaYFgXkXhyuK9jbxw4GFJcwdzPwFOy04v6vPvn-LDlNcdjrHJPyjB05-UipjUWl1hkrg7GSZS4amHSnZi5X9faHZtviCJ8poEM4iyaYR6hEq1R9CjnHfIfTWq8BU5CICWrrCsli-rMwFJ-aNymks42hdswpYJYyouwPcy6CCi2Pm0QzFJWzpsYjW-eGYmO3zvOBD5AtuWmVoCQeS6ZYBU2Myuu">
+</div>
+<div class="flex-grow min-w-0">
+<p class="text-xs font-bold truncate">Ahmad Dahlan</p>
+<p class="text-[10px] text-white/60 truncate">Free Plan</p>
+</div>
+<button class="text-white/60 hover:text-white">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Content Wrapper -->
+<div class="flex-grow flex flex-col ml-64 min-h-screen">
+<!-- Top Header -->
+<header class="bg-surface sticky top-0 z-40 border-b border-outline-variant h-16 flex items-center px-margin justify-end">
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-high">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-2"></div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-full text-sm font-label-md hover:bg-primary-container transition-colors shadow-sm">
+                Upgrade Plan
+            </button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow w-full max-w-[1200px] mx-auto px-margin py-xl flex flex-col items-center">
+<!-- Header Section -->
+<div class="text-center max-w-[800px] mb-lg">
+<h1 class="font-display text-display text-on-background mb-4 font-bold">Pilih paket yang sesuai</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-8">Eksplorasi intelektual tanpa batas. Temukan solusi yang tepat untuk individu, institusi, hingga organisasi skala besar.</p>
+<!-- Billing Toggle -->
+<div class="flex items-center justify-center gap-4">
+<span class="font-label-md text-label-md text-on-surface-variant">Bulanan</span>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-outline-variant z-10 top-0 left-0 transition-transform duration-200" id="billing-toggle" name="toggle" type="checkbox">
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-outline-variant cursor-pointer" for="billing-toggle"></label>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-on-background">Tahunan</span>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-label-md bg-secondary-fixed text-on-secondary-fixed">Hemat 20%</span>
+</div>
+</div>
+</div>
+<!-- Pricing Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full mb-12">
+<!-- Gratis Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 flex flex-col h-full hover:shadow-sm transition-shadow hover:scale-[1.02] transition-transform duration-200">
+<div class="mb-6">
+<h3 class="font-headline-md text-headline-md text-on-background mb-2">Gratis</h3>
+<div class="flex items-baseline gap-1 mb-2">
+<span class="font-display text-display text-on-background font-bold">Rp0</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Untuk mulai menjelajah</p>
+</div>
+<button class="w-full py-3 px-4 rounded border border-outline text-on-surface font-label-md text-label-md hover:bg-surface-container-low transition-colors mb-8">
+                    Mulai gratis
+                </button>
+<div class="flex-grow">
+<ul class="space-y-4 font-body-md text-body-md text-on-surface-variant">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>1 workspace</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>30 pesan/hari</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>Muhammadiyah Hub tanpa batas</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Plus Card (Highlighted) -->
+<div class="bg-surface-container-lowest border-2 border-primary rounded-xl p-8 flex flex-col h-full relative shadow-[0px_4px_20px_rgba(0,0,0,0.04)] hover:scale-[1.02] transition-transform duration-200">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-4 py-1.5 rounded-full font-label-md text-xs shadow-sm">
+                    Paling populer
+                </div>
+<div class="mb-6">
+<h3 class="font-headline-md text-headline-md text-on-background mb-2">Plus</h3>
+<div class="flex items-baseline gap-1 mb-2">
+<span class="font-display text-display text-on-background font-bold">Rp49k</span>
+<span class="font-body-md text-body-md text-on-surface-variant">/bln</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Untuk penggunaan personal intensif</p>
+</div>
+<button class="w-full py-3 px-4 rounded bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors mb-8 shadow-sm">
+                    Upgrade ke Plus
+                </button>
+<div class="flex-grow">
+<ul class="space-y-4 font-body-md text-body-md text-on-surface-variant">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span class="font-medium text-on-background">Workspace tanpa batas</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span class="font-medium text-on-background">Chat tanpa batas</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>Skill dan persona custom</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Sekolah Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 flex flex-col h-full hover:shadow-sm transition-shadow hover:scale-[1.02] transition-transform duration-200">
+<div class="mb-6">
+<h3 class="font-headline-md text-headline-md text-on-background mb-2">Sekolah</h3>
+<div class="flex items-baseline gap-1 mb-2 h-[56px] items-center">
+<span class="font-headline-lg text-headline-lg text-on-background font-bold">Kontak</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Untuk institusi pendidikan</p>
+</div>
+<button class="w-full py-3 px-4 rounded border border-outline text-on-surface font-label-md text-label-md hover:bg-surface-container-low transition-colors mb-8">
+                    Ajukan diskon
+                </button>
+<div class="flex-grow">
+<ul class="space-y-4 font-body-md text-body-md text-on-surface-variant">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>Harga khusus per siswa</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>Dashboard admin</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Enterprise Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 flex flex-col h-full hover:shadow-sm transition-shadow hover:scale-[1.02] transition-transform duration-200">
+<div class="mb-6">
+<h3 class="font-headline-md text-headline-md text-on-background mb-2">Enterprise</h3>
+<div class="flex items-baseline gap-1 mb-2 h-[56px] items-center">
+<span class="font-headline-lg text-headline-lg text-on-background font-bold">Kustom</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Untuk organisasi besar</p>
+</div>
+<button class="w-full py-3 px-4 rounded border border-outline text-on-surface font-label-md text-label-md hover:bg-surface-container-low transition-colors mb-8">
+                    Hubungi sales
+                </button>
+<div class="flex-grow">
+<ul class="space-y-4 font-body-md text-body-md text-on-surface-variant">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>SSO dan audit log</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+<span>Knowledge base org</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Trust Line -->
+<div class="flex items-center justify-center gap-2 mb-xl py-8">
+<span class="material-symbols-outlined text-primary text-base" style="font-variation-settings: 'FILL' 1;">verified</span>
+<p class="font-label-md text-label-md text-on-surface-variant text-sm">Muhammadiyah Hub selalu gratis untuk siapa saja, di semua paket.</p>
+</div>
+<!-- FAQ Section -->
+<div class="w-full max-w-[800px]">
+<h2 class="font-headline-lg text-headline-lg text-center mb-8 font-bold">Pertanyaan yang Sering Diajukan</h2>
+<div class="border border-outline-variant rounded-xl overflow-hidden bg-surface-container-lowest">
+<div class="border-b border-outline-variant last:border-b-0">
+<button class="w-full flex justify-between items-center p-6 text-left focus:outline-none hover:bg-surface-container-high transition-colors">
+<span class="font-headline-md text-base text-on-background">Apa perbedaan antar paket?</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<div class="border-b border-outline-variant last:border-b-0">
+<button class="w-full flex justify-between items-center p-6 text-left focus:outline-none hover:bg-surface-container-high transition-colors">
+<span class="font-headline-md text-base text-on-background">Bagaimana cara upgrade?</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<div class="border-b border-outline-variant last:border-b-0">
+<button class="w-full flex justify-between items-center p-6 text-left focus:outline-none hover:bg-surface-container-high transition-colors">
+<span class="font-headline-md text-base text-on-background">Apakah ada kebijakan refund?</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface border-t border-outline-variant mt-auto">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-margin py-gutter max-w-[1200px] mx-auto">
+<div class="mb-4 md:mb-0 flex items-center gap-4">
+<span class="text-lg font-bold text-primary">AI Muhammadiyah</span>
+<span class="font-label-md text-xs text-on-surface-variant">© 2024 AI Muhammadiyah.</span>
+</div>
+<nav class="flex gap-6">
+<a class="font-label-md text-xs text-on-surface-variant hover:text-primary transition-colors" href="#">Syarat &amp; Ketentuan</a>
+<a class="font-label-md text-xs text-on-surface-variant hover:text-primary transition-colors" href="#">Privasi</a>
+<a class="font-label-md text-xs text-on-surface-variant hover:text-primary transition-colors" href="#">Bantuan</a>
+</nav>
+</div>
+</footer>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggle = document.getElementById('billing-toggle');
+        const plusPrice = document.querySelector('.bg-surface-container-lowest.border-primary .font-display');
+        const plusPeriod = document.querySelector('.bg-surface-container-lowest.border-primary .font-body-md:nth-of-type(2)');
+        
+        if(toggle && plusPrice && plusPeriod) {
+            toggle.addEventListener('change', (e) => {
+                if(e.target.checked) {
+                    plusPrice.textContent = 'Rp49k';
+                    plusPeriod.textContent = '/bln ditagih tahunan';
+                } else {
+                    plusPrice.textContent = 'Rp59k';
+                    plusPeriod.textContent = '/bln';
+                }
+            });
+        }
+    });
+</script>
+</body></html>

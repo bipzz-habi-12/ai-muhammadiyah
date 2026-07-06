@@ -1,0 +1,421 @@
+<!DOCTYPE html><html class="light" lang="id" style="width: 1280px; height: 1150px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Muhammadiyah Hub | AI Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "tertiary-container": "#4851aa",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed": "#e0e0ff",
+                        "surface-container": "#edeeef",
+                        "primary": "#004d27",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-primary-fixed": "#00210e",
+                        "on-background": "#191c1d",
+                        "secondary-fixed-dim": "#fabd00",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e7e8e9",
+                        "surface-bright": "#f8f9fa",
+                        "primary-container": "#006837",
+                        "on-secondary-container": "#6c5000",
+                        "surface-tint": "#0b6d3b",
+                        "on-primary-container": "#8ee4a6",
+                        "inverse-primary": "#83d99c",
+                        "secondary": "#785900",
+                        "on-tertiary-fixed": "#000767",
+                        "on-tertiary-container": "#cbceff",
+                        "secondary-container": "#fdc003",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3f4940",
+                        "outline": "#6f7a70",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-highest": "#e1e3e4",
+                        "background": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "on-secondary-fixed": "#261a00",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#2f3891"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "16px",
+                        "xs": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "base": "4px",
+                        "md": "24px",
+                        "margin": "32px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "code": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ai-response-bg { background-color: rgba(0, 77, 39, 0.03); }
+        .hairline-border { border: 1px solid #E9ECEF; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E9ECEF; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #ced4da; }
+        @keyframes pulse-dots { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        .dot-pulse { animation: pulse-dots 1.5s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-background text-on-surface flex h-screen overflow-hidden">
+<!-- 1. Icon Rail (Left) -->
+<aside class="w-[60px] flex flex-col items-center py-sm space-y-md border-r border-primary/20 bg-primary z-50">
+<div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+</div>
+<nav class="flex flex-col items-center space-y-sm">
+<button class="p-2 text-white/80 hover:bg-white/10 rounded-lg transition-colors" title="Library">
+<span class="material-symbols-outlined text-white">library_books</span>
+</button>
+<button class="p-2 text-white/80 hover:bg-white/10 rounded-lg transition-colors" title="Knowledge Hub">
+<span class="material-symbols-outlined text-white">travel_explore</span>
+</button>
+<button class="p-2 text-white/80 hover:bg-white/10 rounded-lg transition-colors" title="History">
+<span class="material-symbols-outlined text-white">history</span>
+</button>
+</nav>
+<div class="mt-auto flex flex-col items-center space-y-sm">
+<button class="p-2 text-white/80 hover:bg-white/10 rounded-lg transition-colors" title="Settings">
+<span class="material-symbols-outlined text-white">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container">
+            SS
+        </div>
+</div>
+</aside>
+<!-- 2. Workspace List Sidebar -->
+<aside class="w-[260px] flex flex-col border-r border-primary/10 bg-[#006837]">
+<div class="p-sm flex flex-col space-y-sm">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-white/70 text-sm">search</span>
+<input class="w-full bg-white/10 border border-white/20 rounded-lg py-2 pl-8 pr-2 text-sm text-white placeholder-white/50 focus:outline-none focus:border-secondary-container transition-colors" placeholder="Cari workspace..." type="text">
+</div>
+<button class="w-full py-2 px-3 bg-white text-primary rounded-lg flex items-center justify-center space-x-2 hover:bg-white/90 transition-colors text-sm font-medium">
+<span class="material-symbols-outlined text-sm">add</span>
+<span class="font-label-md text-label-md">Workspace baru</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-1">
+<!-- Active Item -->
+<div class="p-2 flex items-center justify-between group cursor-pointer bg-black/20 rounded-lg border-l-4 border-secondary-container">
+<div class="flex items-center space-x-2">
+<span class="text-lg">⚖️</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-white font-bold">Etika AI Islam</span>
+<span class="text-[10px] text-white/60 uppercase tracking-tighter font-semibold">Aktif • Baru saja</span>
+</div>
+</div>
+</div>
+<div class="p-2 flex items-center justify-between group cursor-pointer hover:bg-white/5 rounded-lg">
+<div class="flex items-center space-x-2">
+<span class="text-lg">📜</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-white/90">Sejarah KH Dahlan</span>
+<span class="text-[10px] text-white/50">2 jam lalu</span>
+</div>
+</div>
+</div>
+<div class="p-2 flex items-center justify-between group cursor-pointer hover:bg-white/5 rounded-lg">
+<div class="flex items-center space-x-2">
+<span class="text-lg">💻</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-white/90">Software Eng Tips</span>
+<span class="text-[10px] text-white/50">Kemarin</span>
+</div>
+</div>
+</div>
+<div class="pt-4 pb-2 px-2">
+<h3 class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Internal Links</h3>
+<div class="space-y-1">
+<a class="flex items-center space-x-2 p-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg text-xs transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">public</span>
+<span>Muhammadiyah.or.id</span>
+</a>
+<a class="flex items-center space-x-2 p-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg text-xs transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">school</span>
+<span>Majelis Dikti Litbang</span>
+</a>
+<a class="flex items-center space-x-2 p-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg text-xs transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">menu_book</span>
+<span>Majelis Tarjih</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Branding Bottom -->
+<div class="p-sm mt-auto border-t border-white/10 bg-black/10">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 bg-secondary-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container text-[14px] font-bold">star</span>
+</div>
+<span class="text-[10px] font-bold text-white uppercase tracking-widest">Muhammadiyah Hub</span>
+</div>
+</div>
+</aside>
+<!-- 3. Main Chat Area -->
+<main class="flex-1 flex flex-col bg-surface-container-lowest relative">
+<!-- Top Bar -->
+<header class="h-14 border-b border-outline-variant flex items-center justify-between px-md shrink-0">
+<div class="flex items-center space-x-3">
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Etika AI Islam</h1>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full uppercase tracking-wider">Software Engineering</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">psychology</span>
+</div>
+<div class="flex items-center space-x-1">
+<button class="p-1.5 hover:bg-surface-container rounded-lg flex items-center space-x-1 text-on-surface-variant" title="Notes">
+<span class="material-symbols-outlined text-lg">description</span>
+</button>
+<button class="p-1.5 hover:bg-surface-container rounded-lg flex items-center space-x-1 text-on-surface-variant" title="Quiz">
+<span class="material-symbols-outlined text-lg">quiz</span>
+</button>
+<button class="p-1.5 hover:bg-surface-container rounded-lg flex items-center space-x-1 text-on-surface-variant" title="Flashcards">
+<span class="material-symbols-outlined text-lg">style</span>
+</button>
+<button class="p-1.5 hover:bg-surface-container rounded-lg flex items-center space-x-1 text-on-surface-variant" title="Mind Map">
+<span class="material-symbols-outlined text-lg">hub</span>
+</button>
+<div class="w-[1px] h-4 bg-outline-variant mx-1"></div>
+<button class="px-3 py-1.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm">share</span>
+<span>Share</span>
+</button>
+</div>
+</header>
+<!-- Message Thread -->
+<section class="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-md space-y-lg max-w-[800px] mx-auto w-full">
+<!-- User message -->
+<div class="flex flex-col items-end space-y-1">
+<div class="bg-surface-container-high px-4 py-3 rounded-2xl max-w-[85%] text-on-surface-variant font-body-md">
+                Bagaimana pandangan etika Islam, khususnya dalam perspektif Muhammadiyah, terhadap penggunaan kecerdasan buatan dalam pengambilan keputusan otonom?
+            </div>
+<span class="text-[10px] text-on-surface-variant mr-2">Sent via Muhammadiyah Web Hub</span>
+</div>
+<!-- AI Response -->
+<div class="flex space-x-4">
+<div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+</div>
+<div class="flex-1 space-y-4 font-body-md text-on-surface leading-relaxed">
+<div class="prose prose-sm max-w-none">
+<p>Dalam perspektif Islam, pengembangan dan penggunaan AI harus senantiasa berpijak pada prinsip <strong>Maqasid al-Syari’ah</strong> (tujuan-tujuan syariat), yakni untuk kemaslahatan manusia dan menjaga agama, jiwa, akal, keturunan, serta harta.</p>
+<p>Secara spesifik dalam pandangan yang sejalan dengan semangat <em>Tajdid</em> Muhammadiyah, pengambilan keputusan otonom oleh AI perlu memperhatikan beberapa poin kritis:</p>
+<ul class="list-disc pl-5 space-y-2">
+<li><strong>Al-Maslahah al-Mursalah:</strong> AI harus digunakan untuk memberikan manfaat seluas-luasnya. Jika keputusan otonom AI berpotensi menimbulkan <em>mafsadah</em> (kerusakan) atau ketidakadilan, maka intervensi manusia (Human-in-the-loop) menjadi wajib.</li>
+<li><strong>Tanggung Jawab (Mas’uliyyah):</strong> Dalam Islam, tanggung jawab moral tetap berada pada subjek hukum (mukallaf). Oleh karena itu, pengembang dan pengguna AI bertanggung jawab penuh atas dampak dari sistem yang mereka ciptakan.</li>
+<li><strong>Prinsip Keadilan ('Adalah):</strong> Algoritma AI tidak boleh mengandung bias yang mendiskriminasi kelompok tertentu, sesuai dengan perintah Al-Qur'an untuk berlaku adil kepada siapa pun.</li>
+</ul>
+<div class="mt-4 p-3 ai-response-bg border-l-4 border-primary rounded-r-lg italic text-on-surface-variant text-sm">
+                        "Dan janganlah kamu mengikuti apa yang kamu tidak mempunyai pengetahuan tentangnya. Sesungguhnya pendengaran, penglihatan dan hati, semuanya itu akan diminta pertanggungjawabannya." (QS. Al-Isra: 36)
+                    </div>
+</div>
+<div class="flex items-center space-x-3 pt-2">
+<button class="p-1 hover:bg-surface-container rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg">content_copy</span>
+</button>
+<button class="p-1 hover:bg-surface-container rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg">thumb_up</span>
+</button>
+<button class="p-1 hover:bg-surface-container rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg">refresh</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Loading Indicator -->
+<div class="flex space-x-4 opacity-0 transition-opacity" id="loading-dots">
+<div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+</div>
+<div class="flex space-x-1.5 items-center">
+<div class="w-2 h-2 bg-primary rounded-full dot-pulse" style="animation-delay: 0s"></div>
+<div class="w-2 h-2 bg-primary rounded-full dot-pulse" style="animation-delay: 0.2s"></div>
+<div class="w-2 h-2 bg-primary rounded-full dot-pulse" style="animation-delay: 0.4s"></div>
+</div>
+</div>
+</section>
+<!-- Sticky Input Area -->
+<footer class="p-md shrink-0 w-full max-w-[840px] mx-auto">
+<div class="flex flex-col space-y-3 bg-white border border-outline-variant rounded-2xl p-3 shadow-sm">
+<div class="flex flex-wrap gap-2">
+<div class="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+<span class="material-symbols-outlined text-sm">gavel</span>
+<span>Islamic Ethics</span>
+<button class="ml-1 hover:text-on-primary-container"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</div>
+</div>
+<div class="flex items-end space-x-3">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full shrink-0">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<textarea class="flex-1 border-none focus:ring-0 resize-none py-2 font-body-md text-on-surface leading-relaxed max-h-48 custom-scrollbar" placeholder="Tanya apa saja..." rows="1"></textarea>
+<button class="w-10 h-10 bg-primary/40 text-on-primary rounded-xl flex items-center justify-center shrink-0 cursor-not-allowed" disabled="" id="send-btn">
+<span class="material-symbols-outlined">arrow_upward</span>
+</button>
+</div>
+</div>
+<p class="text-center text-[10px] text-on-surface-variant mt-2">
+            Didukung oleh AI Muhammadiyah Hub. Gunakan hasil untuk tujuan pendidikan dan riset.
+        </p>
+</footer>
+</main>
+<!-- 4. Knowledge Sidebar (Right) -->
+<aside class="w-[240px] flex flex-col border-l border-outline-variant bg-surface-container-low hidden lg:flex">
+<div class="p-sm flex items-center justify-between border-b border-outline-variant">
+<h2 class="font-label-md text-label-md font-bold uppercase tracking-widest text-on-surface-variant">Knowledge</h2>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">info</span>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar p-sm space-y-md">
+<section>
+<h3 class="text-[11px] font-bold text-on-surface-variant mb-2 uppercase tracking-wider">Sumber Aktif</h3>
+<div class="space-y-2">
+<div class="flex items-start space-x-2 p-2 bg-surface-container-lowest border border-outline-variant rounded-lg">
+<span class="material-symbols-outlined text-primary text-sm">description</span>
+<div class="flex flex-col">
+<span class="text-[11px] font-medium leading-tight">Keputusan Tarjih AI.pdf</span>
+<span class="text-[9px] text-on-surface-variant">12 KB • Terindeks</span>
+</div>
+</div>
+<div class="flex items-start space-x-2 p-2 bg-surface-container-lowest border border-outline-variant rounded-lg">
+<span class="material-symbols-outlined text-primary text-sm">link</span>
+<div class="flex flex-col">
+<span class="text-[11px] font-medium leading-tight">Fatwa Kontemporer...</span>
+<span class="text-[9px] text-on-surface-variant">URL • Terindeks</span>
+</div>
+</div>
+</div>
+</section>
+<section>
+<h3 class="text-[11px] font-bold text-on-surface-variant mb-2 uppercase tracking-wider">Dari Muhammadiyah Hub</h3>
+<ul class="space-y-2">
+<li>
+<a class="text-[11px] text-primary hover:underline flex items-center space-x-1 font-medium" href="https://muhammadiyah.or.id" target="_blank">
+<span>Ensiklopedia Muhammadiyah</span>
+<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+</a>
+</li>
+<li>
+<a class="text-[11px] text-primary hover:underline flex items-center space-x-1 font-medium" href="#" target="_blank">
+<span>Risalah Islam Berkemajuan</span>
+<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+</a>
+</li>
+<li>
+<a class="text-[11px] text-primary hover:underline flex items-center space-x-1 font-medium" href="https://suaramuhammadiyah.id" target="_blank">
+<span>Arsip Suara Muhammadiyah</span>
+<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+</a>
+</li>
+</ul>
+</section>
+<button class="w-full py-2 border-2 border-dashed border-outline-variant rounded-lg flex flex-col items-center justify-center hover:border-primary hover:bg-primary/5 transition-all group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary mb-1">add_circle</span>
+<span class="text-[10px] font-bold text-on-surface-variant group-hover:text-primary">Tambah sumber</span>
+</button>
+</div>
+<div class="p-sm bg-surface-container-highest border-t border-outline-variant">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] font-bold">Model Context</span>
+<span class="text-[10px] text-primary font-bold">12%</span>
+</div>
+<div class="w-full bg-outline-variant h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[12%]"></div>
+</div>
+</div>
+</aside>
+<!-- Micro-interaction Script -->
+<script>
+    const textarea = document.querySelector('textarea');
+    const sendBtn = document.getElementById('send-btn');
+    const loadingDots = document.getElementById('loading-dots');
+
+    textarea.addEventListener('input', (e) => {
+        // Auto-resize textarea
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+
+        // Toggle send button state
+        if (textarea.value.trim().length > 0) {
+            sendBtn.classList.remove('bg-primary/40', 'cursor-not-allowed');
+            sendBtn.classList.add('bg-primary');
+            sendBtn.disabled = false;
+        } else {
+            sendBtn.classList.add('bg-primary/40', 'cursor-not-allowed');
+            sendBtn.classList.remove('bg-primary');
+            sendBtn.disabled = true;
+        }
+    });
+
+    // Simulate sending
+    sendBtn.addEventListener('click', () => {
+        if (!sendBtn.disabled) {
+            loadingDots.classList.remove('opacity-0');
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            sendBtn.classList.add('bg-primary/40', 'cursor-not-allowed');
+            sendBtn.disabled = true;
+            
+            // Hide loader after 3s simulation
+            setTimeout(() => {
+                loadingDots.classList.add('opacity-0');
+            }, 3000);
+        }
+    });
+</script>
+</body></html>

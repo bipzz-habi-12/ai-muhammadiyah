@@ -1,0 +1,244 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Research Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#fdc003",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-container": "#6c5000",
+                        "surface-container-highest": "#e1e3e4",
+                        "on-primary-fixed": "#00210e",
+                        "inverse-primary": "#83d99c",
+                        "tertiary-container": "#4851aa",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2e3132",
+                        "tertiary": "#2f3891",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "primary-container": "#006837",
+                        "primary": "#004d27",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface-container-low": "#f3f4f5",
+                        "outline": "#6f7a70",
+                        "on-tertiary-container": "#cbceff",
+                        "on-surface-variant": "#3f4940",
+                        "surface-dim": "#d9dadb",
+                        "on-primary-container": "#8ee4a6",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "surface-container": "#edeeef",
+                        "error": "#ba1a1a",
+                        "on-surface": "#191c1d",
+                        "on-primary-fixed-variant": "#00522a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e1e3e4",
+                        "surface": "#f8f9fa",
+                        "on-background": "#191c1d",
+                        "surface-tint": "#0b6d3b",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-tertiary-fixed": "#000767",
+                        "surface-bright": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "tertiary-fixed": "#e0e0ff",
+                        "secondary": "#785900",
+                        "surface-container-high": "#e7e8e9",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f0f1f2",
+                        "primary-fixed-dim": "#83d99c",
+                        "on-secondary-fixed": "#261a00",
+                        "secondary-fixed-dim": "#fabd00",
+                        "background": "#f8f9fa"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "sm": "16px",
+                        "lg": "48px",
+                        "xl": "80px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "md": "24px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "code": ["Geist"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "display": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .sang-surya-bg {
+            background: radial-gradient(circle at 50% 30%, rgba(253, 192, 3, 0.05) 0%, rgba(248, 249, 250, 1) 70%);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex font-body-md sang-surya-bg selection:bg-primary-container/20 overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 bg-primary-container text-on-primary flex flex-col h-screen shrink-0 z-50">
+<div class="p-sm flex items-center gap-xs border-b border-white/10 h-16">
+<img alt="Brand Logo" class="h-8 w-8 rounded object-cover" src="https://lh3.googleusercontent.com/aida/AP1WRLt5UN1bXle_il3S4PT2M8EIY4HE7Vssq9OutiuAQ4H-lN_2dX7jBx7waEojqB6MBtlyklXToZynpvWvfL7jromqPlKBcLgI-EcgbGDzkW1yML5PrNKzeDRZbh1N0xR2cmB7MDt9XmJGwfJV3GrKmX6l2wQiiuA_lfbhxrC9QpBAc8iBk02I4bCp2gDarA-K7yCpHc-LVrgfnseXfYjHVNkw-qRVXL0UnIAGCiw1ll2Xw0bIUGzYBcCpx7aS">
+<span class="font-headline-md text-xl font-bold">Research AI</span>
+</div>
+<nav class="flex-grow py-sm px-xs overflow-y-auto">
+<div class="mb-sm">
+<p class="px-sm text-[10px] uppercase tracking-widest text-on-primary/60 font-bold mb-xs">Utama</p>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg bg-black/20 text-on-primary border-l-4 border-secondary-container" href="#">
+<span class="material-symbols-outlined text-[20px]">explore</span>
+<span class="font-label-md">Eksplorasi</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg hover:bg-white/10 transition-colors text-on-primary/90 mt-1" href="#">
+<span class="material-symbols-outlined text-[20px]">history</span>
+<span class="font-label-md">Riwayat Riset</span>
+</a>
+</div>
+<div class="mb-sm">
+<p class="px-sm text-[10px] uppercase tracking-widest text-on-primary/60 font-bold mb-xs">Pustaka</p>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg hover:bg-white/10 transition-colors text-on-primary/90" href="#">
+<span class="material-symbols-outlined text-[20px]">menu_book</span>
+<span class="font-label-md">Al-Kutub</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg hover:bg-white/10 transition-colors text-on-primary/90 mt-1" href="#">
+<span class="material-symbols-outlined text-[20px]">article</span>
+<span class="font-label-md">Jurnal Riset</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg hover:bg-white/10 transition-colors text-on-primary/90 mt-1" href="#">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+<span class="font-label-md">Arsip Dokumen</span>
+</a>
+</div>
+<div class="mb-sm">
+<p class="px-sm text-[10px] uppercase tracking-widest text-on-primary/60 font-bold mb-xs">Organisasi</p>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg hover:bg-white/10 transition-colors text-on-primary/90" href="#">
+<span class="material-symbols-outlined text-[20px]">corporate_fare</span>
+<span class="font-label-md">PP Muhammadiyah</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-xs rounded-lg hover:bg-white/10 transition-colors text-on-primary/90 mt-1" href="#">
+<span class="material-symbols-outlined text-[20px]">diversity_3</span>
+<span class="font-label-md">Majelis Riset</span>
+</a>
+</div>
+</nav>
+<div class="p-sm mt-auto border-t border-white/10">
+<div class="flex items-center gap-sm p-xs hover:bg-white/5 rounded-lg cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-surface-container-high border border-white/20 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="User Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCd9ukrXvyQxVSEv1eJ6pRSCfmKyzrV-ZorbhJgY4ZPoEl3yVE1t5JAfXYu14O47W1WLZe2p6FfyZT2paTUVFMY_hELynAAj52j3PeoLmVFhQytmcNWkMPTJSPzuFTl3MJFgmxzY8hlTS5bdqMTxnY0fk448nbnqq6EoEWr3beLByzF_YE4JhutMlx78fQPajceYu4scSBhAGP5vuZ15yYCpAO_0A2MVCtsLM02Wk7bkTsnHlEy22pTSb2wdszKZOjhD4u9HE3oS07W">
+</div>
+<div class="flex-grow min-w-0">
+<p class="font-label-md text-xs font-bold truncate">Peneliti Ahli</p>
+<p class="text-[10px] text-on-primary/60 truncate">muh.researcher@org.id</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Workspace -->
+<div class="flex-grow flex flex-col h-screen overflow-y-auto">
+<!-- Top Utility Bar -->
+<header class="h-16 border-b border-surface-container-highest flex justify-end items-center px-margin bg-surface/80 backdrop-blur sticky top-0 z-40">
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="save">save</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center py-xl px-margin w-full max-w-[800px] mx-auto">
+<div class="text-center mb-lg w-full">
+<h1 class="font-display text-display text-on-surface mb-sm tracking-tight hidden md:block">Riset apa pun, didukung sumber terpercaya</h1>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-sm md:hidden">Riset apa pun, didukung sumber terpercaya</h1>
+</div>
+<!-- Search Area -->
+<div class="w-full relative mb-md">
+<div class="absolute inset-y-0 left-0 pl-sm flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">search</span>
+</div>
+<input class="w-full font-body-lg text-body-lg text-on-surface bg-surface-container-lowest border border-outline-variant rounded-xl py-sm pl-xl pr-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-sm transition-all" placeholder="Apa yang ingin Anda teliti?" type="text">
+<div class="absolute inset-y-0 right-0 pr-xs flex items-center">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors group">
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Source Toggle -->
+<div class="flex items-center gap-xs mb-lg bg-surface-container-low p-xs rounded-full border border-surface-container-highest">
+<span class="font-label-md text-label-md text-on-surface-variant pl-sm pr-xs">Sumber:</span>
+<button class="font-label-md text-label-md px-md py-xs rounded-full text-on-surface-variant hover:bg-surface-container transition-colors">
+                    Web umum
+                </button>
+<button class="font-label-md text-label-md px-md py-xs rounded-full text-on-surface-variant hover:bg-surface-container transition-colors">
+                    Muhammadiyah Hub
+                </button>
+<button class="font-label-md text-label-md px-md py-xs rounded-full bg-primary-container text-on-primary font-medium shadow-sm transition-colors">
+                    Keduanya
+                </button>
+</div>
+<!-- Example Chips -->
+<div class="w-full flex flex-col items-center gap-sm mt-md">
+<p class="font-label-md text-label-md text-outline mb-xs">Contoh pencarian:</p>
+<div class="flex flex-wrap justify-center gap-sm">
+<button class="font-label-md text-label-md bg-[#F1F3F5] text-on-surface-variant px-sm py-xs rounded flex items-center gap-xs hover:bg-surface-container transition-colors border border-surface-container-highest">
+<span class="material-symbols-outlined text-[16px]">science</span>
+                        Perkembangan riset stem cell terbaru
+                    </button>
+<button class="font-label-md text-label-md bg-[#F1F3F5] text-on-surface-variant px-sm py-xs rounded flex items-center gap-xs hover:bg-surface-container transition-colors border border-surface-container-highest">
+<span class="material-symbols-outlined text-[16px]">account_balance</span>
+                        Pandangan ekonomi syariah soal fintech
+                    </button>
+<button class="font-label-md text-label-md bg-[#F1F3F5] text-on-surface-variant px-sm py-xs rounded flex items-center gap-xs hover:bg-surface-container transition-colors border border-surface-container-highest">
+<span class="material-symbols-outlined text-[16px]">school</span>
+                        Bandingkan dua teori pendidikan modern
+                    </button>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface/50 border-t border-surface-container-highest w-full py-sm px-margin flex justify-between items-center mt-auto">
+<div class="font-label-md text-label-md text-on-surface-variant font-bold">
+                © 2024 Research AI platform. Document-Centric Minimalism.
+            </div>
+<div class="flex gap-md">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Methodology</a>
+</div>
+</footer>
+</div>
+</body></html>

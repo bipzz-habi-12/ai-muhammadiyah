@@ -1,0 +1,351 @@
+<!DOCTYPE html><html lang="id" style="width: 1280px; height: 1168px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AI Muhammadiyah - Tasks</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "tertiary-container": "#4851aa",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed": "#e0e0ff",
+                        "surface-container": "#edeeef",
+                        "primary": "#004d27",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-primary-fixed": "#00210e",
+                        "on-background": "#191c1d",
+                        "secondary-fixed-dim": "#fabd00",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e7e8e9",
+                        "surface-bright": "#f8f9fa",
+                        "primary-container": "#006837",
+                        "on-primary-container": "#8ee4a6",
+                        "inverse-primary": "#83d99c",
+                        "secondary": "#785900",
+                        "on-tertiary-fixed": "#000767",
+                        "on-tertiary-container": "#cbceff",
+                        "secondary-container": "#fdc003",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3f4940",
+                        "outline": "#6f7a70",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-highest": "#e1e3e4",
+                        "background": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "on-secondary-fixed": "#261a00",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#2f3891"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "16px",
+                        "xs": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "base": "4px",
+                        "md": "24px",
+                        "margin": "32px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen antialiased flex">
+<!-- SideNavBar Rail -->
+<nav class="w-20 h-full fixed left-0 top-0 bg-[#006837] border-r border-[#00522a] flex flex-col items-center py-sm space-y-md z-50">
+<div class="mb-lg mt-sm p-2 bg-white rounded-lg">
+<img alt="Muhammadiyah Logo" class="w-10 h-10 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyduiKAzy2wvXMGIPigGJRU2TQMiafyPt-JxMIW7joLksnO3c0ScxnSVZS8uJmlUr2cmkaFSReLBwRRzb9P_9uNQSe57cr6dUT-cPbfaCWiyoDh24H0Ma-sXR_vbbRj1n42x3AuoFiMRGzCnJfyNszyVyRWvbv7Nh9jLhicpoDFrxEmKlTbPAxm4XK3uSI9OBSk8p4Qf5vMzIHp86ER1ASeB_wztjMzlOgIjdNq23HLiFlaMVzG4MoehCenOIai26HrX8Ss0JJZkWF">
+</div>
+<div class="flex flex-col items-center space-y-lg w-full">
+<button class="w-full py-xs flex flex-col items-center text-white relative group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-container rounded-r-full"></div>
+<span class="material-symbols-outlined filled mb-base" data-icon="space_dashboard">space_dashboard</span>
+<span class="font-label-md text-label-md text-[10px]">Workspace</span>
+</button>
+<button class="w-full py-xs flex flex-col items-center text-white/70 hover:text-white transition-colors group">
+<span class="material-symbols-outlined mb-base" data-icon="library_books">library_books</span>
+<span class="font-label-md text-label-md text-[10px]">Library</span>
+</button>
+<button class="w-full py-xs flex flex-col items-center text-white/70 hover:text-white transition-colors group">
+<span class="material-symbols-outlined mb-base" data-icon="menu_book">menu_book</span>
+<span class="font-label-md text-label-md text-[10px]">Knowledge</span>
+</button>
+</div>
+<div class="mt-auto pb-sm w-full">
+<button class="w-full py-xs flex flex-col items-center text-white/70 hover:text-white transition-colors group">
+<span class="material-symbols-outlined mb-base" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md text-[10px]">Settings</span>
+</button>
+</div>
+</nav>
+<!-- SideNavBar Drawer -->
+<nav class="w-64 h-full fixed left-20 top-0 bg-[#006837] border-r border-[#00522a] flex flex-col px-sm py-md z-40">
+<div class="mb-xl px-sm">
+<h2 class="font-headline-md text-headline-md font-bold text-white">Workspace</h2>
+<p class="font-label-md text-label-md text-white/60 mt-base">Sesi Aktif</p>
+</div>
+<div class="flex flex-col space-y-base w-full">
+<button class="w-full flex items-center px-sm py-xs text-white/80 hover:bg-[#00522a] transition-all rounded-lg text-left">
+<span class="material-symbols-outlined mr-sm text-[20px]" data-icon="folder">folder</span>
+<span class="font-label-md text-label-md flex-1">Proyek Saat Ini</span>
+</button>
+<button class="w-full flex items-center px-sm py-xs bg-[#004d27] text-white border-l-4 border-secondary-container rounded-lg transition-all text-left">
+<span class="material-symbols-outlined filled mr-sm text-[20px]" data-icon="sticky_note_2">sticky_note_2</span>
+<span class="font-label-md text-label-md flex-1 font-semibold">Catatan Riset</span>
+</button>
+<button class="w-full flex items-center px-sm py-xs text-white/80 hover:bg-[#00522a] transition-all rounded-lg text-left">
+<span class="material-symbols-outlined mr-sm text-[20px]" data-icon="menu_book">menu_book</span>
+<span class="font-label-md text-label-md flex-1">Tinjauan Literatur</span>
+</button>
+<button class="w-full flex items-center px-sm py-xs text-white/80 hover:bg-[#00522a] transition-all rounded-lg text-left">
+<span class="material-symbols-outlined mr-sm text-[20px]" data-icon="edit_document">edit_document</span>
+<span class="font-label-md text-label-md flex-1">Draf</span>
+</button>
+<button class="w-full flex items-center px-sm py-xs text-white/80 hover:bg-[#00522a] transition-all rounded-lg text-left">
+<span class="material-symbols-outlined mr-sm text-[20px]" data-icon="archive">archive</span>
+<span class="font-label-md text-label-md flex-1">Arsip</span>
+</button>
+</div>
+<div class="mt-auto px-sm pt-md border-t border-white/20">
+<button class="w-full bg-secondary-container text-on-secondary-container hover:bg-secondary-fixed transition-colors py-xs rounded flex items-center justify-center font-label-md text-label-md">
+<span class="material-symbols-outlined mr-xs text-[18px]">add</span>
+                Entri Baru
+            </button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 ml-[336px] flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 right-0 h-16 ml-[336px] bg-surface-lowest border-b border-surface-variant flex items-center justify-between px-margin w-auto z-30">
+<div class="flex items-center space-x-lg">
+<h1 class="font-headline-md text-headline-md font-bold text-primary hidden md:block">Workspace Alpha</h1>
+<nav class="hidden md:flex space-x-md">
+<button class="font-headline-md text-headline-md text-on-surface-variant hover:text-primary transition-all text-[16px] pt-sm pb-base">Obrolan</button>
+<button class="font-headline-md text-headline-md text-on-surface-variant hover:text-primary transition-all text-[16px] pt-sm pb-base">Dokumen</button>
+<button class="font-headline-md text-headline-md text-primary border-b-2 border-primary text-[16px] pt-sm pb-base">Tugas</button>
+<button class="font-headline-md text-headline-md text-on-surface-variant hover:text-primary transition-all text-[16px] pt-sm pb-base">Sheet</button>
+<button class="font-headline-md text-headline-md text-on-surface-variant hover:text-primary transition-all text-[16px] pt-sm pb-base">Kanvas</button>
+</nav>
+</div>
+<div class="flex items-center space-x-sm">
+<!-- Search -->
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" data-icon="search">search</span>
+<input class="pl-8 pr-3 py-1 bg-surface rounded-full border border-surface-variant focus:outline-none focus:border-primary font-body-md text-body-md text-[14px] w-48 transition-colors" placeholder="Cari..." type="text">
+</div>
+<button class="p-1 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button>
+<button class="p-1 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="px-3 py-1 bg-surface text-primary border border-surface-variant rounded hover:bg-surface-container transition-colors font-label-md text-label-md ml-xs">
+                    Bagikan
+                </button>
+<button class="ml-sm rounded-full overflow-hidden w-8 h-8 border border-surface-variant">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA60NlPXo6_twFb9CYoB8iCEr5q_-u81RIxzN39zd5ATnwoYixueAdVc338goz2Ur1kn1yYAkywdRGDLAbvqK7k6cRLPKnN3T5nCPlXCCiq-bOFJ5hvjntj51vSe3KCOrV1R4Lpyud7sByF1WitccVU-G7yv5F0lwkT5YrH6-0PCDwOo0gZM8CgHfCFCf2VXxrwAhLeI4QfkDdWGCYPHOYABQaLSIVZby8Zg1-A-cLy1_CO3aumnwKqUJX6x-n46aQ3Yf8IOaOdyDY">
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 mt-16 p-margin overflow-x-auto bg-surface-bright/50">
+<!-- Page Header -->
+<div class="flex items-center justify-between mb-lg w-full max-w-6xl mx-auto">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-background">Manajemen Tugas</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Workspace Riset AI</p>
+</div>
+<div class="flex items-center space-x-sm">
+<button class="flex items-center space-x-xs px-sm py-xs bg-surface text-primary border border-surface-variant hover:border-primary transition-colors rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+<span>Generate tugas dari chat</span>
+</button>
+<div class="flex bg-surface rounded border border-surface-variant overflow-hidden">
+<button class="px-2 py-1 bg-surface-container-high text-primary"><span class="material-symbols-outlined text-[20px]">view_kanban</span></button>
+<button class="px-2 py-1 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">view_list</span></button>
+</div>
+</div>
+</div>
+<!-- Kanban Board -->
+<div class="flex space-x-md w-full max-w-6xl mx-auto h-[calc(100vh-200px)] items-start">
+<!-- Column: Belum dikerjakan -->
+<div class="flex flex-col w-1/3 bg-surface border border-surface-variant rounded-lg p-sm h-full max-h-full">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-md text-label-md text-on-background flex items-center">
+<span class="w-2 h-2 rounded-full bg-outline-variant mr-2"></span>
+                            Belum dikerjakan <span class="ml-2 text-on-surface-variant text-[12px] bg-surface-container px-1.5 py-0.5 rounded">2</span>
+</h3>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-sm pr-1">
+<!-- Task Card -->
+<div class="bg-surface-bright border border-surface-variant rounded p-sm shadow-sm hover:border-primary/50 transition-colors group cursor-pointer">
+<div class="flex items-start justify-between mb-xs">
+<p class="font-body-md text-body-md text-[14px] leading-tight text-on-surface">Kumpulkan literatur tentang model bahasa besar dalam pendidikan</p>
+<button class="text-surface-variant group-hover:text-primary transition-colors mt-0.5">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+</button>
+</div>
+<div class="flex items-center justify-between mt-md">
+<span class="bg-surface-container-low text-on-surface-variant text-[11px] font-label-md px-2 py-0.5 rounded border border-surface-variant flex items-center">
+<span class="material-symbols-outlined text-[12px] mr-1">calendar_today</span> 12 Okt
+                                </span>
+<div class="w-6 h-6 rounded-full overflow-hidden border border-surface-variant">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVIEDyKAY3V_DFkhx2giOhOPxg4eB4X34Pw6XLwT3sgZYuFzCrmVU6_8HF8dcpR5_1hCGFjJchvRpLCJO5X67unkCdxwqHgXROCpUmHKIjRR4aUlEczyFRh2ng6HfBZtkvzUzKazH9k7_xNSXB2NnGR4QvVOM6bnZY1bRCD6WgOgbgRwxFQpyxOsvbaTiGuvT2VfgVF4I3CU3m-1VYKNFpEveQzda1pLcWJQ6n0bqtz7LFFsiyYrZ2n-iltzmaoY1WK4UjETcMdufK">
+</div>
+</div>
+</div>
+<!-- Task Card -->
+<div class="bg-surface-bright border border-surface-variant rounded p-sm shadow-sm hover:border-primary/50 transition-colors group cursor-pointer">
+<div class="flex items-start justify-between mb-xs">
+<p class="font-body-md text-body-md text-[14px] leading-tight text-on-surface">Rancang struktur basis data awal untuk penyimpanan abstrak</p>
+<button class="text-surface-variant group-hover:text-primary transition-colors mt-0.5">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+</button>
+</div>
+<div class="flex items-center justify-between mt-md">
+<span class="bg-surface-container-low text-error text-[11px] font-label-md px-2 py-0.5 rounded border border-error/20 flex items-center">
+<span class="material-symbols-outlined text-[12px] mr-1 text-error">calendar_today</span> Hari Ini
+                                </span>
+<div class="w-6 h-6 rounded-full overflow-hidden border border-surface-variant bg-surface-container flex items-center justify-center font-label-md text-[10px] text-on-surface-variant">
+                                    AK
+                                </div>
+</div>
+</div>
+</div>
+<button class="mt-sm w-full py-2 border border-dashed border-surface-variant text-on-surface-variant hover:border-primary hover:text-primary transition-colors rounded font-label-md text-label-md flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px] mr-1">add</span> Tambah Tugas Baru
+                    </button>
+</div>
+<!-- Column: Sedang berjalan -->
+<div class="flex flex-col w-1/3 bg-surface border border-surface-variant rounded-lg p-sm h-full max-h-full">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-md text-label-md text-on-background flex items-center">
+<span class="w-2 h-2 rounded-full bg-secondary-container mr-2"></span>
+                            Sedang berjalan <span class="ml-2 text-on-surface-variant text-[12px] bg-surface-container px-1.5 py-0.5 rounded">1</span>
+</h3>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-sm pr-1">
+<!-- Task Card -->
+<div class="bg-surface-bright border border-primary/30 rounded p-sm shadow-sm hover:border-primary transition-colors group cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-secondary-container"></div>
+<div class="flex items-start justify-between mb-xs pl-1">
+<p class="font-body-md text-body-md text-[14px] leading-tight text-on-surface">Latih model klasifikasi teks pada dataset awal</p>
+<button class="text-surface-variant group-hover:text-primary transition-colors mt-0.5">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+</button>
+</div>
+<div class="pl-1 mt-2">
+<div class="w-full bg-surface-container-highest rounded-full h-1.5">
+<div class="bg-secondary-container h-1.5 rounded-full" style="width: 45%"></div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-md pl-1">
+<span class="bg-surface-container-low text-on-surface-variant text-[11px] font-label-md px-2 py-0.5 rounded border border-surface-variant flex items-center">
+<span class="material-symbols-outlined text-[12px] mr-1">calendar_today</span> 15 Okt
+                                </span>
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full overflow-hidden border-2 border-surface-bright relative z-10">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeeAB16olNX58vbasxOamI417qck4aKMWAzcWPRRyHO30dEzdEUV42obVmrQqUhIQQnJhDm1x7-nAxt4BLdLWvA4f9V_f3jOwvi_wouTtzRL-l_SdEYFUCKlGJxpJZthzgXEVV6-5Fy_NUPkppO7ZtEVyvk6tUEAFLiPxVmlR-hFiJdXUOuBDrk_mTf1i64qoCSo5hcoYAg4BxHpvXW-GCxEoGKnEdvubcQph40iJSjak0dNwivPpD-y0UDB-jzpksx5KDjp1Q9An9">
+</div>
+<div class="w-6 h-6 rounded-full overflow-hidden border-2 border-surface-bright relative z-0 bg-primary-container flex items-center justify-center font-label-md text-[10px] text-on-primary-container">
+                                        AI
+                                    </div>
+</div>
+</div>
+</div>
+</div>
+<button class="mt-sm w-full py-2 border border-dashed border-surface-variant text-on-surface-variant hover:border-primary hover:text-primary transition-colors rounded font-label-md text-label-md flex items-center justify-center opacity-50">
+<span class="material-symbols-outlined text-[16px] mr-1">add</span> Tambah
+                    </button>
+</div>
+<!-- Column: Selesai -->
+<div class="flex flex-col w-1/3 bg-surface/50 border border-surface-variant rounded-lg p-sm h-full max-h-full">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-md text-label-md text-on-surface-variant flex items-center">
+<span class="w-2 h-2 rounded-full bg-primary-fixed-dim mr-2"></span>
+                            Selesai <span class="ml-2 text-on-surface-variant text-[12px] bg-surface-container px-1.5 py-0.5 rounded">1</span>
+</h3>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-sm pr-1">
+<!-- Task Card -->
+<div class="bg-surface-bright/50 border border-surface-variant/50 rounded p-sm group cursor-default opacity-70">
+<div class="flex items-start justify-between mb-xs">
+<p class="font-body-md text-body-md text-[14px] leading-tight text-on-surface-variant line-through decoration-surface-variant">Setup repositori git dan environment development</p>
+<span class="text-primary-fixed-dim mt-0.5">
+<span class="material-symbols-outlined filled text-[18px]">check_circle</span>
+</span>
+</div>
+<div class="flex items-center justify-between mt-md">
+<span class="text-on-surface-variant text-[11px] font-label-md flex items-center">
+                                    Selesai 9 Okt
+                                </span>
+<div class="w-6 h-6 rounded-full overflow-hidden border border-surface-variant grayscale">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDV_rhjkKSZ5ulNJX4T1zd0kHSWJ6yV4g8iXpVyt1eD1a1cCcF4A-VL3aywFG4Xb-tLdiaqcyaF5cdc69R8YDiepQqmanKaOc7JQTGSbCK_hqCzt5WkpltNcuEGilAChjl8Oo2Tyawfi40KBliQwJY8TKN5_B3FQ4JwUBgu-kq2M5nJVvwuio3MuGAer3ujOzCk5SXnfkKjIo5Kb2w_YnaLalYauo9CZBdKW-Eln47-dneFfY5Ads4gmm4ifevT3itMdiqmJQIV_jW">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

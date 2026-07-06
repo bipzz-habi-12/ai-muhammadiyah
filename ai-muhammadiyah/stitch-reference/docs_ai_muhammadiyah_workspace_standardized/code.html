@@ -1,0 +1,313 @@
+<!DOCTYPE html><html lang="id" style="width: 1280px; height: 1493px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Docs - AI Muhammadiyah Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#83d99c",
+                        "surface-dim": "#d9dadb",
+                        "tertiary-container": "#4851aa",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary-fixed-variant": "#00522a",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#9ef6b6",
+                        "secondary-fixed": "#ffdf9e",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed": "#e0e0ff",
+                        "surface-container": "#edeeef",
+                        "primary": "#006837",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed-variant": "#343d96",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5b4300",
+                        "on-primary-fixed": "#00210e",
+                        "on-background": "#191c1d",
+                        "secondary-fixed-dim": "#fabd00",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e7e8e9",
+                        "surface-bright": "#f8f9fa",
+                        "primary-container": "#006837",
+                        "on-secondary-container": "#6c5000",
+                        "surface-tint": "#006837",
+                        "on-primary-container": "#8ee4a6",
+                        "inverse-primary": "#83d99c",
+                        "secondary": "#785900",
+                        "on-tertiary-fixed": "#000767",
+                        "on-tertiary-container": "#cbceff",
+                        "secondary-container": "#fdc003",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#3f4940",
+                        "outline": "#6f7a70",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2e3132",
+                        "surface-container-highest": "#e1e3e4",
+                        "background": "#f8f9fa",
+                        "outline-variant": "#bec9be",
+                        "on-secondary-fixed": "#261a00",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#2f3891"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "16px",
+                        "xs": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "base": "4px",
+                        "md": "24px",
+                        "margin": "32px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "code": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); color: theme('colors.on-background'); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="font-body-md text-body-md h-screen w-screen overflow-hidden flex bg-surface-bright">
+<!-- Rail SideNavBar -->
+<nav class="w-20 h-full fixed left-0 top-0 bg-primary border-r border-primary/20 flex flex-col items-center py-sm space-y-md z-40">
+<div class="mb-lg flex flex-col items-center">
+<div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-primary mb-2 shadow-sm">
+<span class="material-symbols-outlined font-headline-md text-headline-md font-bold">menu_book</span>
+</div>
+<span class="font-label-md text-label-md text-white text-[10px] text-center leading-tight">AI<br>Muhammadiyah</span>
+</div>
+<!-- Active Tab: Workspace -->
+<a class="flex flex-col items-center group relative w-14 h-14 justify-center rounded-xl bg-black/20 hover:bg-black/30 transition-colors scale-95 transition-transform duration-150" href="#">
+<div class="absolute left-0 h-8 w-1 bg-secondary rounded-r-full"></div>
+<span class="material-symbols-outlined fill text-white text-2xl mb-1">space_dashboard</span>
+<span class="font-label-md text-label-md text-white text-[10px]">Workspace</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="flex flex-col items-center group relative w-14 h-14 justify-center rounded-xl hover:bg-black/10 transition-colors scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-white/70 text-2xl mb-1 group-hover:text-white transition-colors">library_books</span>
+<span class="font-label-md text-label-md text-white/70 text-[10px] group-hover:text-white transition-colors">Library</span>
+</a>
+<a class="flex flex-col items-center group relative w-14 h-14 justify-center rounded-xl hover:bg-black/10 transition-colors scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-white/70 text-2xl mb-1 group-hover:text-white transition-colors">menu_book</span>
+<span class="font-label-md text-label-md text-white/70 text-[10px] group-hover:text-white transition-colors">Knowledge</span>
+</a>
+<div class="mt-auto pt-lg space-y-md w-full flex flex-col items-center">
+<div class="w-10 h-px bg-white/20 mb-4"></div>
+<a class="flex flex-col items-center group relative w-14 h-14 justify-center rounded-xl hover:bg-black/10 transition-colors scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-white/70 text-2xl mb-1 group-hover:text-white transition-colors">settings</span>
+<span class="font-label-md text-label-md text-white/70 text-[10px] group-hover:text-white transition-colors">Settings</span>
+</a>
+<img class="w-10 h-10 rounded-full border border-white/20 object-cover mb-4" data-alt="Professional avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDm3xDVo93Qu2XOjnn4hd9d9eYAGfUqWQApdyaN-QRr0Io54_Oo29zrylQCYAhRBgV6vK0_KAD18sI4OF9lAMXbWs1fjB3yYp_rvrK3-ARTlCrTLDukW9aUmGziVd4iO6WDy-Aw9J7uC3H0jLYk6BlGCcuOGEwPtLFpQMyQufYOaYmGrhXkXK1i4FCeF02Ht15YkvyhEjua7chCuX11is4PravfW6VS2M7XfAWNpORvbUiBCNYDmekzxJsb1l59d-zbckHA7vb8OaaU">
+</div>
+</nav>
+<!-- Drawer SideNavBar -->
+<nav class="w-64 h-full fixed left-20 top-0 bg-surface border-r border-surface-variant flex flex-col px-sm py-md z-30">
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">Workspace</h2>
+<p class="font-label-md text-label-md text-on-surface-variant">Active Session</p>
+</div>
+<button class="w-full bg-primary text-on-primary py-2 px-4 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 mb-md hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">add</span>
+            New Entry
+        </button>
+<div class="flex-1 overflow-y-auto hide-scrollbar space-y-1">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase text-xs tracking-wider mb-2 mt-4 px-2">Folders</p>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary transition-opacity font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg fill">folder</span>
+                Current Project
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg">sticky_note_2</span>
+                Research Notes
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg">menu_book</span>
+                Literature Review
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg">edit_document</span>
+                Drafts
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-lg">archive</span>
+                Archive
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col ml-[344px] h-full relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 right-0 h-16 ml-[344px] bg-surface-container-lowest border-b border-surface-variant flex items-center justify-between px-margin z-20">
+<div class="flex items-center gap-md">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Workspace Alpha</h1>
+<span class="px-2 py-1 bg-surface-container-high rounded text-xs font-label-md text-on-surface-variant border border-surface-variant">Software Engineering</span>
+</div>
+<!-- Navigation Links -->
+<nav class="hidden md:flex items-center gap-md h-full">
+<a class="h-full flex items-center px-2 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all relative" href="#">
+                    Chat
+                </a>
+<a class="h-full flex items-center px-2 font-label-md text-label-md text-primary border-b-2 border-primary transition-all relative font-medium" href="#">
+                    Docs
+                </a>
+<a class="h-full flex items-center px-2 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all relative" href="#">
+                    Tasks
+                </a>
+<a class="h-full flex items-center px-2 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all relative" href="#">
+                    Sheets
+                </a>
+<a class="h-full flex items-center px-2 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-all relative" href="#">
+                    Canvas
+                </a>
+</nav>
+<div class="flex items-center gap-sm">
+<div class="relative hidden lg:block mr-2">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-9 pr-4 py-1.5 rounded-full border border-surface-variant bg-surface-bright text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-48 transition-all" placeholder="Search Docs..." type="text">
+</div>
+<button class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg">history</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-on-surface-variant relative">
+<span class="material-symbols-outlined text-lg">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="px-4 py-1.5 rounded-lg border border-surface-variant text-on-surface font-label-md text-label-md hover:bg-surface-container transition-colors ml-2">
+                    Share
+                </button>
+</div>
+</header>
+<!-- Two-Pane Layout -->
+<main class="flex-1 flex mt-16 h-[calc(100vh-64px)] overflow-hidden">
+<!-- Left Pane: Document List -->
+<aside class="w-80 h-full border-r border-surface-variant bg-surface-bright flex flex-col">
+<div class="p-4 border-b border-surface-variant flex flex-col gap-3">
+<button class="w-full border border-surface-variant bg-surface hover:bg-surface-container text-on-surface py-2 px-4 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+                        Dokumen baru
+                    </button>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full pl-9 pr-4 py-2 rounded-lg border border-surface-variant bg-surface text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Filter documents..." type="text">
+</div>
+</div>
+<div class="flex-1 overflow-y-auto hide-scrollbar p-2 space-y-1">
+<!-- Active Doc -->
+<div class="p-3 rounded-lg bg-surface-container border border-surface-variant cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-1 pl-2">
+<h3 class="font-label-md text-label-md text-on-surface truncate pr-2 font-medium">Laporan Riset AI &amp; Etika</h3>
+<span class="text-[10px] text-on-surface-variant whitespace-nowrap">Today</span>
+</div>
+<p class="text-xs text-on-surface-variant line-clamp-2 pl-2">Analisis komprehensif mengenai penerapan kecerdasan buatan dalam koridor etika Islam dan dampaknya terhadap masyarakat modern.</p>
+<div class="flex items-center gap-1 mt-2 pl-2">
+<span class="material-symbols-outlined text-[14px] text-primary">description</span>
+<span class="text-[10px] text-primary font-medium">Active</span>
+</div>
+</div>
+<!-- Inactive Docs -->
+<div class="p-3 rounded-lg hover:bg-surface-container border border-transparent hover:border-surface-variant cursor-pointer transition-colors group">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-label-md text-label-md text-on-surface truncate pr-2">Draft Panduan Pengguna</h3>
+<span class="text-[10px] text-on-surface-variant whitespace-nowrap">Yesterday</span>
+</div>
+<p class="text-xs text-on-surface-variant line-clamp-2">Dokumentasi awal untuk platform AI Muhammadiyah, mencakup fitur utama dan alur kerja untuk pengguna baru.</p>
+<div class="flex items-center gap-1 mt-2">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant group-hover:text-primary transition-colors">description</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Right Pane: Document Editor -->
+<section class="flex-1 overflow-y-auto bg-surface relative flex justify-center">
+<!-- Floating Toolbar -->
+<div class="fixed top-24 left-[50%] ml-[60px] -translate-x-1/2 bg-surface-container-lowest border border-surface-variant rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.04)] px-4 py-2 flex items-center gap-1 z-10 transition-transform duration-200 opacity-90 hover:opacity-100">
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm font-bold">format_bold</span></button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">format_italic</span></button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">format_underlined</span></button>
+<div class="w-px h-5 bg-surface-variant mx-1"></div>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">format_list_bulleted</span></button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">format_list_numbered</span></button>
+<div class="w-px h-5 bg-surface-variant mx-1"></div>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">format_quote</span></button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">link</span></button>
+<div class="w-px h-5 bg-surface-variant mx-1"></div>
+<button class="px-3 py-1 bg-surface-container-low border border-surface-variant text-on-surface-variant font-label-md text-xs rounded hover:bg-surface-container transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">edit</span> Edit
+                    </button>
+</div>
+<!-- Document Canvas -->
+<div class="w-full max-w-[800px] px-xl py-24 pb-32">
+<div class="flex justify-between items-start mb-8">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant mb-2">Workspace &gt; Current Project &gt; Research</p>
+<h1 class="font-display text-display font-bold text-on-surface outline-none">Laporan Riset AI &amp; Etika</h1>
+</div>
+</div>
+<div class="mb-8 flex gap-2">
+<span class="px-2 py-1 bg-surface-container rounded font-code text-code text-xs text-on-surface-variant">Draft</span>
+<span class="px-2 py-1 bg-surface-container rounded font-code text-code text-xs text-on-surface-variant">Updated 2h ago</span>
+</div>
+<button class="mb-12 border border-primary text-primary px-4 py-2 rounded-lg font-label-md text-label-md hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors flex items-center gap-2 group">
+<span class="material-symbols-outlined text-sm group-hover:rotate-12 transition-transform">auto_awesome</span>
+                        Generate dari chat ini
+                    </button>
+<!-- Content -->
+<div class="prose prose-p:font-body-lg prose-p:text-body-lg prose-p:text-on-surface prose-p:leading-relaxed prose-headings:font-headline-lg prose-headings:text-on-surface prose-headings:mt-10 prose-headings:mb-4 outline-none">
+<p class="mb-6 text-on-surface-variant text-xl leading-relaxed">Penelitian ini mengeksplorasi persimpangan antara pengembangan Kecerdasan Buatan (AI) modern dan prinsip-prinsip etika Islam, dengan fokus khusus pada keadilan algoritma dan transparansi model pembelajaran mesin.</p>
+<h2 class="font-headline-lg text-headline-lg font-semibold mb-4 mt-8">1. Pendahuluan</h2>
+<p class="mb-4">Perkembangan pesat teknologi kecerdasan buatan membawa tantangan baru dalam ranah moral dan etika. Sistem otomatis kini mengambil keputusan yang memengaruhi kehidupan manusia dalam skala yang belum pernah terjadi sebelumnya. Oleh karena itu, penting untuk memastikan bahwa teknologi ini dikembangkan dan diterapkan dengan mengacu pada nilai-nilai kemanusiaan universal yang sejalan dengan Maqashid al-Syariah<sup class="text-tertiary font-bold text-xs cursor-pointer ml-1 hover:underline">1</sup>.</p>
+<div class="my-8 p-6 rounded-xl border border-surface-variant bg-surface-container-low border-l-4 border-l-primary relative">
+<span class="material-symbols-outlined absolute top-4 left-4 text-primary opacity-20 text-4xl">format_quote</span>
+<p class="italic text-on-surface-variant pl-8 relative z-10">"Teknologi bukanlah entitas yang bebas nilai; ia mewarisi bias dan niat dari penciptanya. Tugas kita adalah menanamkan kebijaksanaan ke dalam struktur logika tersebut."</p>
+</div>
+<h2 class="font-headline-lg text-headline-lg font-semibold mb-4 mt-8">2. Keadilan dalam Algoritma</h2>
+<p class="mb-4">Salah satu isu krusial adalah bias algoritmik. Data latih (training data) yang digunakan untuk membangun model seringkali mencerminkan ketidaksetaraan historis. Jika tidak dimitigasi, AI dapat memperkuat diskriminasi. Dalam kerangka etika Islam, konsep 'Adl (Keadilan) menuntut agar sistem yang dibuat manusia tidak menzalimi pihak manapun.</p>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>
