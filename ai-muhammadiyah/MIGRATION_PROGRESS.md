@@ -8,7 +8,7 @@ Pendekatan: ekstrak **satu hook per langkah**, kecil dan aman, bukan big-bang re
 
 Analisis arsitektur awal (peta lengkap semua state/fungsi sebelum migrasi dimulai) ada di riwayat percakapan sesi sebelumnya — dokumen ini fokus ke **status & rencana**, bukan mengulang analisis itu.
 
-## Status: Langkah 1–5 SELESAI (sudah di-test manual + commit)
+## Status: Langkah 1–7 SELESAI (sudah di-test manual + commit)
 
 | # | Commit | Isi |
 |---|---|---|
@@ -17,26 +17,14 @@ Analisis arsitektur awal (peta lengkap semua state/fungsi sebelum migrasi dimula
 | 3 | `7df0e2b` Extract useWorkspaces hook | `hooks/useWorkspaces.ts` — state `workspaces`, `selectedWorkspaceId`, `newWorkspaceName`, `isCreatingWorkspace` + fungsi `loadWorkspaces`, `createWorkspace`. Menerima `setHistoryError` sebagai parameter callback (bukan hook error sendiri). |
 | 4 | `8763060` Extract useKnowledgeBase hook | `hooks/useKnowledgeBase.ts` — 8 state knowledge (`knowledgeSources`, `isKnowledgeAdmin`, `isLoadingKnowledge`, `isUploadingKnowledge`, `knowledgeTitle`, `knowledgeCategory`, `knowledgeMessage`, `knowledgeError`) + `hasLoadedKnowledgeRef` + fungsi `loadKnowledge`, `handleKnowledgeUpload`. Effect lazy-load (trigger saat tab Settings > Knowledge Base dibuka) **tetap di `page.tsx`** karena depend ke `activeSettingsTab`/`isSettingsOpen` (domain settings-shell, belum diekstrak) — hook cuma expose `loadKnowledge`, `isLoadingKnowledge`, `hasLoadedKnowledgeRef`. |
 | 5 | `bafe39a` Extract useUsage hook | `hooks/useUsage.ts` — state `usageSnapshot`, `usageError` + fungsi `loadUsage` + derived `currentTierLabel`, `allowedModels`, `currentPlan`, `hasMessageQuota`, `hasUploadQuota`. Ketiga call site `loadUsage()` (initial load, setelah upload dokumen, setelah `sendMessage` selesai) **tetap di `page.tsx`**, tidak berubah. `loadLearningProfile`/`saveLearningProfile` **sengaja tidak diikutkan** — meski keduanya juga menulis balik ke `selectedModel`/`selectedSkillId`, itu berdasarkan `learningProfile` (data preferensi tersimpan), bukan status kuota/tier, jadi tetap domain `useUserMemory` (langkah 8). Kopling ke `selectedModel`/`selectedSkillId` diselesaikan dengan hook menerima `skillsRef`, `setSelectedModel`, `setSelectedSkillId` sebagai parameter (bukan import hook lain) — lihat catatan kopling di bawah. |
+| 6 | `88afa43` Extract useSkills hook + split useUsage | `hooks/useSkills.ts` (baru) — state `skills`, `skillsLoading`, `selectedSkillId`, ref `skillsRef` + fungsi `loadSkills`, `selectSkill` + derived `selectedSkill`, `selectedSkillBadge`, plus effect fallback-pilih-skill-pertama, sync `skillsRef`, dan persist `localStorage` key `ai-mu-study-mode`. Menerima `tier` & `setIsStudyModeMenuOpen` sebagai parameter. **`hooks/useUsage.ts` dipecah** jadi `useUsage()` (lapis data murni, zero params) + `applyUsageConstraints()` (fungsi biasa, bukan hook, menerima `skillsRef`/setter sebagai parameter) — ini menyelesaikan circular dependency asli antara `useUsage` butuh `skillsRef` dan `useSkills` butuh `tier` dari `useUsage`. Urutan final: `useUsage()` → `useSkills(tier)` → compose ulang `loadUsage`. Known issue baru ditemukan (bukan regresi, dikonfirmasi pre-existing via `git stash`): skill revert ke default setelah reload — lihat bagian "Known Issues". |
+| 7 | (commit ini) Extract useModelSelection hook | `hooks/useModelSelection.ts` (baru) — state `selectedModel`, `isModelMenuOpen`, `isUpgradeOpen`, `upgradeTargetModel` + fungsi `selectModel`, `openUpgradeModal` + derived `selectedModelInfo`, `upgradePlan`. Tidak ada effect yang ikut pindah (beda dari `useSkills`). Terima `allowedModels` (dari `useUsage`) sebagai parameter. Wrapper `loadUsage` di `page.tsx` dikomposisi ulang supaya `applyUsageConstraints` menerima `setSelectedModel` dari hook baru ini (bukan lagi `useState` lokal) — `applyUsageConstraints` sendiri di `hooks/useUsage.ts` tidak berubah. JSX modal upgrade (jauh dari definisi hook) dan 3 titik cross-toggle inline antara model-menu/study-mode-menu tetap jalan tanpa edit karena semua variabel di-destructure ke scope `page.tsx` yang sama. |
 
-Semua langkah di atas: `tsc --noEmit` bersih, `npm run build` sukses, `npm run lint` bersih, dan sudah di-test manual di browser (login/logout, buat workspace baru, upload & hapus knowledge source test, dan untuk langkah 5: badge tier, pengurangan kuota pesan/upload harian, tombol disable saat kuota habis, auto-reset model di luar allowed list, tampilan tab Settings > Subscription).
+Semua langkah di atas: `tsc --noEmit` bersih, `npm run build` sukses, `npm run lint` bersih, dan sudah di-test manual di browser (login/logout, buat workspace baru, upload & hapus knowledge source test; langkah 5: badge tier, pengurangan kuota pesan/upload harian, tombol disable saat kuota habis, auto-reset model di luar allowed list, tampilan tab Settings > Subscription; langkah 6: dropdown skill, badge & lock icon per tier, redirect ke `/plans` untuk skill terkunci, fallback pilih skill pertama, regresi kuota-habis; langkah 7: dropdown model, lock icon + modal upgrade untuk model terkunci, cross-toggle model-menu/study-mode-menu, regresi kuota-habis, load percakapan lama, save/load Learning Profile).
 
-## Sisa Langkah 6–12 (urutan disepakati, belum dikerjakan)
+## Sisa Langkah 8–12 (urutan disepakati, belum dikerjakan)
 
 Urutan ini sengaja menaruh hook yang **paling sedikit bergantung ke hook lain** duluan, dan `useChatSession` (paling gemuk & paling banyak dependency) di posisi kedua-dari-akhir.
-
-### 6. `useSkills(tier)`
-- State: `skills`, `skillsLoading`, `selectedSkillId`, ref `skillsRef`
-- Fungsi: `loadSkills`, `selectSkill`
-- Effect yang ikut pindah: fallback pilih skill pertama saat `skills` termuat tapi belum ada yang terpilih; sync `skillsRef.current = skills`; persist `selectedSkillId` ke `localStorage` key `ai-mu-study-mode`
-- Derived: `selectedSkill`, `selectedSkillBadge`
-- Terima `tier` (dari `useUsage`, yaitu `usageSnapshot?.tier`) sebagai parameter untuk `canAccessTier`/`resolveAllowedSkill`
-- `selectSkill` butuh `router.push("/plans")` untuk redirect kalau skill terkunci — `router` tetap dari `useRouter()` biasa di dalam hook.
-- ⚠️ **Urutan pemanggilan hook berubah di langkah ini.** Setelah `useUsage` (langkah 5) sudah jadi, ia menerima `skillsRef` & `setSelectedSkillId` sebagai parameter dari `page.tsx`. Begitu `skillsRef`/`selectedSkillId`/`setSelectedSkillId` pindah ke dalam `useSkills`, urutan pemanggilan di `page.tsx` harus jadi: **panggil `useSkills()` dulu**, baru oper `skillsRef` & `setSelectedSkillId` hasil return-nya sebagai argumen ke `useUsage(...)` — kebalikan dari urutan "yang di-consume duluan dipanggil duluan" yang biasanya dipakai. Jangan lupa update argumen pemanggilan `useUsage(...)` di `page.tsx` supaya tidak lagi memakai `skillsRef`/`setSelectedSkillId` versi lokal punya page.tsx (karena sudah tidak ada di sana).
-
-### 7. `useModelSelection(allowedModels)`
-- State: `selectedModel`, `isModelMenuOpen`, `isUpgradeOpen`, `upgradeTargetModel`
-- Fungsi: `selectModel`, `openUpgradeModal`
-- Terima `allowedModels` (dari `useUsage`) sebagai parameter
 
 ### 8. `useUserMemory(userId, skills)`
 - State: `learningProfile`, `profileDraft`, `favoriteSubjectsDraft`, `isSavingProfile`, `profileError`, `profileSavedMessage`
@@ -76,10 +64,15 @@ Urutan ini sengaja menaruh hook yang **paling sedikit bergantung ke hook lain** 
 
 **`loadUsage`, `loadLearningProfile`, dan `saveLearningProfile` menulis balik ke `selectedModel` dan `selectedSkillId`** (reset ke default kalau nilai saat ini di luar allowed list untuk tier/paket user). Ini kopling lintas-domain yang sudah ada dari awal, bukan sesuatu yang diperkenalkan migrasi ini.
 
-Aturan yang dipakai sejauh ini dan **harus tetap dipakai** di langkah 6-12:
+**Kondisi final setelah langkah 5-7** (bukan lagi asumsi transisional — ini yang benar-benar terpasang di kode sekarang):
+- `hooks/useUsage.ts` punya 2 export: `useUsage()` (lapis data murni, **zero parameter**, isinya cuma fetch + state `usageSnapshot`/`usageError` + derived `currentTierLabel`/`allowedModels`/`currentPlan`/`hasMessageQuota`/`hasUploadQuota`) dan `applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId)` (**fungsi biasa, bukan hook** — tidak makai `useState`/`useEffect` sendiri, cuma menerima setter dari domain lain lewat parameter).
+- Urutan pemanggilan hook final di `page.tsx`: **`useUsage()` dulu** (tidak butuh apa-apa dari hook lain) → `usageSnapshot?.tier` & `allowedModels` tersedia dari return-nya → `useSkills(tier, setIsStudyModeMenuOpen)` dan `useModelSelection(allowedModels)` (keduanya independen satu sama lain, urutan relatif bebas) → baru `page.tsx` mengomposisi ulang wrapper `loadUsage` yang memanggil `applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId)` memakai `skillsRef`/`setSelectedSkillId` dari `useSkills` dan `setSelectedModel` dari `useModelSelection`.
+- Prinsip di balik desain ini: kalau hook A butuh menulis ke state yang dimiliki hook B, **A tidak boleh menerima setter B sebagai parameter constructor-nya sendiri** (itu yang menciptakan circular dependency di langkah 6). Sebagai gantinya, A dipecah jadi lapis data (zero/minimal parameter) + fungsi biasa yang menerima setter sebagai argumen saat **dipanggil**, bukan saat hook itu sendiri di-invoke. Komposisi lintas-domain terjadi di `page.tsx` (lewat wrapper seperti `loadUsage`), bukan di dalam hook manapun.
+
+Aturan yang dipakai sejauh ini dan **harus tetap dipakai** di langkah 8-12:
 - **Jangan** hook A meng-import hook B langsung (hindari circular dependency dan hook yang diam-diam tahu terlalu banyak tentang domain lain).
-- Kalau hook A perlu memicu efek di domain B, **A menerima fungsi/setter dari B sebagai parameter/callback**, dipanggil dari `page.tsx` yang menggabungkan semuanya. Pola ini sudah dipakai di `useWorkspaces(setHistoryError)`, `useKnowledgeBase()` (yang effect-nya sengaja tidak ikut pindah karena butuh state dari domain settings-shell), dan `useUsage(skillsRef, setSelectedModel, setSelectedSkillId)`.
-- Urutan pemanggilan hook di `page.tsx` penting: hook yang **menerima** parameter dari hook lain harus dipanggil setelah hook sumber parameter itu — bukan berdasarkan "siapa lebih fundamental". Contoh nyata: setelah langkah 6 (`useSkills`), urutannya jadi `useSkills()` dulu baru `useUsage(...)`, karena `useUsage` butuh `skillsRef`/`setSelectedSkillId` yang sekarang dimiliki `useSkills` (lihat catatan di langkah 6 di atas) — kebalikan dari kesan awal bahwa `useUsage` "dikonsumsi duluan".
+- Kalau hook A perlu memicu efek di domain B, **A menerima fungsi/setter dari B sebagai parameter/callback**, dipanggil dari `page.tsx` yang menggabungkan semuanya. Pola ini sudah dipakai di `useWorkspaces(setHistoryError)`, `useKnowledgeBase()` (yang effect-nya sengaja tidak ikut pindah karena butuh state dari domain settings-shell), `useSkills(tier, setIsStudyModeMenuOpen)`, dan `applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId)`.
+- Kalau ternyata ada kebutuhan **dua arah** (hook A butuh data dari B, B butuh setter dari A) seperti kasus `useUsage`/`useSkills` di langkah 6: pecah salah satu hook jadi lapis data (zero/minimal parameter, bisa dipanggil kapan saja) + fungsi komposisi terpisah yang dipanggil belakangan di `page.tsx` — jangan paksakan urutan pemanggilan untuk "menyelesaikan" circular dependency asli, itu tidak akan bisa.
 
 ## Known Issues (Pre-existing, Belum Diperbaiki)
 

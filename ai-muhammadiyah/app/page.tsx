@@ -6,6 +6,7 @@ import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { useModelSelection } from "@/hooks/useModelSelection";
 import { useSkills } from "@/hooks/useSkills";
 import { applyUsageConstraints, useUsage } from "@/hooks/useUsage";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
@@ -46,7 +47,6 @@ import {
 } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
-  getUpgradePlanForModel,
   modelCatalog,
   subscriptionPlans,
   type PlanModelId,
@@ -244,13 +244,8 @@ export default function Home() {
   const [composerNotice, setComposerNotice] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
-  const [upgradeTargetModel, setUpgradeTargetModel] =
-    useState<SelectedModel>("smart");
   const [learningProfile, setLearningProfile] =
     useState<UserMemory>(emptyUserMemory);
   const [profileDraft, setProfileDraft] = useState<UserMemory>(emptyUserMemory);
@@ -306,6 +301,18 @@ export default function Home() {
     selectedSkill,
     selectedSkillBadge,
   } = useSkills(usageSnapshot?.tier, setIsStudyModeMenuOpen);
+  const {
+    selectedModel,
+    setSelectedModel,
+    isModelMenuOpen,
+    setIsModelMenuOpen,
+    isUpgradeOpen,
+    setIsUpgradeOpen,
+    upgradeTargetModel,
+    selectedModelInfo,
+    upgradePlan,
+    selectModel,
+  } = useModelSelection(allowedModels);
   const loadUsage = useCallback(async () => {
     const snapshot = await loadUsageSnapshot();
     applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId);
@@ -326,8 +333,6 @@ export default function Home() {
       ),
     [activeConversationId, conversations],
   );
-  const selectedModelInfo = modelCatalog[selectedModel];
-  const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
   const profileLabel = useMemo(
     () =>
       learningProfile.displayName ||
@@ -386,7 +391,7 @@ export default function Home() {
         setProfileError("Learning Profile belum bisa dimuat.");
       }
     },
-    [setSelectedSkillId, skillsRef, supabase],
+    [setSelectedModel, setSelectedSkillId, skillsRef, supabase],
   );
 
   useEffect(() => {
@@ -836,22 +841,6 @@ export default function Home() {
     setRenamingConversationId("");
     setRenameValue("");
     setSharePreview("");
-  }
-
-  function openUpgradeModal(model: SelectedModel = "smart") {
-    setUpgradeTargetModel(model);
-    setIsUpgradeOpen(true);
-    setIsModelMenuOpen(false);
-  }
-
-  function selectModel(model: SelectedModel) {
-    if (!allowedModels.includes(model)) {
-      openUpgradeModal(model);
-      return;
-    }
-
-    setSelectedModel(model);
-    setIsModelMenuOpen(false);
   }
 
   async function loadConversation(conversation: Conversation) {
