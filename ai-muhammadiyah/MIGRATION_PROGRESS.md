@@ -43,6 +43,7 @@ Urutan ini sengaja menaruh hook yang **paling sedikit bergantung ke hook lain** 
 - Fungsi: `loadLearningProfile`, `updateProfileDraft`, `saveLearningProfile`
 - Effect yang ikut pindah: sync `document.documentElement.dataset.theme = learningProfile.themePreference`
 - ⚠️ `loadLearningProfile` & `saveLearningProfile` menulis balik ke `selectedModel` & `selectedSkillId` — lihat catatan kopling.
+- ⚠️ **Kesempatan untuk sekalian perbaiki known issue #1** (lihat bagian "Known Issues" di bawah): race `loadLearningProfile` vs `loadSkills` yang bikin skill revert ke default setelah reload. Perbaikan ini di luar scope "no behavior change" murni, jadi kalau dikerjakan, lakukan sebagai commit terpisah dari ekstraksi hook-nya sendiri, dan diskusikan dulu pendekatannya (mis. tunggu `skills`/`skillsRef` terisi sebelum resolve, bukan cuma andalkan `skillsRef.current` yang mungkin masih kosong).
 
 ### 9. `useAttachments(userId, hasUploadQuota)`
 - State: `uploadedAttachments`, `recentAttachments`, `documentText`, `documentStatus`, `documentError`, `composerNotice`, `isAttachMenuOpen` + ref `documentTextRef`, `uploadKeysInFlightRef`, `uploadFilesByAttachmentIdRef`
@@ -79,6 +80,20 @@ Aturan yang dipakai sejauh ini dan **harus tetap dipakai** di langkah 6-12:
 - **Jangan** hook A meng-import hook B langsung (hindari circular dependency dan hook yang diam-diam tahu terlalu banyak tentang domain lain).
 - Kalau hook A perlu memicu efek di domain B, **A menerima fungsi/setter dari B sebagai parameter/callback**, dipanggil dari `page.tsx` yang menggabungkan semuanya. Pola ini sudah dipakai di `useWorkspaces(setHistoryError)`, `useKnowledgeBase()` (yang effect-nya sengaja tidak ikut pindah karena butuh state dari domain settings-shell), dan `useUsage(skillsRef, setSelectedModel, setSelectedSkillId)`.
 - Urutan pemanggilan hook di `page.tsx` penting: hook yang **menerima** parameter dari hook lain harus dipanggil setelah hook sumber parameter itu — bukan berdasarkan "siapa lebih fundamental". Contoh nyata: setelah langkah 6 (`useSkills`), urutannya jadi `useSkills()` dulu baru `useUsage(...)`, karena `useUsage` butuh `skillsRef`/`setSelectedSkillId` yang sekarang dimiliki `useSkills` (lihat catatan di langkah 6 di atas) — kebalikan dari kesan awal bahwa `useUsage` "dikonsumsi duluan".
+
+## Known Issues (Pre-existing, Belum Diperbaiki)
+
+Bug yang ditemukan selama migrasi tapi **bukan** disebabkan oleh migrasi itu sendiri — sengaja **tidak** diperbaiki di langkah tempat ditemukannya, dicatat di sini supaya tidak hilang dan bisa ditangani di langkah yang scope-nya memang cocok.
+
+### 1. Skill terpilih revert ke default ("Cambridge Tutor") setelah reload halaman
+
+**Gejala:** Ganti skill via dropdown Study Mode (mis. ke "Islamic Teacher"), lalu reload halaman penuh (F5) — skill yang tampil kembali ke default platform ("Cambridge Tutor"), bukan skill yang barusan dipilih, meskipun `localStorage['ai-mu-study-mode']` sudah ter-update dengan benar ke id skill yang dipilih.
+
+**Root cause (dugaan, belum dikonfirmasi mendalam):** race antara `loadLearningProfile(userId)` dan `loadSkills(userId)` — keduanya dipanggil bersamaan lewat `Promise.all([...])` di effect initial-load. `loadLearningProfile` resolve `selectedSkillId` dari `localStorage` via `resolveSkillIdFromLegacyValue(..., skillsRef.current)`, tapi `skillsRef.current` kemungkinan masih `[]` di momen itu karena `loadSkills` belum sempat mengisi state `skills` (dan efek sync `skillsRef.current = skills` di `useSkills.ts` belum sempat jalan). Akibatnya resolve gagal cocok, lalu efek fallback-pilih-skill-pertama di `useSkills.ts` mengambil alih dan pilih default platform (`findDefaultSkill` → "Cambridge Tutor").
+
+**Ditemukan:** saat verifikasi manual langkah 6 (ekstraksi `useSkills`). **Dikonfirmasi pre-existing** dengan `git stash` balik ke kode sebelum langkah 6 (bahkan sebelum langkah 5) dan mengulang skenario yang sama — bug yang sama persis terjadi, jadi ini bukan regresi dari pemecahan `useUsage` atau ekstraksi `useSkills`.
+
+**Status:** **TIDAK diperbaiki sekarang** — di luar scope langkah 6 ("no behavior change"). Ditangani di **langkah 8 (`useUserMemory`)** karena `loadLearningProfile` ada di domain itu, dan kemungkinan perbaikannya perlu mengubah urutan/timing resolve (bukan cuma pindah lokasi kode) — itu masuk kategori "perubahan behavior yang disengaja", bukan ekstraksi murni, jadi sebaiknya jadi commit terpisah dari ekstraksi hook-nya sendiri kalau dikerjakan.
 
 ## Pola Kerja yang Terbukti Jalan (ikuti terus sampai langkah 12)
 

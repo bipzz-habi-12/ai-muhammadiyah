@@ -6,7 +6,8 @@ import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
-import { useUsage } from "@/hooks/useUsage";
+import { useSkills } from "@/hooks/useSkills";
+import { applyUsageConstraints, useUsage } from "@/hooks/useUsage";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
   getFriendlyChatError,
@@ -40,10 +41,8 @@ import {
 import { getRecentChatHistory, mapMessageRow } from "@/lib/mappers/message";
 import {
   canAccessTier,
-  fetchSkills,
   getSkillBadge,
   resolveAllowedSkill,
-  type Skill,
 } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
@@ -246,9 +245,6 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("auto");
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [skillsLoading, setSkillsLoading] = useState(true);
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -284,7 +280,6 @@ export default function Home() {
     handleKnowledgeUpload,
   } = useKnowledgeBase();
   const documentTextRef = useRef("");
-  const skillsRef = useRef<Skill[]>([]);
   const activeRequestRef = useRef<AbortController | null>(null);
   const uploadKeysInFlightRef = useRef(new Set<string>());
   const uploadFilesByAttachmentIdRef = useRef(new Map<string, File>());
@@ -293,13 +288,28 @@ export default function Home() {
   const {
     usageSnapshot,
     usageError,
-    loadUsage,
+    loadUsage: loadUsageSnapshot,
     currentTierLabel,
     allowedModels,
     currentPlan,
     hasMessageQuota,
     hasUploadQuota,
-  } = useUsage(skillsRef, setSelectedModel, setSelectedSkillId);
+  } = useUsage();
+  const {
+    skills,
+    skillsLoading,
+    selectedSkillId,
+    setSelectedSkillId,
+    skillsRef,
+    loadSkills,
+    selectSkill,
+    selectedSkill,
+    selectedSkillBadge,
+  } = useSkills(usageSnapshot?.tier, setIsStudyModeMenuOpen);
+  const loadUsage = useCallback(async () => {
+    const snapshot = await loadUsageSnapshot();
+    applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId);
+  }, [loadUsageSnapshot, skillsRef, setSelectedModel, setSelectedSkillId]);
   const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
   const visibleConversations = useMemo(
     () => searchConversations ?? conversations,
@@ -317,13 +327,6 @@ export default function Home() {
     [activeConversationId, conversations],
   );
   const selectedModelInfo = modelCatalog[selectedModel];
-  const selectedSkill = useMemo(
-    () => skills.find((skill) => skill.id === selectedSkillId) ?? null,
-    [skills, selectedSkillId],
-  );
-  const selectedSkillBadge = selectedSkill
-    ? getSkillBadge(selectedSkill, usageSnapshot?.tier)
-    : "";
   const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
   const profileLabel = useMemo(
     () =>
@@ -332,10 +335,6 @@ export default function Home() {
       "Lengkapi profil",
     [learningProfile.displayName, learningProfile.schoolLevel],
   );
-
-  useEffect(() => {
-    skillsRef.current = skills;
-  }, [skills]);
 
   const loadConversations = useCallback(async () => {
     setHistoryError("");
@@ -364,23 +363,7 @@ export default function Home() {
       ),
     );
     setIsLoadingConversations(false);
-  }, [supabase]);
-
-  const loadSkills = useCallback(
-    async (currentUserId: string) => {
-      setSkillsLoading(true);
-
-      try {
-        const data = await fetchSkills(supabase, currentUserId);
-        setSkills(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setSkillsLoading(false);
-      }
-    },
-    [supabase],
-  );
+  }, [skillsRef, supabase]);
 
   const loadLearningProfile = useCallback(
     async (currentUserId: string) => {
@@ -403,7 +386,7 @@ export default function Home() {
         setProfileError("Learning Profile belum bisa dimuat.");
       }
     },
-    [supabase],
+    [setSelectedSkillId, skillsRef, supabase],
   );
 
   useEffect(() => {
@@ -430,18 +413,6 @@ export default function Home() {
     loadUsage,
     loadWorkspaces,
   ]);
-
-  useEffect(() => {
-    if (skillsLoading || selectedSkillId || !skills.length) {
-      return;
-    }
-
-    const fallback = resolveAllowedSkill(null, usageSnapshot?.tier, skills);
-
-    if (fallback) {
-      setSelectedSkillId(fallback.id);
-    }
-  }, [skillsLoading, skills, selectedSkillId, usageSnapshot?.tier]);
 
   useEffect(() => {
     if (scrollFrameRef.current !== null) {
@@ -490,12 +461,6 @@ export default function Home() {
     isSettingsOpen,
     loadKnowledge,
   ]);
-
-  useEffect(() => {
-    if (selectedSkillId) {
-      window.localStorage.setItem("ai-mu-study-mode", selectedSkillId);
-    }
-  }, [selectedSkillId]);
 
   useEffect(() => {
     if (!userId) {
@@ -607,7 +572,7 @@ export default function Home() {
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [chatSearch, supabase]);
+  }, [chatSearch, skillsRef, supabase]);
 
   function getCurrentDocumentMetadata(): DocumentMetadata | null {
     if (!uploadedAttachments.length) {
@@ -887,19 +852,6 @@ export default function Home() {
 
     setSelectedModel(model);
     setIsModelMenuOpen(false);
-  }
-
-  function selectSkill(skillId: string) {
-    const skill = skills.find((item) => item.id === skillId);
-
-    if (!skill || !canAccessTier(usageSnapshot?.tier, skill.minTier)) {
-      setIsStudyModeMenuOpen(false);
-      router.push("/plans");
-      return;
-    }
-
-    setSelectedSkillId(skillId);
-    setIsStudyModeMenuOpen(false);
   }
 
   async function loadConversation(conversation: Conversation) {

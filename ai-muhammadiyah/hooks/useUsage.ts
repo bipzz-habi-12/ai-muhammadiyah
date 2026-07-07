@@ -11,29 +11,16 @@ import { resolveAllowedSkill, type Skill } from "@/lib/skills";
 import { getPlanByTier, type PlanModelId } from "@/lib/subscriptions/plans";
 import { tierLabels, type UsageSnapshot, fetchUsageSnapshot } from "@/lib/usage/limits";
 
-export function useUsage(
-  skillsRef: MutableRefObject<Skill[]>,
-  setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
-  setSelectedSkillId: Dispatch<SetStateAction<string | null>>,
-) {
+export function useUsage() {
   const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
   const [usageError, setUsageError] = useState("");
 
-  const loadUsage = useCallback(async () => {
+  const loadUsage = useCallback(async (): Promise<UsageSnapshot | null> => {
     try {
       setUsageError("");
       const snapshot = await fetchUsageSnapshot();
       setUsageSnapshot(snapshot);
-
-      setSelectedModel((currentModel) =>
-        snapshot && !snapshot.allowedModels.includes(currentModel)
-          ? "auto"
-          : currentModel,
-      );
-      setSelectedSkillId((currentId) =>
-        resolveAllowedSkill(currentId, snapshot?.tier, skillsRef.current)?.id ??
-          null,
-      );
+      return snapshot;
     } catch (error) {
       console.error(error);
       setUsageSnapshot(null);
@@ -42,8 +29,9 @@ export function useUsage(
           ? error.message
           : "Status penggunaan belum bisa dimuat.",
       );
+      return null;
     }
-  }, [setSelectedModel, setSelectedSkillId, skillsRef]);
+  }, []);
 
   const currentTierLabel = usageSnapshot
     ? tierLabels[usageSnapshot.tier]
@@ -65,4 +53,21 @@ export function useUsage(
     hasMessageQuota,
     hasUploadQuota,
   };
+}
+
+export function applyUsageConstraints(
+  snapshot: UsageSnapshot | null,
+  skillsRef: MutableRefObject<Skill[]>,
+  setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
+  setSelectedSkillId: Dispatch<SetStateAction<string | null>>,
+) {
+  setSelectedModel((currentModel) =>
+    snapshot && !snapshot.allowedModels.includes(currentModel)
+      ? "auto"
+      : currentModel,
+  );
+  setSelectedSkillId((currentId) =>
+    resolveAllowedSkill(currentId, snapshot?.tier, skillsRef.current)?.id ??
+      null,
+  );
 }
