@@ -30,19 +30,24 @@ export function useSkills(
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const skillsRef = useRef<Skill[]>([]);
 
-  const loadSkills = useCallback(async (currentUserId: string) => {
-    setSkillsLoading(true);
+  const loadSkills = useCallback(
+    async (currentUserId: string): Promise<Skill[]> => {
+      setSkillsLoading(true);
 
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const data = await fetchSkills(supabase, currentUserId);
-      setSkills(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSkillsLoading(false);
-    }
-  }, []);
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const data = await fetchSkills(supabase, currentUserId);
+        setSkills(data);
+        return data;
+      } catch (error) {
+        console.error(error);
+        return [];
+      } finally {
+        setSkillsLoading(false);
+      }
+    },
+    [],
+  );
 
   function selectSkill(skillId: string) {
     const skill = skills.find((item) => item.id === skillId);
@@ -53,6 +58,7 @@ export function useSkills(
       return;
     }
 
+    window.localStorage.setItem("ai-mu-study-mode", skillId);
     setSelectedSkillId(skillId);
     setIsStudyModeMenuOpen(false);
   }
@@ -72,12 +78,6 @@ export function useSkills(
       window.queueMicrotask(() => setSelectedSkillId(fallback.id));
     }
   }, [skillsLoading, skills, selectedSkillId, tier]);
-
-  useEffect(() => {
-    if (selectedSkillId) {
-      window.localStorage.setItem("ai-mu-study-mode", selectedSkillId);
-    }
-  }, [selectedSkillId]);
 
   const selectedSkill = useMemo(
     () => skills.find((skill) => skill.id === selectedSkillId) ?? null,

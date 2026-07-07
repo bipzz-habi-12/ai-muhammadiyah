@@ -6,7 +6,6 @@ import {
   useMemo,
   useState,
   type Dispatch,
-  type MutableRefObject,
   type SetStateAction,
 } from "react";
 import { resolveSkillIdFromLegacyValue } from "@/lib/mappers/legacy-study-mode";
@@ -25,7 +24,6 @@ import type { SubscriptionTier } from "@/lib/usage/limits";
 export function useUserMemory(
   userId: string,
   skills: Skill[],
-  skillsRef: MutableRefObject<Skill[]>,
   tier: SubscriptionTier | undefined,
   setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
   setSelectedSkillId: Dispatch<SetStateAction<string | null>>,
@@ -39,7 +37,7 @@ export function useUserMemory(
   const [profileSavedMessage, setProfileSavedMessage] = useState("");
 
   const loadLearningProfile = useCallback(
-    async (currentUserId: string) => {
+    async (currentUserId: string, currentSkills: Skill[]) => {
       try {
         setProfileError("");
         const supabase = createSupabaseBrowserClient();
@@ -52,7 +50,7 @@ export function useUserMemory(
           resolveSkillIdFromLegacyValue(
             window.localStorage.getItem("ai-mu-study-mode") ??
               memory.defaultStudyMode,
-            skillsRef.current,
+            currentSkills,
           ),
         );
       } catch (error) {
@@ -60,7 +58,7 @@ export function useUserMemory(
         setProfileError("Learning Profile belum bisa dimuat.");
       }
     },
-    [setSelectedModel, setSelectedSkillId, skillsRef],
+    [setSelectedModel, setSelectedSkillId],
   );
 
   function updateProfileDraft<K extends keyof UserMemory>(
@@ -96,13 +94,16 @@ export function useUserMemory(
       setProfileDraft(savedMemory);
       setFavoriteSubjectsDraft(savedMemory.favoriteSubjects.join(", "));
       setSelectedModel(savedMemory.defaultModel);
-      setSelectedSkillId(
+      const resolvedSkillId =
         resolveAllowedSkill(
           resolveSkillIdFromLegacyValue(savedMemory.defaultStudyMode, skills),
           tier,
           skills,
-        )?.id ?? null,
-      );
+        )?.id ?? null;
+      if (resolvedSkillId) {
+        window.localStorage.setItem("ai-mu-study-mode", resolvedSkillId);
+      }
+      setSelectedSkillId(resolvedSkillId);
       setProfileSavedMessage("Learning Profile tersimpan.");
     } catch (error) {
       console.error(error);

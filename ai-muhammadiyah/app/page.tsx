@@ -318,7 +318,6 @@ export default function Home() {
   } = useUserMemory(
     userId,
     skills,
-    skillsRef,
     usageSnapshot?.tier,
     setSelectedModel,
     setSelectedSkillId,
@@ -378,13 +377,13 @@ export default function Home() {
     }
 
     async function loadInitialData() {
-      await Promise.all([
+      const [, , , fetchedSkills] = await Promise.all([
         loadWorkspaces(),
         loadConversations(),
         loadUsage(),
-        loadLearningProfile(userId),
         loadSkills(userId),
       ]);
+      await loadLearningProfile(userId, fetchedSkills);
     }
 
     loadInitialData();
