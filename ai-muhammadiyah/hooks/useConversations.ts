@@ -12,7 +12,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 export function useConversations(
   skillsRef: MutableRefObject<Skill[]>,
   setHistoryError: (message: string) => void,
-  resetMemory: () => void,
 ) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchConversations, setSearchConversations] = useState<
@@ -85,7 +84,10 @@ export function useConversations(
     setRenameValue("");
   }
 
-  async function deleteConversation(conversationId: string) {
+  async function deleteConversation(
+    conversationId: string,
+    resetMemory?: () => void,
+  ) {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
       .from("conversations")
@@ -103,7 +105,7 @@ export function useConversations(
     );
 
     if (activeConversationId === conversationId) {
-      resetMemory();
+      resetMemory?.();
     }
   }
 
