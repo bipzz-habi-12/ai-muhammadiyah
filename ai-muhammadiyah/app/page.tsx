@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import { useAttachments } from "@/hooks/useAttachments";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { useConversations } from "@/hooks/useConversations";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { useModelSelection } from "@/hooks/useModelSelection";
 import { useSkills } from "@/hooks/useSkills";
@@ -45,15 +47,6 @@ import {
   subscriptionPlans,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
-import {
-  extractDocumentFromLocalUpload,
-  getAttachmentKind,
-  getAttachmentStatus,
-  getLoadedDocumentText,
-  getUploadedDocumentType,
-  isSupportedUpload,
-  sanitizeRecentAttachment,
-} from "@/lib/chat/attachments";
 
 type Message = {
   id?: string;
@@ -98,18 +91,6 @@ type DocumentMetadata = {
   }[];
 };
 
-type UploadedAttachment = {
-  id: string;
-  fileName: string;
-  fileType: UploadedDocumentType;
-  kind: UploadedAttachmentKind;
-  status: Exclude<DocumentStatus, "idle">;
-  text?: string;
-  mimeType?: string;
-  data?: string;
-  error?: string;
-};
-
 type Conversation = {
   id: string;
   title: string;
@@ -145,8 +126,6 @@ type MessageRow = {
   document_metadata: DocumentMetadata | null;
 };
 
-const maxDocumentUploadBytes = 25 * 1024 * 1024;
-const maxRecentFiles = 6;
 const streamUiFlushMs = 48;
 
 const welcomeMessage: Message = {
@@ -202,14 +181,8 @@ export default function Home() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [searchConversations, setSearchConversations] = useState<
-    Conversation[] | null
-  >(null);
-  const [activeConversationId, setActiveConversationId] = useState("");
   const [input, setInput] = useState("");
   const { userId, userEmail, isLoggingOut, handleLogout } = useAuthSession();
-  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const {
     workspaces,
@@ -221,21 +194,7 @@ export default function Home() {
     loadWorkspaces,
     createWorkspace,
   } = useWorkspaces(setHistoryError);
-  const [renamingConversationId, setRenamingConversationId] = useState("");
-  const [renameValue, setRenameValue] = useState("");
-  const [chatSearch, setChatSearch] = useState("");
-  const [uploadedAttachments, setUploadedAttachments] = useState<
-    UploadedAttachment[]
-  >([]);
-  const [recentAttachments, setRecentAttachments] = useState<
-    UploadedAttachment[]
-  >([]);
   const [sharePreview, setSharePreview] = useState("");
-  const [documentText, setDocumentText] = useState("");
-  const [documentStatus, setDocumentStatus] = useState<DocumentStatus>("idle");
-  const [documentError, setDocumentError] = useState("");
-  const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
-  const [composerNotice, setComposerNotice] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
@@ -261,10 +220,7 @@ export default function Home() {
     loadKnowledge,
     handleKnowledgeUpload,
   } = useKnowledgeBase();
-  const documentTextRef = useRef("");
   const activeRequestRef = useRef<AbortController | null>(null);
-  const uploadKeysInFlightRef = useRef(new Set<string>());
-  const uploadFilesByAttachmentIdRef = useRef(new Map<string, File>());
   const scrollFrameRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -327,50 +283,53 @@ export default function Home() {
     applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId);
     return snapshot;
   }, [loadUsageSnapshot, skillsRef, setSelectedModel, setSelectedSkillId]);
+  const {
+    uploadedAttachments,
+    setUploadedAttachments,
+    recentAttachments,
+    documentText,
+    setDocumentText,
+    documentStatus,
+    setDocumentStatus,
+    documentError,
+    setDocumentError,
+    composerNotice,
+    setComposerNotice,
+    isAttachMenuOpen,
+    setIsAttachMenuOpen,
+    documentTextRef,
+    getCurrentDocumentMetadata,
+    resetDocumentState,
+    reuseRecentAttachment,
+    removeAttachment,
+    retryAttachment,
+    handleDocumentUpload,
+    showComposerNotice,
+  } = useAttachments(userId, hasUploadQuota, loadUsage);
+  const {
+    setConversations,
+    activeConversationId,
+    setActiveConversationId,
+    isLoadingConversations,
+    renamingConversationId,
+    setRenamingConversationId,
+    renameValue,
+    setRenameValue,
+    chatSearch,
+    setChatSearch,
+    loadConversations,
+    renameConversation,
+    deleteConversation,
+    toggleConversationPin,
+    updateConversationWorkspace,
+    visibleConversations,
+    activeConversation,
+  } = useConversations(skillsRef, setHistoryError, resetMemory);
   const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
-  const visibleConversations = useMemo(
-    () => searchConversations ?? conversations,
-    [conversations, searchConversations],
-  );
   const conversationGroups = useMemo(
     () => groupConversationsByWorkspace(visibleConversations, workspaces),
     [visibleConversations, workspaces],
   );
-  const activeConversation = useMemo(
-    () =>
-      conversations.find(
-        (conversation) => conversation.id === activeConversationId,
-      ),
-    [activeConversationId, conversations],
-  );
-  const loadConversations = useCallback(async () => {
-    setHistoryError("");
-    setIsLoadingConversations(true);
-
-    const { data, error } = await supabase
-      .from("conversations")
-      .select(
-        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
-      )
-      .order("updated_at", { ascending: false })
-      .limit(40);
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Riwayat obrolan belum bisa dimuat.");
-      setIsLoadingConversations(false);
-      return;
-    }
-
-    setConversations(
-      sortConversations(
-        ((data ?? []) as ConversationRow[]).map((row) =>
-          mapConversationRow(row, skillsRef.current),
-        ),
-      ),
-    );
-    setIsLoadingConversations(false);
-  }, [skillsRef, supabase]);
 
   useEffect(() => {
     if (!userId) {
@@ -440,372 +399,6 @@ export default function Home() {
     isSettingsOpen,
     loadKnowledge,
   ]);
-
-  useEffect(() => {
-    if (!userId) {
-      return;
-    }
-
-    const storedRecentFiles = window.localStorage.getItem(
-      `ai-mu-recent-files-${userId}`,
-    );
-
-    if (!storedRecentFiles) {
-      return;
-    }
-
-    try {
-      const parsedFiles = JSON.parse(storedRecentFiles) as UploadedAttachment[];
-      window.queueMicrotask(() => {
-        setRecentAttachments(
-          parsedFiles.filter(
-            (attachment) =>
-              typeof attachment.id === "string" &&
-              typeof attachment.fileName === "string" &&
-              attachment.status === "loaded",
-          ),
-        );
-      });
-    } catch {
-      window.localStorage.removeItem(`ai-mu-recent-files-${userId}`);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (!userId) {
-      return;
-    }
-
-    window.localStorage.setItem(
-      `ai-mu-recent-files-${userId}`,
-      JSON.stringify(
-        recentAttachments
-          .slice(0, maxRecentFiles)
-          .map(sanitizeRecentAttachment),
-      ),
-    );
-  }, [recentAttachments, userId]);
-
-  useEffect(() => {
-    const query = chatSearch.trim();
-
-    if (!query) {
-      window.queueMicrotask(() => setSearchConversations(null));
-      return;
-    }
-
-    const timeoutId = window.setTimeout(async () => {
-      setHistoryError("");
-
-      const titleMatches = await supabase
-        .from("conversations")
-        .select(
-          "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
-        )
-        .ilike("title", `%${query}%`)
-        .limit(30);
-      const messageMatches = await supabase
-        .from("messages")
-        .select("conversation_id")
-        .ilike("content", `%${query}%`)
-        .limit(60);
-
-      if (titleMatches.error || messageMatches.error) {
-        console.error(titleMatches.error ?? messageMatches.error);
-        setHistoryError("Pencarian obrolan belum bisa dijalankan.");
-        return;
-      }
-
-      const conversationIds = Array.from(
-        new Set(
-          ((messageMatches.data ?? []) as { conversation_id: string }[]).map(
-            (row) => row.conversation_id,
-          ),
-        ),
-      );
-      const messageConversationMatches = conversationIds.length
-        ? await supabase
-            .from("conversations")
-            .select(
-              "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
-            )
-            .in("id", conversationIds)
-        : { data: [], error: null };
-
-      if (messageConversationMatches.error) {
-        console.error(messageConversationMatches.error);
-        setHistoryError("Hasil pesan belum bisa dimuat.");
-        return;
-      }
-
-      const byId = new Map<string, Conversation>();
-      for (const row of [
-        ...((titleMatches.data ?? []) as ConversationRow[]),
-        ...((messageConversationMatches.data ?? []) as ConversationRow[]),
-      ]) {
-        const conversation = mapConversationRow(row, skillsRef.current);
-        byId.set(conversation.id, conversation);
-      }
-
-      setSearchConversations(sortConversations(Array.from(byId.values())));
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [chatSearch, skillsRef, supabase]);
-
-  function getCurrentDocumentMetadata(): DocumentMetadata | null {
-    if (!uploadedAttachments.length) {
-      return null;
-    }
-
-    const primaryAttachment = uploadedAttachments[0];
-
-    return {
-      fileName:
-        uploadedAttachments.length > 1
-          ? `${uploadedAttachments.length} files uploaded`
-          : primaryAttachment.fileName,
-      fileType:
-        uploadedAttachments.length > 1 ? "Dokumen" : primaryAttachment.fileType,
-      status: uploadedAttachments.some((attachment) => attachment.status === "error")
-        ? "error"
-        : uploadedAttachments.some((attachment) => attachment.status === "loading")
-          ? "loading"
-          : "loaded",
-      files: uploadedAttachments.map((attachment) => ({
-        fileName: attachment.fileName,
-        fileType: attachment.fileType,
-        status: attachment.status,
-        kind: attachment.kind,
-      })),
-    };
-  }
-
-  function resetDocumentState() {
-    setUploadedAttachments([]);
-    documentTextRef.current = "";
-    setDocumentText("");
-    setDocumentStatus("idle");
-    setDocumentError("");
-    setComposerNotice("");
-  }
-
-  function rememberLoadedAttachments(attachments: UploadedAttachment[]) {
-    const reusableAttachments = attachments
-      .filter(
-        (attachment) =>
-          attachment.status === "loaded" &&
-          attachment.kind === "document" &&
-          attachment.text,
-      )
-      .map((attachment) => ({
-        ...sanitizeRecentAttachment(attachment),
-        id: `${attachment.fileName}-${crypto.randomUUID()}`,
-      }));
-
-    if (!reusableAttachments.length) {
-      return;
-    }
-
-    setRecentAttachments((current) => {
-      const next = [...reusableAttachments, ...current].filter(
-        (attachment, index, allAttachments) =>
-          allAttachments.findIndex(
-            (candidate) => candidate.fileName === attachment.fileName,
-          ) === index,
-      );
-
-      return next.slice(0, maxRecentFiles);
-    });
-  }
-
-  function reuseRecentAttachment(attachment: UploadedAttachment) {
-    const nextAttachment = {
-      ...attachment,
-      id: `${attachment.fileName}-${crypto.randomUUID()}`,
-    };
-
-    setUploadedAttachments((current) => [...current, nextAttachment]);
-
-    if (nextAttachment.kind === "document" && nextAttachment.text) {
-      documentTextRef.current = getLoadedDocumentText([
-        ...uploadedAttachments,
-        nextAttachment,
-      ]);
-      setDocumentText(documentTextRef.current);
-    }
-
-    setDocumentStatus("loaded");
-    setDocumentError("");
-    setComposerNotice(`${attachment.fileName} dipakai lagi di chat ini.`);
-    setIsAttachMenuOpen(false);
-  }
-
-  function removeAttachment(attachmentId: string) {
-    uploadFilesByAttachmentIdRef.current.delete(attachmentId);
-    setUploadedAttachments((current) => {
-      const nextAttachments = current.filter(
-        (attachment) => attachment.id !== attachmentId,
-      );
-
-      documentTextRef.current = getLoadedDocumentText(nextAttachments);
-      setDocumentText(documentTextRef.current);
-      setDocumentStatus(getAttachmentStatus(nextAttachments));
-      setDocumentError(
-        nextAttachments.find((attachment) => attachment.status === "error")
-          ?.error ?? "",
-      );
-
-      return nextAttachments;
-    });
-  }
-
-  function syncAttachmentState(attachments: UploadedAttachment[]) {
-    documentTextRef.current = getLoadedDocumentText(attachments);
-    setDocumentText(documentTextRef.current);
-    setDocumentStatus(getAttachmentStatus(attachments));
-    setDocumentError(
-      attachments.find((attachment) => attachment.status === "error")?.error ?? "",
-    );
-    rememberLoadedAttachments(attachments);
-  }
-
-  async function readUploadedAttachment(file: File, attachmentId: string) {
-    if (!isSupportedUpload(file)) {
-      setUploadedAttachments((current) =>
-        current.map((attachment) =>
-          attachment.id === attachmentId
-            ? {
-                ...attachment,
-                status: "error",
-                error:
-                  "Format belum didukung. Gunakan PDF, DOCX, PPTX, XLSX, PNG, JPG, JPEG, atau WEBP.",
-              }
-            : attachment,
-        ),
-      );
-      return;
-    }
-
-    if (file.size > maxDocumentUploadBytes) {
-      setUploadedAttachments((current) =>
-        current.map((attachment) =>
-          attachment.id === attachmentId
-            ? {
-                ...attachment,
-                status: "error",
-                error: "Ukuran file terlalu besar. Maksimal 25 MB per file.",
-              }
-            : attachment,
-        ),
-      );
-      return;
-    }
-
-    try {
-      const data = await extractDocumentFromLocalUpload(file);
-      const normalizedType =
-        data.kind === "image"
-          ? "Image"
-          : data.fileType === "docx"
-            ? "Word"
-            : data.fileType === "pptx"
-              ? "PowerPoint"
-              : data.fileType === "xlsx"
-                ? "Excel"
-                : "PDF";
-
-      setUploadedAttachments((current) =>
-        current.map((attachment) =>
-          attachment.id === attachmentId
-            ? {
-                ...attachment,
-                fileName: data.fileName ?? file.name,
-                fileType: normalizedType,
-                kind: data.kind ?? attachment.kind,
-                status: "loaded",
-                text: data.text,
-                mimeType: data.mimeType,
-                data: data.data,
-                error: "",
-              }
-            : attachment,
-        ),
-      );
-      uploadFilesByAttachmentIdRef.current.delete(attachmentId);
-    } catch (error) {
-      console.error(error);
-      setUploadedAttachments((current) =>
-        current.map((attachment) =>
-          attachment.id === attachmentId
-            ? {
-                ...attachment,
-                status: "error",
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : "File belum bisa dibaca. Silakan coba file lain.",
-              }
-            : attachment,
-        ),
-      );
-    }
-  }
-
-  async function retryAttachment(attachmentId: string) {
-    const file = uploadFilesByAttachmentIdRef.current.get(attachmentId);
-
-    if (!file) {
-      setUploadedAttachments((current) => {
-        const nextAttachments = current.map((attachment) =>
-          attachment.id === attachmentId
-            ? {
-                ...attachment,
-                status: "error" as const,
-                error:
-                  "File asli tidak tersedia lagi. Hapus lalu upload ulang file ini.",
-              }
-            : attachment,
-        );
-        syncAttachmentState(nextAttachments);
-        return nextAttachments;
-      });
-      return;
-    }
-
-    const key = `${file.name}:${file.size}:${file.lastModified}`;
-
-    if (uploadKeysInFlightRef.current.has(key)) {
-      return;
-    }
-
-    uploadKeysInFlightRef.current.add(key);
-    setDocumentError("");
-    setDocumentStatus("loading");
-    setUploadedAttachments((current) =>
-      current.map((attachment) =>
-        attachment.id === attachmentId
-          ? { ...attachment, status: "loading", error: "" }
-          : attachment,
-      ),
-    );
-
-    try {
-      await readUploadedAttachment(file, attachmentId);
-    } finally {
-      uploadKeysInFlightRef.current.delete(key);
-    }
-
-    setUploadedAttachments((current) => {
-      syncAttachmentState(current);
-      return current;
-    });
-  }
-
-  function showComposerNotice(message: string) {
-    setComposerNotice(message);
-    setIsAttachMenuOpen(false);
-  }
 
   function resetMemory() {
     setActiveConversationId("");
@@ -914,115 +507,6 @@ export default function Home() {
     return conversation;
   }
 
-  async function renameConversation(conversationId: string) {
-    const title = renameValue.trim();
-
-    if (!title) {
-      setRenamingConversationId("");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("conversations")
-      .update({ title })
-      .eq("id", conversationId);
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Nama obrolan belum bisa diubah.");
-      return;
-    }
-
-    setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.id === conversationId
-          ? { ...conversation, title }
-          : conversation,
-      ),
-    );
-    setRenamingConversationId("");
-    setRenameValue("");
-  }
-
-  async function deleteConversation(conversationId: string) {
-    const { error } = await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", conversationId);
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Obrolan belum bisa dihapus.");
-      return;
-    }
-
-    setConversations((prev) =>
-      prev.filter((conversation) => conversation.id !== conversationId),
-    );
-
-    if (activeConversationId === conversationId) {
-      resetMemory();
-    }
-  }
-
-  async function toggleConversationPin(conversation: Conversation) {
-    const nextPinned = !conversation.isPinned;
-    const { error } = await supabase
-      .from("conversations")
-      .update({ is_pinned: nextPinned })
-      .eq("id", conversation.id);
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Status pin belum bisa diubah.");
-      return;
-    }
-
-    setConversations((prev) =>
-      sortConversations(
-        prev.map((item) =>
-          item.id === conversation.id ? { ...item, isPinned: nextPinned } : item,
-        ),
-      ),
-    );
-    setSearchConversations((prev) =>
-      prev
-        ? sortConversations(
-            prev.map((item) =>
-              item.id === conversation.id
-                ? { ...item, isPinned: nextPinned }
-                : item,
-            ),
-          )
-        : prev,
-    );
-  }
-
-  async function updateConversationWorkspace(
-    conversationId: string,
-    workspaceId: string,
-  ) {
-    const nextWorkspaceId = workspaceId || null;
-    const { error } = await supabase
-      .from("conversations")
-      .update({ workspace_id: nextWorkspaceId })
-      .eq("id", conversationId);
-
-    if (error) {
-      console.error(error);
-      setHistoryError("Workspace obrolan belum bisa diubah.");
-      return;
-    }
-
-    const updateItem = (conversation: Conversation) =>
-      conversation.id === conversationId
-        ? { ...conversation, workspaceId: nextWorkspaceId }
-        : conversation;
-
-    setConversations((prev) => prev.map(updateItem));
-    setSearchConversations((prev) => (prev ? prev.map(updateItem) : prev));
-  }
-
   function openSettings(tab: SettingsTab = "general") {
     setProfileDraft(learningProfile);
     setFavoriteSubjectsDraft(learningProfile.favoriteSubjects.join(", "));
@@ -1065,82 +549,6 @@ export default function Home() {
   function exportChatHistoryPlaceholder() {
     exportActiveChatMarkdown();
     setSettingsDataMessage("Chat aktif diexport sebagai Markdown.");
-  }
-
-  async function handleDocumentUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const selectedFiles = Array.from(event.target.files ?? []);
-    const seenKeys = new Set<string>();
-    const files = selectedFiles.filter((file) => {
-      const key = `${file.name}:${file.size}:${file.lastModified}`;
-
-      if (seenKeys.has(key) || uploadKeysInFlightRef.current.has(key)) {
-        return false;
-      }
-
-      seenKeys.add(key);
-      uploadKeysInFlightRef.current.add(key);
-      return true;
-    });
-
-    if (!files.length) {
-      event.target.value = "";
-      return;
-    }
-
-    if (!hasUploadQuota) {
-      for (const file of files) {
-        uploadKeysInFlightRef.current.delete(
-          `${file.name}:${file.size}:${file.lastModified}`,
-        );
-      }
-      setDocumentStatus("error");
-      setDocumentError(
-        "Limit upload dokumen harian paket kamu sudah habis. Silakan coba lagi besok atau upgrade paket.",
-      );
-      event.target.value = "";
-      return;
-    }
-
-    const pendingAttachments = files.map((file) => ({
-      id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
-      fileName: file.name,
-      fileType: getUploadedDocumentType(file.name.toLowerCase()),
-      kind: getAttachmentKind(file),
-      status: "loading" as const,
-    }));
-    pendingAttachments.forEach((attachment, index) => {
-      uploadFilesByAttachmentIdRef.current.set(attachment.id, files[index]);
-    });
-
-    setUploadedAttachments((current) => [...current, ...pendingAttachments]);
-    setDocumentError("");
-    setDocumentStatus("loading");
-    setComposerNotice("");
-
-    try {
-      await Promise.all(
-        files.map(async (file, index) => {
-          const attachmentId = pendingAttachments[index].id;
-          await readUploadedAttachment(file, attachmentId);
-        }),
-      );
-    } finally {
-      for (const file of files) {
-        uploadKeysInFlightRef.current.delete(
-          `${file.name}:${file.size}:${file.lastModified}`,
-        );
-      }
-    }
-
-    setUploadedAttachments((current) => {
-      syncAttachmentState(current);
-      return current;
-    });
-
-    await loadUsage();
-    setIsAttachMenuOpen(false);
-    // Allows uploading the same files again after an error or update.
-    event.target.value = "";
   }
 
   async function sendMessage(
