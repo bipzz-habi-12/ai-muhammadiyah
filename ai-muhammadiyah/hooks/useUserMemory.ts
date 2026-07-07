@@ -37,7 +37,11 @@ export function useUserMemory(
   const [profileSavedMessage, setProfileSavedMessage] = useState("");
 
   const loadLearningProfile = useCallback(
-    async (currentUserId: string, currentSkills: Skill[]) => {
+    async (
+      currentUserId: string,
+      currentSkills: Skill[],
+      currentTier: SubscriptionTier | undefined,
+    ) => {
       try {
         setProfileError("");
         const supabase = createSupabaseBrowserClient();
@@ -47,11 +51,15 @@ export function useUserMemory(
         setFavoriteSubjectsDraft(memory.favoriteSubjects.join(", "));
         setSelectedModel(memory.defaultModel);
         setSelectedSkillId(
-          resolveSkillIdFromLegacyValue(
-            window.localStorage.getItem("ai-mu-study-mode") ??
-              memory.defaultStudyMode,
+          resolveAllowedSkill(
+            resolveSkillIdFromLegacyValue(
+              window.localStorage.getItem("ai-mu-study-mode") ??
+                memory.defaultStudyMode,
+              currentSkills,
+            ),
+            currentTier,
             currentSkills,
-          ),
+          )?.id ?? null,
         );
       } catch (error) {
         console.error(error);

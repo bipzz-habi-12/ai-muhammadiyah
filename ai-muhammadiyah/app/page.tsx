@@ -325,6 +325,7 @@ export default function Home() {
   const loadUsage = useCallback(async () => {
     const snapshot = await loadUsageSnapshot();
     applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId);
+    return snapshot;
   }, [loadUsageSnapshot, skillsRef, setSelectedModel, setSelectedSkillId]);
   const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
   const visibleConversations = useMemo(
@@ -377,13 +378,13 @@ export default function Home() {
     }
 
     async function loadInitialData() {
-      const [, , , fetchedSkills] = await Promise.all([
+      const [, , usageSnapshotResult, fetchedSkills] = await Promise.all([
         loadWorkspaces(),
         loadConversations(),
         loadUsage(),
         loadSkills(userId),
       ]);
-      await loadLearningProfile(userId, fetchedSkills);
+      await loadLearningProfile(userId, fetchedSkills, usageSnapshotResult?.tier);
     }
 
     loadInitialData();
