@@ -6,6 +6,7 @@ import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { useUsage } from "@/hooks/useUsage";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
   getFriendlyChatError,
@@ -46,13 +47,11 @@ import {
 } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
-  getPlanByTier,
   getUpgradePlanForModel,
   modelCatalog,
   subscriptionPlans,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
-import { tierLabels, type UsageSnapshot, fetchUsageSnapshot } from "@/lib/usage/limits";
 import {
   extractDocumentFromLocalUpload,
   getAttachmentKind,
@@ -256,8 +255,6 @@ export default function Home() {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [upgradeTargetModel, setUpgradeTargetModel] =
     useState<SelectedModel>("smart");
-  const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
-  const [usageError, setUsageError] = useState("");
   const [learningProfile, setLearningProfile] =
     useState<UserMemory>(emptyUserMemory);
   const [profileDraft, setProfileDraft] = useState<UserMemory>(emptyUserMemory);
@@ -293,6 +290,16 @@ export default function Home() {
   const uploadFilesByAttachmentIdRef = useRef(new Map<string, File>());
   const scrollFrameRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const {
+    usageSnapshot,
+    usageError,
+    loadUsage,
+    currentTierLabel,
+    allowedModels,
+    currentPlan,
+    hasMessageQuota,
+    hasUploadQuota,
+  } = useUsage(skillsRef, setSelectedModel, setSelectedSkillId);
   const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
   const visibleConversations = useMemo(
     () => searchConversations ?? conversations,
@@ -309,10 +316,6 @@ export default function Home() {
       ),
     [activeConversationId, conversations],
   );
-  const currentTierLabel = usageSnapshot
-    ? tierLabels[usageSnapshot.tier]
-    : "Memuat";
-  const allowedModels = usageSnapshot?.allowedModels ?? ["auto", "fast"];
   const selectedModelInfo = modelCatalog[selectedModel];
   const selectedSkill = useMemo(
     () => skills.find((skill) => skill.id === selectedSkillId) ?? null,
@@ -322,11 +325,6 @@ export default function Home() {
     ? getSkillBadge(selectedSkill, usageSnapshot?.tier)
     : "";
   const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
-  const currentPlan = usageSnapshot ? getPlanByTier(usageSnapshot.tier) : null;
-  const hasMessageQuota =
-    !usageSnapshot || usageSnapshot.remainingMessagesToday > 0;
-  const hasUploadQuota =
-    !usageSnapshot || usageSnapshot.remainingUploadsToday > 0;
   const profileLabel = useMemo(
     () =>
       learningProfile.displayName ||
@@ -383,32 +381,6 @@ export default function Home() {
     },
     [supabase],
   );
-
-  const loadUsage = useCallback(async () => {
-    try {
-      setUsageError("");
-      const snapshot = await fetchUsageSnapshot();
-      setUsageSnapshot(snapshot);
-
-      setSelectedModel((currentModel) =>
-        snapshot && !snapshot.allowedModels.includes(currentModel)
-          ? "auto"
-          : currentModel,
-      );
-      setSelectedSkillId((currentId) =>
-        resolveAllowedSkill(currentId, snapshot?.tier, skillsRef.current)?.id ??
-          null,
-      );
-    } catch (error) {
-      console.error(error);
-      setUsageSnapshot(null);
-      setUsageError(
-        error instanceof Error
-          ? error.message
-          : "Status penggunaan belum bisa dimuat.",
-      );
-    }
-  }, []);
 
   const loadLearningProfile = useCallback(
     async (currentUserId: string) => {
