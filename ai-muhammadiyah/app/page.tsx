@@ -10,6 +10,7 @@ import { useChatSession } from "@/hooks/useChatSession";
 import { useConversations } from "@/hooks/useConversations";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { useModelSelection } from "@/hooks/useModelSelection";
+import { useSettingsPanel } from "@/hooks/useSettingsPanel";
 import { useSkills } from "@/hooks/useSkills";
 import { applyUsageConstraints, useUsage } from "@/hooks/useUsage";
 import { useUserMemory } from "@/hooks/useUserMemory";
@@ -26,8 +27,8 @@ import {
   skillNameToLegacyStudyMode,
   skillToLegacyStudyMode,
 } from "@/lib/mappers/legacy-study-mode";
+import type { SettingsTab } from "@/lib/mappers/types";
 import { canAccessTier, getSkillBadge } from "@/lib/skills";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   modelCatalog,
   subscriptionPlans,
@@ -35,14 +36,6 @@ import {
 } from "@/lib/subscriptions/plans";
 
 type SelectedModel = PlanModelId;
-type SettingsTab =
-  | "general"
-  | "personalization"
-  | "subscription"
-  | "data"
-  | "security"
-  | "documents"
-  | "knowledge";
 
 const modelOptions: SelectedModel[] = ["auto", "fast", "smart", "document"];
 
@@ -90,7 +83,6 @@ const quickPrompts = [
 
 export default function Home() {
   const router = useRouter();
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { userId, userEmail, isLoggingOut, handleLogout } = useAuthSession();
   const [historyError, setHistoryError] = useState("");
   const {
@@ -105,10 +97,6 @@ export default function Home() {
   } = useWorkspaces(setHistoryError);
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] =
-    useState<SettingsTab>("general");
-  const [settingsDataMessage, setSettingsDataMessage] = useState("");
   const {
     knowledgeSources,
     isKnowledgeAdmin,
@@ -317,66 +305,31 @@ export default function Home() {
     loadWorkspaces,
   ]);
 
-  useEffect(() => {
-    if (
-      isSettingsOpen &&
-      activeSettingsTab === "knowledge" &&
-      !hasLoadedKnowledgeRef.current &&
-      !isLoadingKnowledge
-    ) {
-      void loadKnowledge();
-    }
-  }, [
+  const {
+    isSettingsOpen,
+    setIsSettingsOpen,
     activeSettingsTab,
+    setActiveSettingsTab,
+    settingsDataMessage,
+    openSettings,
+    openLearningProfile,
+    deleteAllChatHistory,
+    exportChatHistoryPlaceholder,
+  } = useSettingsPanel(
+    learningProfile,
+    setProfileDraft,
+    setFavoriteSubjectsDraft,
+    setProfileError,
+    setProfileSavedMessage,
+    setKnowledgeMessage,
+    setKnowledgeError,
     hasLoadedKnowledgeRef,
     isLoadingKnowledge,
-    isSettingsOpen,
     loadKnowledge,
-  ]);
-
-  function openSettings(tab: SettingsTab = "general") {
-    setProfileDraft(learningProfile);
-    setFavoriteSubjectsDraft(learningProfile.favoriteSubjects.join(", "));
-    setProfileError("");
-    setProfileSavedMessage("");
-    setSettingsDataMessage("");
-    setKnowledgeMessage("");
-    setKnowledgeError("");
-    setActiveSettingsTab(tab);
-    setIsSettingsOpen(true);
-
-    if (tab === "knowledge") {
-      void loadKnowledge();
-    }
-  }
-
-  function openLearningProfile() {
-    openSettings("personalization");
-  }
-
-  async function deleteAllChatHistory() {
-    setSettingsDataMessage("");
-
-    const { error } = await supabase
-      .from("conversations")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-
-    if (error) {
-      console.error(error);
-      setSettingsDataMessage("Riwayat obrolan belum bisa dihapus.");
-      return;
-    }
-
-    setConversations([]);
-    resetMemory();
-    setSettingsDataMessage("Semua riwayat obrolan terhapus.");
-  }
-
-  function exportChatHistoryPlaceholder() {
-    exportActiveChatMarkdown();
-    setSettingsDataMessage("Chat aktif diexport sebagai Markdown.");
-  }
+    setConversations,
+    resetMemory,
+    exportActiveChatMarkdown,
+  );
 
   function renderAttachmentChips(extraClassName = "") {
     if (!uploadedAttachments.length && !composerNotice) {

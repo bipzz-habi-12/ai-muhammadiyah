@@ -88,6 +88,15 @@ export type MessageRow = {
   document_metadata: DocumentMetadata | null;
 };
 
+export type SettingsTab =
+  | "general"
+  | "personalization"
+  | "subscription"
+  | "data"
+  | "security"
+  | "documents"
+  | "knowledge";
+
 export type Workspace = {
   id: string;
   name: string;
