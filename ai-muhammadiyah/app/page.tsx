@@ -9,6 +9,7 @@ import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { useModelSelection } from "@/hooks/useModelSelection";
 import { useSkills } from "@/hooks/useSkills";
 import { applyUsageConstraints, useUsage } from "@/hooks/useUsage";
+import { useUserMemory } from "@/hooks/useUserMemory";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
   getFriendlyChatError,
@@ -21,13 +22,7 @@ import {
   getLockedSkillRequirement,
 } from "@/lib/chat/selection-labels";
 import { getEmailInitials } from "@/lib/formatting/text";
-import {
-  emptyUserMemory,
-  loadUserMemory,
-  sanitizeUserMemory,
-  updateUserMemory,
-  type UserMemory,
-} from "@/lib/memory/user-memory";
+import { type UserMemory } from "@/lib/memory/user-memory";
 import {
   createConversationTitle,
   groupConversationsByWorkspace,
@@ -35,7 +30,6 @@ import {
   sortConversations,
 } from "@/lib/mappers/conversation";
 import {
-  resolveSkillIdFromLegacyValue,
   skillNameToLegacyStudyMode,
   skillToLegacyStudyMode,
 } from "@/lib/mappers/legacy-study-mode";
@@ -246,16 +240,9 @@ export default function Home() {
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [learningProfile, setLearningProfile] =
-    useState<UserMemory>(emptyUserMemory);
-  const [profileDraft, setProfileDraft] = useState<UserMemory>(emptyUserMemory);
-  const [favoriteSubjectsDraft, setFavoriteSubjectsDraft] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] =
     useState<SettingsTab>("general");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [profileError, setProfileError] = useState("");
-  const [profileSavedMessage, setProfileSavedMessage] = useState("");
   const [settingsDataMessage, setSettingsDataMessage] = useState("");
   const {
     knowledgeSources,
@@ -313,6 +300,29 @@ export default function Home() {
     upgradePlan,
     selectModel,
   } = useModelSelection(allowedModels);
+  const {
+    learningProfile,
+    profileDraft,
+    setProfileDraft,
+    favoriteSubjectsDraft,
+    setFavoriteSubjectsDraft,
+    isSavingProfile,
+    profileError,
+    setProfileError,
+    profileSavedMessage,
+    setProfileSavedMessage,
+    profileLabel,
+    loadLearningProfile,
+    updateProfileDraft,
+    saveLearningProfile,
+  } = useUserMemory(
+    userId,
+    skills,
+    skillsRef,
+    usageSnapshot?.tier,
+    setSelectedModel,
+    setSelectedSkillId,
+  );
   const loadUsage = useCallback(async () => {
     const snapshot = await loadUsageSnapshot();
     applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId);
@@ -333,14 +343,6 @@ export default function Home() {
       ),
     [activeConversationId, conversations],
   );
-  const profileLabel = useMemo(
-    () =>
-      learningProfile.displayName ||
-      learningProfile.schoolLevel ||
-      "Lengkapi profil",
-    [learningProfile.displayName, learningProfile.schoolLevel],
-  );
-
   const loadConversations = useCallback(async () => {
     setHistoryError("");
     setIsLoadingConversations(true);
@@ -369,30 +371,6 @@ export default function Home() {
     );
     setIsLoadingConversations(false);
   }, [skillsRef, supabase]);
-
-  const loadLearningProfile = useCallback(
-    async (currentUserId: string) => {
-      try {
-        setProfileError("");
-        const memory = await loadUserMemory(supabase, currentUserId);
-        setLearningProfile(memory);
-        setProfileDraft(memory);
-        setFavoriteSubjectsDraft(memory.favoriteSubjects.join(", "));
-        setSelectedModel(memory.defaultModel);
-        setSelectedSkillId(
-          resolveSkillIdFromLegacyValue(
-            window.localStorage.getItem("ai-mu-study-mode") ??
-              memory.defaultStudyMode,
-            skillsRef.current,
-          ),
-        );
-      } catch (error) {
-        console.error(error);
-        setProfileError("Learning Profile belum bisa dimuat.");
-      }
-    },
-    [setSelectedModel, setSelectedSkillId, skillsRef, supabase],
-  );
 
   useEffect(() => {
     if (!userId) {
@@ -439,10 +417,6 @@ export default function Home() {
       }
     };
   }, [messages.length, isSending]);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = learningProfile.themePreference;
-  }, [learningProfile.themePreference]);
 
   useEffect(() => {
     return () => {
@@ -1067,54 +1041,6 @@ export default function Home() {
 
   function openLearningProfile() {
     openSettings("personalization");
-  }
-
-  function updateProfileDraft<K extends keyof UserMemory>(
-    key: K,
-    value: UserMemory[K],
-  ) {
-    setProfileDraft((currentDraft) => ({
-      ...currentDraft,
-      [key]: value,
-    }));
-  }
-
-  async function saveLearningProfile() {
-    if (!userId || isSavingProfile) return;
-
-    setIsSavingProfile(true);
-    setProfileError("");
-    setProfileSavedMessage("");
-
-    try {
-      const savedMemory = await updateUserMemory(
-        supabase,
-        userId,
-        learningProfile,
-        sanitizeUserMemory({
-          ...profileDraft,
-          favoriteSubjects: favoriteSubjectsDraft,
-        }),
-      );
-
-      setLearningProfile(savedMemory);
-      setProfileDraft(savedMemory);
-      setFavoriteSubjectsDraft(savedMemory.favoriteSubjects.join(", "));
-      setSelectedModel(savedMemory.defaultModel);
-      setSelectedSkillId(
-        resolveAllowedSkill(
-          resolveSkillIdFromLegacyValue(savedMemory.defaultStudyMode, skills),
-          usageSnapshot?.tier,
-          skills,
-        )?.id ?? null,
-      );
-      setProfileSavedMessage("Learning Profile tersimpan.");
-    } catch (error) {
-      console.error(error);
-      setProfileError("Learning Profile belum bisa disimpan.");
-    } finally {
-      setIsSavingProfile(false);
-    }
   }
 
   async function deleteAllChatHistory() {
