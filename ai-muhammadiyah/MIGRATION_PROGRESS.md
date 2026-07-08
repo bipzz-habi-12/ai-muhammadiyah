@@ -142,3 +142,45 @@ Atas instruksi eksplisit user, 5 komponen ini dikerjakan berurutan dalam SATU se
 **Belum diuji end-to-end di halaman nyata** (sama seperti langkah 14) — regresi ke Sidebar/TopBar (terutama sinkronisasi `isAccountMenuOpen`) tidak terpengaruh karena kelima komponen baru ini tidak menyentuh state itu sama sekali, tapi tetap direkomendasikan user cek ulang di Vercel Preview / login normal sebelum menganggap sesi hari ini benar-benar final secara visual/fungsional.
 
 **`app/page.tsx`: 4734 → 711 baris** (85% reduksi) setelah kumulatif 7 komponen diekstrak (Sidebar, TopBar dari sesi sebelumnya + Composer, ChatArea, ShareModal, UpgradeModal, SettingsModal hari ini).
+
+## Langkah 17: Extract `<MobileToolbar>` (commit `e51e0fa`, langsung di `main`)
+
+Komponen ke-8 dan terakhir dari daftar kandidat besar. `components/MobileToolbar.tsx` — memindahkan blok `md:hidden` (search+workspace mobile, chip percakapan horizontal, baris pin/export/share, tombol attach) 1:1 byte-identik dari `page.tsx`. **Tidak ada state yang pindah** — semua shared (`chatSearch` dipakai Sidebar, `setIsAttachMenuOpen` dipakai Composer/ChatArea, dst), 16 props. `renderAttachMenu`/`renderAttachmentChips` tetap fungsi page.tsx-local dioper sebagai render-prop (pola sama seperti Composer) — keduanya masih dipakai bersama oleh MobileToolbar + Composer, jadi ekstraksi keduanya jadi komponen file sendiri tetap opsi lanjutan, bukan dikerjakan sesi ini. Verifikasi: `tsc --noEmit` bersih sebelum commit.
+
+## Langkah 18: Restyle Stitch SELURUH halaman (commit `90d53f2`, langsung di `main`) — SELESAI
+
+Palette unifikasi yang tertunda sejak langkah 14 dieksekusi sekaligus untuk semua komponen: TopBar, Composer (2 varian), ChatArea (quick-prompts + bubbles), MobileToolbar, ShareModal, UpgradeModal, SettingsModal (7 tab), helper `renderAttachMenu`/`renderAttachmentChips` + root background di `page.tsx`, **plus elemen terang di Sidebar** (popover account menu putih, avatar inisial, tier badge trigger) yang masih memakai aksen lama — supaya tidak ada jahitan setelah unifikasi. Tema gelap Sidebar (`#006837` + amber `#fdc003`, keputusan langkah 13) **tidak disentuh**. Warna-only — tidak ada perubahan struktur/logic/behavior; satu-satunya perubahan visual non-warna: shadow bernuansa emerald diganti netral `rgba(0,0,0,0.04)` (Level 2 DESIGN.md) dan ring/shadow bubble AI dihapus (mengikuti mockup yang borderless).
+
+### Tabel Mapping Warna Final (referensi desain — token dari `stitch-reference/workspace_chat_.../code.html` + `sang_surya_design_system/DESIGN.md`, keduanya identik)
+
+Catatan token: prosa DESIGN.md menyebut "Primary #006837" tapi KEDUA tabel token resmi sepakat `primary = #004d27`, `#006837 = primary-container` (dipakai Sidebar sebagai background, sesuai mockup `bg-[#006837]` untuk workspace sidebar). Aksen area terang = `#004d27`.
+
+| Peran | Lama | Baru (token Stitch) |
+|---|---|---|
+| Background halaman | `#f7fbf8` | `#f8f9fa` (surface) |
+| Area chat utama & panel modal | `#fbfdfb` / `#f7fbf8` | `#ffffff` (surface-container-lowest / Level 2) |
+| Nav rail Settings / hover lemah | `#f7fbf8` | `#f3f4f5` (surface-container-low) |
+| Hover netral | `#eef8f1` (hover) | `#edeeef` (surface-container) |
+| Fill aksen statis (badge hijau, selected row, notice, pill) | `#eef8f1` (statis) | `#004d27`/10 |
+| Teks/ikon aksen | `#008d54` | `#004d27` (primary) |
+| Tombol solid / hero | `#009252` (hover `#007c46`) | `#004d27` (hover `#006837`) |
+| Lingkaran ikon | `#c9f7dc` + `#008d54` | `#004d27`/10 + `#004d27` |
+| Avatar inisial (TopBar + Sidebar) | `#009252` / `#c9f7dc` | `#fdc003` + teks `#6c5000` (secondary-container, persis avatar mockup) |
+| Border/ring/hairline | `#d9e9df`, `#d8eadf`, `#d3e8dc` | `#bec9be` (outline-variant, disatukan) |
+| Teks primer | `#04140b`, `#05150d`, `#18392e` | `#191c1d` (on-surface) |
+| Teks sekunder | `#4f665c`, `#38534a`, `#4a6258`, `#566d62` | `#3f4940` (on-surface-variant) |
+| Teks muted/placeholder | `#6b8178`, `#6d8178`, `#6b8177` | `#6f7a70` (outline) |
+| Focus ring input | `#95d6b9` | `#004d27` |
+| Tombol kirim enabled/hover/disabled | `#95d6b9`/`#009252`/`#c9ded3` | `#004d27` / `#006837` / `#004d27`/40 |
+| Badge gold (GPT/Premium/locked + tier badge di konteks gelap) | `#fff4d8` + `#8a5a00` | `#fdc003` + `#6c5000` (secondary-container) |
+| Badge hijau (allowed/tier di konteks terang) | `#eef8f1` + `#008d54` | `#004d27`/10 + `#004d27` |
+| Badge biru (Gemini) | `#e8f1ff` + `#28528a` | `#e0e0ff` + `#343d96` (tertiary-fixed) |
+| Danger teks / bg tint / ring | `#8a3b2b` / `#fff1ed` / `#f0c8be` | `#ba1a1a` / `#ffdad6` / `#ffdad6` (teks di atas tint: `#93000a`) |
+| Bubble user | solid `#009252` + putih | `#e7e8e9` (surface-container-high) + `#3f4940`, tanpa shadow |
+| Bubble AI | putih + ring `#d3e8dc` | `#004d27`/[0.03] (ai-response-bg mockup), tanpa ring/shadow |
+| Overlay modal | `#04140b`/35 | `#191c1d`/40 |
+| Popover | putih | tetap putih (Level 2), aksen interior ikut mapping |
+
+**Verifikasi:** `npx tsc --noEmit`, `npm run lint`, `npm run build` — ketiganya bersih. Grep sweep memastikan **nol** token lama tersisa di `app/page.tsx` + semua `components/*.tsx`. Test manual via harness scratch (`app/dev-restyle-preview-scratch/`, dihapus sebelum commit): semua warna kunci diverifikasi lewat computed styles (`preview_screenshot` timeout terus — isu tooling sama seperti langkah 13) — hero/heading/card welcome, 5 tier badge (semua terbaca, tanpa overflow), badge locked amber vs allowed tint hijau di dropdown model & skill, cross-toggle 2 dropdown, sync account menu TopBar↔Sidebar (popover tetap putih), bubble user `#e7e8e9` + AI tint `#004d27`/3%, composer aktif (border `#bec9be`, focus ring, send disabled `#004d27`/40), UpgradeModal (5 kartu, ring highlight, badge Requires amber), SettingsModal (7 tab navigasi, nav rail `#f3f4f5`, delete danger `#ba1a1a`/ring `#ffdad6`, tombol solid `#004d27`), ShareModal, MobileToolbar di viewport 375px (chip aktif `#004d27`, attach menu putih, chips/notice/error dengan token baru). Console bersih (hanya log HMR/devtools). Sesi browser tidak authenticated — tidak ada percobaan login OTP, sesuai aturan; rekomendasi standar: cek visual sekali lagi di Vercel Preview dengan login normal.
+
+**Status restyle Stitch: SELESAI untuk seluruh halaman chat utama** (Sidebar langkah 13 + seluruh sisa halaman langkah 18). Yang tetap di luar scope: layout 4-panel Stitch (icon rail + knowledge sidebar kanan), tab nav Chat/Docs/Tasks/Sheets/Canvas, gaya pesan AI tanpa-bubble (perubahan struktur, bukan warna).
