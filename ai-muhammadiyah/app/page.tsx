@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import Sidebar from "@/components/Sidebar";
 import { useAttachments } from "@/hooks/useAttachments";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useChatSession } from "@/hooks/useChatSession";
@@ -515,349 +516,43 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[#f7fbf8] text-[#04140b]">
-      <aside className="hidden w-[340px] shrink-0 border-r border-[#d9e9df] bg-[#eef8f1] md:flex md:flex-col">
-        <div className="flex items-center justify-between px-5 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#009252] text-white shadow-xl shadow-emerald-900/10">
-              <SparkIcon className="h-7 w-7" />
-            </div>
-
-            <h1 className="text-xl font-bold tracking-tight">AI-mu</h1>
-          </div>
-
-          <button
-            type="button"
-            aria-label="Alihkan sidebar"
-            title="Alihkan sidebar"
-            className="grid h-10 w-10 place-items-center rounded-full text-[#557064] transition hover:bg-white/80"
-          >
-            <Icon name="book" className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="px-4">
-          <button
-            type="button"
-            onClick={resetMemory}
-            className="flex h-[62px] w-full items-center gap-4 rounded-[28px] bg-white px-6 text-left text-lg font-bold shadow-[0_2px_10px_rgba(15,55,35,0.16)] ring-1 ring-[#d8eadf] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(15,55,35,0.14)]"
-          >
-            <span className="text-3xl font-light text-[#008d54]">+</span>
-            Obrolan baru
-          </button>
-          <label className="mt-3 block">
-            <span className="sr-only">Workspace untuk obrolan baru</span>
-            <select
-              value={selectedWorkspaceId}
-              onChange={(event) => setSelectedWorkspaceId(event.target.value)}
-              className="h-11 w-full rounded-2xl bg-white px-4 text-sm font-bold text-[#18392e] outline-none ring-1 ring-[#d8eadf] transition focus:ring-[#95d6b9]"
-            >
-              <option value="">General workspace</option>
-              {workspaces.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void createWorkspace();
-            }}
-            className="mt-2 flex gap-2"
-          >
-            <input
-              value={newWorkspaceName}
-              onChange={(event) => setNewWorkspaceName(event.target.value)}
-              placeholder="Workspace baru"
-              className="min-w-0 flex-1 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
-            />
-            <button
-              type="submit"
-              disabled={!newWorkspaceName.trim() || isCreatingWorkspace}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#009252] text-white transition hover:bg-[#007c46] disabled:cursor-not-allowed disabled:bg-[#95d6b9]"
-              aria-label="Buat workspace"
-              title="Buat workspace"
-            >
-              <span className="text-xl leading-none">+</span>
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-6 flex items-center gap-3 px-6 text-[#536b60]">
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="m16.5 16.5 4 4" />
-          </svg>
-          <input
-            value={chatSearch}
-            onChange={(event) => setChatSearch(event.target.value)}
-            placeholder="Cari judul atau isi chat"
-            className="min-w-0 flex-1 bg-transparent text-lg outline-none placeholder:text-[#536b60]"
-          />
-        </div>
-
-        <nav className="mt-9 flex-1 overflow-y-auto px-5 pb-6">
-          {isLoadingConversations && (
-            <p className="text-sm font-semibold text-[#4f665c]">
-              Memuat riwayat...
-            </p>
-          )}
-
-          {historyError && (
-            <p className="mb-4 rounded-2xl bg-white p-3 text-sm font-semibold text-[#8a3b2b] ring-1 ring-[#efd1c8]">
-              {historyError}
-            </p>
-          )}
-
-          {!isLoadingConversations && conversationGroups.length === 0 && (
-            <p className="text-sm font-semibold text-[#4f665c]">
-              Belum ada riwayat obrolan.
-            </p>
-          )}
-
-          {conversationGroups.map((group) => (
-            <div key={group.label} className="mb-8">
-              <h2 className="mb-5 flex items-center justify-between text-sm font-bold tracking-wide text-[#4f665c]">
-                <span>{group.label}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#008d54] ring-1 ring-[#d8eadf]">
-                  {group.items.length}
-                </span>
-              </h2>
-
-              <div className="space-y-3">
-                {group.items.map((conversation) => (
-                  <div
-                    key={conversation.id}
-                    className={
-                      conversation.id === activeConversationId
-                        ? "rounded-2xl bg-white p-2 shadow-sm ring-1 ring-[#d8eadf]"
-                        : "rounded-2xl p-2 transition hover:bg-white/70"
-                    }
-                  >
-                    {renamingConversationId === conversation.id ? (
-                      <form
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          renameConversation(conversation.id);
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <input
-                          value={renameValue}
-                          onChange={(event) => setRenameValue(event.target.value)}
-                          autoFocus
-                          className="min-w-0 flex-1 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#95d6b9]"
-                        />
-                        <button
-                          type="submit"
-                          className="grid h-9 w-9 place-items-center rounded-full bg-[#009252] text-white"
-                          aria-label="Simpan nama"
-                          title="Simpan nama"
-                        >
-                          <Icon name="check" className="h-4 w-4" />
-                        </button>
-                      </form>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => loadConversation(conversation)}
-                          className="flex min-w-0 flex-1 items-center gap-3 text-left text-base text-[#18392e] transition hover:text-[#008d54]"
-                        >
-                          <Icon
-                            name="chat"
-                            className="h-5 w-5 shrink-0 text-[#566d62]"
-                          />
-                          <span className="truncate">{conversation.title}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleConversationPin(conversation)}
-                          className={
-                            conversation.isPinned
-                              ? "grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eef8f1] text-[#008d54]"
-                              : "grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
-                          }
-                          aria-label={
-                            conversation.isPinned
-                              ? "Lepas pin obrolan"
-                              : "Pin obrolan"
-                          }
-                          title={
-                            conversation.isPinned
-                              ? "Lepas pin obrolan"
-                              : "Pin obrolan"
-                          }
-                        >
-                          <Icon name="pin" className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRenamingConversationId(conversation.id);
-                            setRenameValue(conversation.title);
-                          }}
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
-                          aria-label="Ubah nama obrolan"
-                          title="Ubah nama obrolan"
-                        >
-                          <Icon name="edit" className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            deleteConversation(conversation.id, resetMemory)
-                          }
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a3b2b] transition hover:bg-[#fff1ed]"
-                          aria-label="Hapus obrolan"
-                          title="Hapus obrolan"
-                        >
-                          <Icon name="trash" className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                    {renamingConversationId !== conversation.id && (
-                      <label className="mt-2 block">
-                        <span className="sr-only">Workspace obrolan</span>
-                        <select
-                          value={conversation.workspaceId ?? ""}
-                          onChange={(event) =>
-                            updateConversationWorkspace(
-                              conversation.id,
-                              event.target.value,
-                            )
-                          }
-                          className="h-9 w-full rounded-xl bg-white px-3 text-xs font-bold text-[#4f665c] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
-                        >
-                          <option value="">General</option>
-                          {workspaces.map((workspace) => (
-                            <option key={workspace.id} value={workspace.id}>
-                              {workspace.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        <div className="relative border-t border-[#d9e9df] px-5 py-4">
-          {isAccountMenuOpen && (
-            <div className="absolute bottom-[86px] left-5 right-5 z-40 overflow-hidden rounded-[22px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#d8eadf]">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAccountMenuOpen(false);
-                  router.push("/plans");
-                }}
-                className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
-              >
-                <span>
-                  <span className="block font-bold text-[#18392e]">
-                    Upgrade plan
-                  </span>
-                  <span className="text-xs font-semibold text-[#4f665c]">
-                    {currentTierLabel}
-                  </span>
-                </span>
-                <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
-                  {usageSnapshot
-                    ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
-                    : "--"}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAccountMenuOpen(false);
-                  openLearningProfile();
-                }}
-                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
-              >
-                <Icon name="user" className="h-5 w-5 text-[#008d54]" />
-                <span>
-                  <span className="block font-bold text-[#18392e]">
-                    Learning Profile
-                  </span>
-                  <span className="text-xs font-semibold text-[#4f665c]">
-                    {profileLabel}
-                  </span>
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAccountMenuOpen(false);
-                  openSettings("subscription");
-                }}
-                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
-              >
-                <Icon name="book" className="h-5 w-5 text-[#008d54]" />
-                <span className="font-bold text-[#18392e]">Usage / quota</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAccountMenuOpen(false);
-                  openSettings("general");
-                }}
-                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
-              >
-                <Icon name="settings" className="h-5 w-5 text-[#008d54]" />
-                <span className="font-bold text-[#18392e]">Settings</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#8a3b2b] transition hover:bg-[#fff1ed] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Icon name="lock" className="h-5 w-5" />
-                {isLoggingOut ? "Keluar..." : "Logout"}
-              </button>
-              {usageError && (
-                <p className="px-3 py-2 text-xs font-semibold text-[#8a3b2b]">
-                  {usageError}
-                </p>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
-            className="flex w-full items-center gap-3 rounded-[22px] bg-white p-3 text-left ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
-            aria-expanded={isAccountMenuOpen}
-          >
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-base font-bold text-[#008d54]">
-              {userInitials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-bold">Akun Anggota</p>
-              <p className="truncate text-xs text-[#4f665c]">
-                {userEmail || "Memuat akun..."}
-              </p>
-            </div>
-            <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
-              {currentTierLabel}
-            </span>
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        workspaces={workspaces}
+        selectedWorkspaceId={selectedWorkspaceId}
+        setSelectedWorkspaceId={setSelectedWorkspaceId}
+        newWorkspaceName={newWorkspaceName}
+        setNewWorkspaceName={setNewWorkspaceName}
+        isCreatingWorkspace={isCreatingWorkspace}
+        createWorkspace={createWorkspace}
+        chatSearch={chatSearch}
+        setChatSearch={setChatSearch}
+        isLoadingConversations={isLoadingConversations}
+        historyError={historyError}
+        conversationGroups={conversationGroups}
+        activeConversationId={activeConversationId}
+        renamingConversationId={renamingConversationId}
+        setRenamingConversationId={setRenamingConversationId}
+        renameValue={renameValue}
+        setRenameValue={setRenameValue}
+        loadConversation={loadConversation}
+        renameConversation={renameConversation}
+        toggleConversationPin={toggleConversationPin}
+        deleteConversation={deleteConversation}
+        updateConversationWorkspace={updateConversationWorkspace}
+        resetMemory={resetMemory}
+        isAccountMenuOpen={isAccountMenuOpen}
+        setIsAccountMenuOpen={setIsAccountMenuOpen}
+        currentTierLabel={currentTierLabel}
+        usageSnapshot={usageSnapshot}
+        usageError={usageError}
+        openLearningProfile={openLearningProfile}
+        openSettings={openSettings}
+        profileLabel={profileLabel}
+        handleLogout={handleLogout}
+        isLoggingOut={isLoggingOut}
+        userInitials={userInitials}
+        userEmail={userEmail}
+      />
 
       <section className="flex min-w-0 flex-1 flex-col bg-[#fbfdfb]">
         <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#d9e9df] px-4 sm:px-6 md:px-10">
