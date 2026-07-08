@@ -31,24 +31,24 @@ export default function UpgradeModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-[28px] bg-[#fbfdfb] p-5 shadow-2xl ring-1 ring-[#d8eadf] sm:max-w-5xl sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end bg-[#191c1d]/40 px-3 py-4 sm:items-center sm:justify-center">
+      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-[28px] bg-white p-5 shadow-2xl ring-1 ring-[#bec9be] sm:max-w-5xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#008d54]">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#004d27]">
               Upgrade paket
             </p>
-            <h2 className="mt-2 text-2xl font-bold text-[#05150d]">
+            <h2 className="mt-2 text-2xl font-bold text-[#191c1d]">
               Buka {modelCatalog[upgradeTargetModel].label}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#4f665c]">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#3f4940]">
               Paket kamu saat ini: {currentTierLabel}. Upgrade mulai dari{" "}
-              <strong className="text-[#18392e]">{upgradePlan.name}</strong>{" "}
+              <strong className="text-[#191c1d]">{upgradePlan.name}</strong>{" "}
               untuk memakai {modelCatalog[upgradeTargetModel].description}
             </p>
             {(upgradeTargetModel === "smart" ||
               upgradeTargetModel === "document") && (
-              <p className="mt-2 inline-flex rounded-full bg-[#fff4d8] px-3 py-1 text-xs font-bold text-[#8a5a00]">
+              <p className="mt-2 inline-flex rounded-full bg-[#fdc003] px-3 py-1 text-xs font-bold text-[#6c5000]">
                 Requires Muallim Pro or higher
               </p>
             )}
@@ -58,7 +58,7 @@ export default function UpgradeModal({
             onClick={() => setIsUpgradeOpen(false)}
             aria-label="Tutup upgrade"
             title="Tutup"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#3f4940] transition hover:bg-[#edeeef]"
           >
             <span aria-hidden="true" className="text-2xl leading-none">
               x
@@ -76,30 +76,30 @@ export default function UpgradeModal({
                 key={plan.tier}
                 className={
                   unlocksTarget
-                    ? "rounded-[24px] bg-white p-4 ring-2 ring-[#95d6b9]"
-                    : "rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]"
+                    ? "rounded-[24px] bg-white p-4 ring-2 ring-[#004d27]"
+                    : "rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]"
                 }
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-[#18392e]">{plan.name}</h3>
-                    <p className="mt-1 text-2xl font-bold text-[#05150d]">
+                    <h3 className="font-bold text-[#191c1d]">{plan.name}</h3>
+                    <p className="mt-1 text-2xl font-bold text-[#191c1d]">
                       {plan.price}
                     </p>
-                    <p className="text-xs font-semibold text-[#4f665c]">
+                    <p className="text-xs font-semibold text-[#3f4940]">
                       per bulan
                     </p>
                   </div>
                   {isCurrentPlan && (
-                    <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-[11px] font-bold text-[#008d54]">
+                    <span className="rounded-full bg-[#004d27]/10 px-2 py-1 text-[11px] font-bold text-[#004d27]">
                       Aktif
                     </span>
                   )}
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-[#4f665c]">
+                <p className="mt-3 text-sm leading-relaxed text-[#3f4940]">
                   {plan.tagline}
                 </p>
-                <div className="mt-4 space-y-2 text-xs font-semibold text-[#38534a]">
+                <div className="mt-4 space-y-2 text-xs font-semibold text-[#3f4940]">
                   <p>{plan.quotas[0]}</p>
                   <p>{plan.quotas[1]}</p>
                   <p>{plan.modelNames.join(", ")}</p>
@@ -110,10 +110,10 @@ export default function UpgradeModal({
                       key={badge}
                       className={
                         badge.includes("GPT")
-                          ? "rounded-full bg-[#fff4d8] px-2 py-0.5 text-[11px] font-bold text-[#8a5a00]"
+                          ? "rounded-full bg-[#fdc003] px-2 py-0.5 text-[11px] font-bold text-[#6c5000]"
                           : badge.includes("Gemini 2.5 Pro")
-                            ? "rounded-full bg-[#e8f1ff] px-2 py-0.5 text-[11px] font-bold text-[#28528a]"
-                            : "rounded-full bg-[#eef8f1] px-2 py-0.5 text-[11px] font-bold text-[#008d54]"
+                            ? "rounded-full bg-[#e0e0ff] px-2 py-0.5 text-[11px] font-bold text-[#343d96]"
+                            : "rounded-full bg-[#004d27]/10 px-2 py-0.5 text-[11px] font-bold text-[#004d27]"
                       }
                     >
                       {badge}
@@ -123,7 +123,7 @@ export default function UpgradeModal({
                 <button
                   type="button"
                   disabled
-                  className="mt-4 h-10 w-full rounded-full bg-[#eef8f1] text-xs font-bold text-[#008d54] ring-1 ring-[#d8eadf] disabled:cursor-not-allowed disabled:opacity-80"
+                  className="mt-4 h-10 w-full rounded-full bg-[#004d27]/10 text-xs font-bold text-[#004d27] ring-1 ring-[#bec9be] disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   Coming Soon
                 </button>
@@ -132,7 +132,7 @@ export default function UpgradeModal({
           })}
         </div>
 
-        <div className="mt-5 rounded-[22px] bg-[#eef8f1] p-4 text-sm leading-relaxed text-[#38534a] ring-1 ring-[#d8eadf]">
+        <div className="mt-5 rounded-[22px] bg-[#004d27]/10 p-4 text-sm leading-relaxed text-[#3f4940] ring-1 ring-[#bec9be]">
           Pembayaran otomatis belum diaktifkan. Untuk sekarang, upgrade
           ditampilkan sebagai placeholder manual sambil rute premium dan kuota
           subscription tetap siap dipakai dari data subscription.

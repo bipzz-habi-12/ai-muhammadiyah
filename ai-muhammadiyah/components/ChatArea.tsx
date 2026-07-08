@@ -76,18 +76,18 @@ export default function ChatArea({
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
       {messages.length <= 1 && (
         <div className="mx-auto flex min-h-full w-full max-w-[746px] flex-col items-center justify-center gap-8 pb-3 pt-1 md:justify-start">
-          <div className="grid h-[84px] w-[84px] place-items-center rounded-[34px] bg-[#009252] text-white shadow-2xl shadow-emerald-900/10">
+          <div className="grid h-[84px] w-[84px] place-items-center rounded-[34px] bg-[#004d27] text-white shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
             <SparkIcon className="h-12 w-12" />
           </div>
 
           <section className="text-center">
-            <h2 className="text-4xl font-bold leading-tight tracking-normal text-[#05150d] sm:text-5xl">
+            <h2 className="text-4xl font-bold leading-tight tracking-normal text-[#191c1d] sm:text-5xl">
               Assalamu&apos;alaikum, ada yang bisa AI-mu bantu?
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-[#4a6258] sm:text-xl">
+            <p className="mt-6 text-lg leading-relaxed text-[#3f4940] sm:text-xl">
               Asisten cerdas Muhammadiyah, ditenagai{" "}
-              <strong className="text-[#05150d]">ChatGPT 5.5</strong> &{" "}
-              <strong className="text-[#05150d]">Gemini 3.1 Pro.</strong>
+              <strong className="text-[#191c1d]">ChatGPT 5.5</strong> &{" "}
+              <strong className="text-[#191c1d]">Gemini 3.1 Pro.</strong>
             </p>
           </section>
 
@@ -113,16 +113,16 @@ export default function ChatArea({
                 key={prompt.title}
                 type="button"
                 onClick={() => setInput(prompt.title)}
-                className="flex min-h-[104px] items-center gap-5 rounded-[30px] bg-white px-6 text-left ring-1 ring-[#d3e8dc] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(27,77,50,0.08)]"
+                className="flex min-h-[104px] items-center gap-5 rounded-[30px] bg-white px-6 text-left ring-1 ring-[#bec9be] transition hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
               >
-                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-[#008d54]">
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#004d27]/10 text-[#004d27]">
                   <Icon name={prompt.icon} className="h-7 w-7" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-lg font-bold text-[#05150d]">
+                  <span className="block text-lg font-bold text-[#191c1d]">
                     {prompt.title}
                   </span>
-                  <span className="mt-1 block text-base leading-snug text-[#38534a]">
+                  <span className="mt-1 block text-base leading-snug text-[#3f4940]">
                     {prompt.description}
                   </span>
                 </span>
@@ -130,7 +130,7 @@ export default function ChatArea({
             ))}
           </div>
 
-          <p className="max-w-2xl text-center text-base leading-relaxed text-[#4f665c]">
+          <p className="max-w-2xl text-center text-base leading-relaxed text-[#3f4940]">
             AI-mu dapat keliru. Selalu verifikasi informasi penting, terutama
             dalam urusan ibadah & syariah.
           </p>
@@ -152,8 +152,8 @@ export default function ChatArea({
                 <div
                   className={
                     message.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#009252] px-5 py-3 text-sm leading-relaxed text-white shadow-lg shadow-emerald-900/15 sm:max-w-xl sm:text-base"
-                      : "max-w-[85%] rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#18392e] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-2xl sm:text-base"
+                      ? "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#e7e8e9] px-5 py-3 text-sm leading-relaxed text-[#3f4940] sm:max-w-xl sm:text-base"
+                      : "max-w-[85%] rounded-[24px] rounded-bl-md bg-[#004d27]/[0.03] px-5 py-3 text-sm leading-relaxed text-[#191c1d] sm:max-w-2xl sm:text-base"
                   }
                 >
                   {message.role === "ai" ? (
@@ -163,7 +163,7 @@ export default function ChatArea({
                         <button
                           type="button"
                           onClick={continueAnswer}
-                          className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#eef8f1] px-4 py-2 text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf] transition hover:bg-white"
+                          className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#004d27]/10 px-4 py-2 text-sm font-bold text-[#004d27] ring-1 ring-[#bec9be] transition hover:bg-[#004d27]/15"
                         >
                           Lanjutkan jawaban
                         </button>
@@ -179,7 +179,7 @@ export default function ChatArea({
 
           {isSending && isAwaitingFirstChunk && (
             <div className="flex justify-start animate-[messageIn_0.25s_ease-out]">
-              <div className="max-w-[85%] rounded-[24px] rounded-bl-md bg-white px-5 py-3 text-sm leading-relaxed text-[#4f665c] shadow-sm ring-1 ring-[#d3e8dc] sm:max-w-xl sm:text-base">
+              <div className="max-w-[85%] rounded-[24px] rounded-bl-md bg-[#004d27]/[0.03] px-5 py-3 text-sm leading-relaxed text-[#3f4940] sm:max-w-xl sm:text-base">
                 Sedang menjawab...
               </div>
             </div>

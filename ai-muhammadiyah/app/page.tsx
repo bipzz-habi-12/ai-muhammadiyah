@@ -293,23 +293,23 @@ export default function Home() {
             {uploadedAttachments.map((attachment) => (
               <div
                 key={attachment.id}
-                className="flex min-w-[210px] max-w-[280px] items-center gap-3 rounded-2xl bg-white px-3 py-2 text-left shadow-sm ring-1 ring-[#d3e8dc]"
+                className="flex min-w-[210px] max-w-[280px] items-center gap-3 rounded-2xl bg-white px-3 py-2 text-left shadow-sm ring-1 ring-[#bec9be]"
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef8f1] text-[#008d54]">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#004d27]/10 text-[#004d27]">
                   <Icon
                     name={attachment.kind === "image" ? "idea" : "book"}
                     className="h-5 w-5"
                   />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-[#18392e]">
+                  <span className="block truncate text-sm font-bold text-[#191c1d]">
                     {attachment.fileName}
                   </span>
                   <span
                     className={
                       attachment.status === "error"
-                        ? "block truncate text-xs font-semibold text-[#8a3b2b]"
-                        : "block truncate text-xs font-semibold text-[#4f665c]"
+                        ? "block truncate text-xs font-semibold text-[#ba1a1a]"
+                        : "block truncate text-xs font-semibold text-[#3f4940]"
                     }
                   >
                     {attachment.fileType} ·{" "}
@@ -328,7 +328,7 @@ export default function Home() {
                     onClick={() => void retryAttachment(attachment.id)}
                     aria-label={`Coba lagi ${attachment.fileName}`}
                     title="Coba lagi"
-                    className="shrink-0 rounded-full px-2 py-1 text-xs font-bold text-[#008d54] transition hover:bg-[#eef8f1]"
+                    className="shrink-0 rounded-full px-2 py-1 text-xs font-bold text-[#004d27] transition hover:bg-[#edeeef]"
                   >
                     Retry
                   </button>
@@ -338,7 +338,7 @@ export default function Home() {
                   onClick={() => removeAttachment(attachment.id)}
                   aria-label={`Hapus ${attachment.fileName}`}
                   title="Hapus"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#6d8178] transition hover:bg-[#fff1ed] hover:text-[#8a3b2b]"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#6d8178] transition hover:bg-[#ffdad6] hover:text-[#ba1a1a]"
                 >
                   ×
                 </button>
@@ -348,13 +348,13 @@ export default function Home() {
         )}
 
         {composerNotice && (
-          <p className="mt-2 rounded-2xl bg-[#eef8f1] px-3 py-2 text-sm font-semibold text-[#008d54] ring-1 ring-[#d8eadf]">
+          <p className="mt-2 rounded-2xl bg-[#004d27]/10 px-3 py-2 text-sm font-semibold text-[#004d27] ring-1 ring-[#bec9be]">
             {composerNotice}
           </p>
         )}
 
         {documentStatus === "error" && documentError && (
-          <p className="mt-2 rounded-2xl bg-[#fff1ed] px-3 py-2 text-sm font-semibold text-[#8a3b2b] ring-1 ring-[#f0c8be]">
+          <p className="mt-2 rounded-2xl bg-[#ffdad6] px-3 py-2 text-sm font-semibold text-[#93000a] ring-1 ring-[#ffdad6]">
             {documentError}
           </p>
         )}
@@ -368,9 +368,9 @@ export default function Home() {
     }
 
     return (
-      <div className="absolute bottom-full left-0 z-20 mb-3 w-72 overflow-hidden rounded-3xl bg-white p-2 text-sm shadow-2xl shadow-emerald-950/10 ring-1 ring-[#d3e8dc]">
-        <label className="flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 font-bold text-[#18392e] transition hover:bg-[#eef8f1]">
-          <Icon name="book" className="h-5 w-5 text-[#008d54]" />
+      <div className="absolute bottom-full left-0 z-20 mb-3 w-72 overflow-hidden rounded-3xl bg-white p-2 text-sm shadow-2xlring-1 ring-[#bec9be]">
+        <label className="flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 font-bold text-[#191c1d] transition hover:bg-[#edeeef]">
+          <Icon name="book" className="h-5 w-5 text-[#004d27]" />
           <span>Add photos & files</span>
           <input
             type="file"
@@ -381,8 +381,8 @@ export default function Home() {
           />
         </label>
         <div className="rounded-2xl px-3 py-2">
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-normal text-[#6b8178]">
-            <Icon name="edit" className="h-4 w-4 text-[#008d54]" />
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-normal text-[#6f7a70]">
+            <Icon name="edit" className="h-4 w-4 text-[#004d27]" />
             Recent files
           </div>
           {recentAttachments.length ? (
@@ -392,23 +392,23 @@ export default function Home() {
                   key={attachment.id}
                   type="button"
                   onClick={() => reuseRecentAttachment(attachment)}
-                  className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-semibold text-[#18392e] transition hover:bg-[#eef8f1]"
+                  className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-semibold text-[#191c1d] transition hover:bg-[#edeeef]"
                 >
                   <Icon
                     name={attachment.kind === "image" ? "idea" : "book"}
-                    className="h-4 w-4 shrink-0 text-[#008d54]"
+                    className="h-4 w-4 shrink-0 text-[#004d27]"
                   />
                   <span className="min-w-0 flex-1 truncate">
                     {attachment.fileName}
                   </span>
-                  <span className="text-xs text-[#6b8178]">
+                  <span className="text-xs text-[#6f7a70]">
                     {attachment.fileType}
                   </span>
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-xs font-semibold text-[#6b8178]">
+            <p className="text-xs font-semibold text-[#6f7a70]">
               Belum ada file terbaru.
             </p>
           )}
@@ -418,9 +418,9 @@ export default function Home() {
           onClick={() =>
             showComposerNotice("Create image masih Coming soon sampai provider image generation dikonfigurasi.")
           }
-          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#191c1d] transition hover:bg-[#edeeef]"
         >
-          <Icon name="idea" className="h-5 w-5 text-[#008d54]" />
+          <Icon name="idea" className="h-5 w-5 text-[#004d27]" />
           Create image
         </button>
         {isKnowledgeAdmin && (
@@ -431,9 +431,9 @@ export default function Home() {
               setIsSettingsOpen(true);
               setIsAttachMenuOpen(false);
             }}
-            className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+            className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#191c1d] transition hover:bg-[#edeeef]"
           >
-            <Icon name="lock" className="h-5 w-5 text-[#008d54]" />
+            <Icon name="lock" className="h-5 w-5 text-[#004d27]" />
             Knowledge source upload
           </button>
         )}
@@ -443,9 +443,9 @@ export default function Home() {
             setIsStudyModeMenuOpen(true);
             setIsAttachMenuOpen(false);
           }}
-          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#191c1d] transition hover:bg-[#edeeef]"
         >
-          <Icon name="cap" className="h-5 w-5 text-[#008d54]" />
+          <Icon name="cap" className="h-5 w-5 text-[#004d27]" />
           Study mode
         </button>
         <button
@@ -454,9 +454,9 @@ export default function Home() {
             setIsSettingsOpen(true);
             setIsAttachMenuOpen(false);
           }}
-          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#18392e] transition hover:bg-[#eef8f1]"
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left font-bold text-[#191c1d] transition hover:bg-[#edeeef]"
         >
-          <Icon name="settings" className="h-5 w-5 text-[#008d54]" />
+          <Icon name="settings" className="h-5 w-5 text-[#004d27]" />
           Settings
         </button>
       </div>
@@ -464,7 +464,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-dvh overflow-hidden bg-[#f7fbf8] text-[#04140b]">
+    <main className="flex h-dvh overflow-hidden bg-[#f8f9fa] text-[#191c1d]">
       <Sidebar
         workspaces={workspaces}
         selectedWorkspaceId={selectedWorkspaceId}
@@ -503,7 +503,7 @@ export default function Home() {
         userEmail={userEmail}
       />
 
-      <section className="flex min-w-0 flex-1 flex-col bg-[#fbfdfb]">
+      <section className="flex min-w-0 flex-1 flex-col bg-white">
         <TopBar
           selectedModelInfo={selectedModelInfo}
           selectedModel={selectedModel}

@@ -135,12 +135,12 @@ export default function SettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-[#04140b]/35 px-3 py-4 sm:items-center sm:justify-center">
-      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-[28px] bg-[#fbfdfb] shadow-2xl ring-1 ring-[#d8eadf] sm:max-w-5xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[#d9e9df] px-5 py-5 sm:px-6">
+    <div className="fixed inset-0 z-50 flex items-end bg-[#191c1d]/40 px-3 py-4 sm:items-center sm:justify-center">
+      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl ring-1 ring-[#bec9be] sm:max-w-5xl">
+        <div className="flex items-start justify-between gap-4 border-b border-[#bec9be] px-5 py-5 sm:px-6">
           <div>
-            <h2 className="text-2xl font-bold text-[#05150d]">Settings</h2>
-            <p className="mt-1 text-sm text-[#4f665c]">
+            <h2 className="text-2xl font-bold text-[#191c1d]">Settings</h2>
+            <p className="mt-1 text-sm text-[#3f4940]">
               Preferensi AI-mu, akun, data, dan dokumen.
             </p>
           </div>
@@ -149,7 +149,7 @@ export default function SettingsModal({
             onClick={() => setIsSettingsOpen(false)}
             aria-label="Tutup Settings"
             title="Tutup"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#566d62] transition hover:bg-[#eef8f1]"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#3f4940] transition hover:bg-[#edeeef]"
           >
             <span aria-hidden="true" className="text-2xl leading-none">
               x
@@ -158,7 +158,7 @@ export default function SettingsModal({
         </div>
 
         <div className="grid min-h-0 flex-1 md:grid-cols-[230px_1fr]">
-          <nav className="flex gap-2 overflow-x-auto border-b border-[#d9e9df] bg-[#f7fbf8] p-3 md:block md:space-y-1 md:overflow-visible md:border-b-0 md:border-r">
+          <nav className="flex gap-2 overflow-x-auto border-b border-[#bec9be] bg-[#f3f4f5] p-3 md:block md:space-y-1 md:overflow-visible md:border-b-0 md:border-r">
             {settingsTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -166,8 +166,8 @@ export default function SettingsModal({
                 onClick={() => setActiveSettingsTab(tab.id)}
                 className={
                   activeSettingsTab === tab.id
-                    ? "shrink-0 rounded-2xl bg-white px-4 py-3 text-left text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf] md:w-full"
-                    : "shrink-0 rounded-2xl px-4 py-3 text-left text-sm font-bold text-[#38534a] transition hover:bg-white md:w-full"
+                    ? "shrink-0 rounded-2xl bg-white px-4 py-3 text-left text-sm font-bold text-[#004d27] ring-1 ring-[#bec9be] md:w-full"
+                    : "shrink-0 rounded-2xl px-4 py-3 text-left text-sm font-bold text-[#3f4940] transition hover:bg-white md:w-full"
                 }
               >
                 {tab.label}
@@ -179,7 +179,7 @@ export default function SettingsModal({
             {activeSettingsTab === "general" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Theme
                   </span>
                   <select
@@ -190,7 +190,7 @@ export default function SettingsModal({
                         event.target.value as UserMemory["themePreference"],
                       )
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                   >
                     <option value="system">System</option>
                     <option value="light">Light</option>
@@ -199,7 +199,7 @@ export default function SettingsModal({
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Language
                   </span>
                   <select
@@ -207,7 +207,7 @@ export default function SettingsModal({
                     onChange={(event) =>
                       updateProfileDraft("preferredLanguage", event.target.value)
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                   >
                     {languageOptions.map((option) => (
                       <option key={option.label} value={option.value}>
@@ -218,7 +218,7 @@ export default function SettingsModal({
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Default AI model
                   </span>
                   <select
@@ -229,7 +229,7 @@ export default function SettingsModal({
                         event.target.value as UserMemory["defaultModel"],
                       )
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                   >
                     {modelOptions.map((model) => (
                       <option key={model} value={model}>
@@ -240,7 +240,7 @@ export default function SettingsModal({
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Default study mode
                   </span>
                   <select
@@ -251,7 +251,7 @@ export default function SettingsModal({
                         event.target.value as UserMemory["defaultStudyMode"],
                       )
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                   >
                     {skills
                       .filter(
@@ -275,7 +275,7 @@ export default function SettingsModal({
             {activeSettingsTab === "personalization" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Learning Profile
                   </span>
                   <input
@@ -283,13 +283,13 @@ export default function SettingsModal({
                     onChange={(event) =>
                       updateProfileDraft("displayName", event.target.value)
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                     placeholder="Nama panggilan"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Jenjang sekolah
                   </span>
                   <input
@@ -297,13 +297,13 @@ export default function SettingsModal({
                     onChange={(event) =>
                       updateProfileDraft("schoolLevel", event.target.value)
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                     placeholder="Kelas 9 SMP"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Explanation style
                   </span>
                   <select
@@ -314,7 +314,7 @@ export default function SettingsModal({
                         event.target.value,
                       )
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                   >
                     <option value="">Default</option>
                     <option value="Singkat, langsung ke inti, lalu contoh.">
@@ -333,7 +333,7 @@ export default function SettingsModal({
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Favorite subjects
                   </span>
                   <input
@@ -341,13 +341,13 @@ export default function SettingsModal({
                     onChange={(event) =>
                       setFavoriteSubjectsDraft(event.target.value)
                     }
-                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                     placeholder="Matematika, Al-Islam"
                   />
                 </label>
 
                 <label className="block sm:col-span-2">
-                  <span className="text-sm font-bold text-[#18392e]">
+                  <span className="text-sm font-bold text-[#191c1d]">
                     Learning goals
                   </span>
                   <textarea
@@ -355,7 +355,7 @@ export default function SettingsModal({
                     onChange={(event) =>
                       updateProfileDraft("learningGoals", event.target.value)
                     }
-                    className="mt-2 min-h-24 w-full resize-none rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                    className="mt-2 min-h-24 w-full resize-none rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                     placeholder="Ingin lebih paham matematika dan latihan menjawab soal."
                   />
                 </label>
@@ -364,41 +364,41 @@ export default function SettingsModal({
 
             {activeSettingsTab === "subscription" && (
               <div className="space-y-4">
-                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                  <p className="text-sm font-bold text-[#008d54]">
+                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
+                  <p className="text-sm font-bold text-[#004d27]">
                     Current plan
                   </p>
-                  <h3 className="mt-1 text-2xl font-bold text-[#05150d]">
+                  <h3 className="mt-1 text-2xl font-bold text-[#191c1d]">
                     {currentPlan?.name ?? currentTierLabel}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                  <p className="mt-2 text-sm leading-relaxed text-[#3f4940]">
                     {currentPlan?.tagline ?? "Status paket sedang dimuat."}
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[22px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                    <p className="text-sm font-bold text-[#18392e]">
+                  <div className="rounded-[22px] bg-white p-4 ring-1 ring-[#bec9be]">
+                    <p className="text-sm font-bold text-[#191c1d]">
                       Usage quota
                     </p>
-                    <p className="mt-2 text-2xl font-bold text-[#008d54]">
+                    <p className="mt-2 text-2xl font-bold text-[#004d27]">
                       {usageSnapshot
                         ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
                         : "--"}
                     </p>
-                    <p className="text-sm text-[#4f665c]">
+                    <p className="text-sm text-[#3f4940]">
                       pesan tersisa hari ini
                     </p>
                   </div>
-                  <div className="rounded-[22px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                    <p className="text-sm font-bold text-[#18392e]">
+                  <div className="rounded-[22px] bg-white p-4 ring-1 ring-[#bec9be]">
+                    <p className="text-sm font-bold text-[#191c1d]">
                       Document quota
                     </p>
-                    <p className="mt-2 text-2xl font-bold text-[#008d54]">
+                    <p className="mt-2 text-2xl font-bold text-[#004d27]">
                       {usageSnapshot
                         ? `${usageSnapshot.remainingUploadsToday}/${usageSnapshot.dailyUploadLimit}`
                         : "--"}
                     </p>
-                    <p className="text-sm text-[#4f665c]">
+                    <p className="text-sm text-[#3f4940]">
                       upload tersisa hari ini
                     </p>
                   </div>
@@ -406,7 +406,7 @@ export default function SettingsModal({
                 <button
                   type="button"
                   onClick={() => router.push("/plans")}
-                  className="h-12 rounded-full bg-[#009252] px-6 text-sm font-bold text-white transition hover:bg-[#007c46]"
+                  className="h-12 rounded-full bg-[#004d27] px-6 text-sm font-bold text-white transition hover:bg-[#006837]"
                 >
                   Upgrade plan
                 </button>
@@ -418,50 +418,50 @@ export default function SettingsModal({
                 <button
                   type="button"
                   onClick={resetMemory}
-                  className="flex w-full items-center justify-between rounded-[22px] bg-white p-4 text-left ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
+                  className="flex w-full items-center justify-between rounded-[22px] bg-white p-4 text-left ring-1 ring-[#bec9be] transition hover:bg-[#f3f4f5]"
                 >
                   <span>
-                    <span className="block text-sm font-bold text-[#18392e]">
+                    <span className="block text-sm font-bold text-[#191c1d]">
                       Clear current chat
                     </span>
-                    <span className="mt-1 block text-sm text-[#4f665c]">
+                    <span className="mt-1 block text-sm text-[#3f4940]">
                       Mulai obrolan kosong tanpa menghapus riwayat.
                     </span>
                   </span>
-                  <span className="text-xl text-[#008d54]">+</span>
+                  <span className="text-xl text-[#004d27]">+</span>
                 </button>
                 <button
                   type="button"
                   onClick={deleteAllChatHistory}
-                  className="flex w-full items-center justify-between rounded-[22px] bg-white p-4 text-left ring-1 ring-[#f0c8be] transition hover:bg-[#fff1ed]"
+                  className="flex w-full items-center justify-between rounded-[22px] bg-white p-4 text-left ring-1 ring-[#ffdad6] transition hover:bg-[#ffdad6]"
                 >
                   <span>
-                    <span className="block text-sm font-bold text-[#8a3b2b]">
+                    <span className="block text-sm font-bold text-[#ba1a1a]">
                       Delete all chat history
                     </span>
-                    <span className="mt-1 block text-sm text-[#4f665c]">
+                    <span className="mt-1 block text-sm text-[#3f4940]">
                       Menghapus semua conversation milik akun ini.
                     </span>
                   </span>
-                  <Icon name="trash" className="h-5 w-5 text-[#8a3b2b]" />
+                  <Icon name="trash" className="h-5 w-5 text-[#ba1a1a]" />
                 </button>
                 <button
                   type="button"
                   onClick={exportChatHistoryPlaceholder}
-                  className="flex w-full items-center justify-between rounded-[22px] bg-white p-4 text-left ring-1 ring-[#d8eadf] transition hover:bg-[#f7fbf8]"
+                  className="flex w-full items-center justify-between rounded-[22px] bg-white p-4 text-left ring-1 ring-[#bec9be] transition hover:bg-[#f3f4f5]"
                 >
                   <span>
-                    <span className="block text-sm font-bold text-[#18392e]">
+                    <span className="block text-sm font-bold text-[#191c1d]">
                       Export active chat
                     </span>
-                    <span className="mt-1 block text-sm text-[#4f665c]">
+                    <span className="mt-1 block text-sm text-[#3f4940]">
                       Unduh Markdown dengan format pesan tetap terjaga.
                     </span>
                   </span>
-                  <span className="text-sm font-bold text-[#008d54]">MD</span>
+                  <span className="text-sm font-bold text-[#004d27]">MD</span>
                 </button>
                 {settingsDataMessage && (
-                  <p className="rounded-2xl bg-[#eef8f1] p-3 text-sm font-semibold text-[#008d54]">
+                  <p className="rounded-2xl bg-[#004d27]/10 p-3 text-sm font-semibold text-[#004d27]">
                     {settingsDataMessage}
                   </p>
                 )}
@@ -470,15 +470,15 @@ export default function SettingsModal({
 
             {activeSettingsTab === "security" && (
               <div className="space-y-4">
-                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                  <p className="text-sm font-bold text-[#18392e]">
+                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
+                  <p className="text-sm font-bold text-[#191c1d]">
                     Login email
                   </p>
-                  <p className="mt-1 break-words text-sm text-[#4f665c]">
+                  <p className="mt-1 break-words text-sm text-[#3f4940]">
                     {userEmail || "Memuat akun..."}
                   </p>
                 </div>
-                <div className="rounded-[24px] bg-[#eef8f1] p-4 text-sm leading-relaxed text-[#38534a] ring-1 ring-[#d8eadf]">
+                <div className="rounded-[24px] bg-[#004d27]/10 p-4 text-sm leading-relaxed text-[#3f4940] ring-1 ring-[#bec9be]">
                   Login memakai OTP email. AI Muhammadiyah tidak menyimpan
                   password di aplikasi ini.
                 </div>
@@ -486,7 +486,7 @@ export default function SettingsModal({
                   type="button"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="h-12 rounded-full bg-white px-6 text-sm font-bold text-[#8a3b2b] ring-1 ring-[#f0c8be] transition hover:bg-[#fff1ed] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-12 rounded-full bg-white px-6 text-sm font-bold text-[#ba1a1a] ring-1 ring-[#ffdad6] transition hover:bg-[#ffdad6] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isLoggingOut ? "Keluar..." : "Logout"}
                 </button>
@@ -495,11 +495,11 @@ export default function SettingsModal({
 
             {activeSettingsTab === "documents" && (
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                  <p className="text-sm font-bold text-[#18392e]">
+                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
+                  <p className="text-sm font-bold text-[#191c1d]">
                     Upload limits
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                  <p className="mt-2 text-sm leading-relaxed text-[#3f4940]">
                     Maksimal 25 MB per file. Kuota harian mengikuti paket:{" "}
                     {usageSnapshot
                       ? `${usageSnapshot.dailyUploadLimit} upload/hari`
@@ -507,19 +507,19 @@ export default function SettingsModal({
                     .
                   </p>
                 </div>
-                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                  <p className="text-sm font-bold text-[#18392e]">
+                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
+                  <p className="text-sm font-bold text-[#191c1d]">
                     Supported files
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                  <p className="mt-2 text-sm leading-relaxed text-[#3f4940]">
                     PDF, DOCX, PPTX, XLSX, PNG, JPG, JPEG, WEBP.
                   </p>
                 </div>
-                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf] sm:col-span-2">
-                  <p className="text-sm font-bold text-[#18392e]">
+                <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be] sm:col-span-2">
+                  <p className="text-sm font-bold text-[#191c1d]">
                     Storage info
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                  <p className="mt-2 text-sm leading-relaxed text-[#3f4940]">
                     Dokumen diproses untuk mengambil teks, lalu konteksnya
                     dipakai pada chat aktif. File asli tidak ditampilkan
                     sebagai arsip permanen di UI saat ini.
@@ -531,21 +531,21 @@ export default function SettingsModal({
             {activeSettingsTab === "knowledge" && (
               <div className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                    <p className="text-sm font-bold text-[#18392e]">
+                  <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
+                    <p className="text-sm font-bold text-[#191c1d]">
                       Retrieval status
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                    <p className="mt-2 text-sm leading-relaxed text-[#3f4940]">
                       {isLoadingKnowledge
                         ? "Memuat knowledge base..."
                         : `${knowledgeSources.length} source aktif terbaca.`}
                     </p>
                   </div>
-                  <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
-                    <p className="text-sm font-bold text-[#18392e]">
+                  <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
+                    <p className="text-sm font-bold text-[#191c1d]">
                       Admin access
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                    <p className="mt-2 text-sm leading-relaxed text-[#3f4940]">
                       {isKnowledgeAdmin
                         ? "Upload dan kelola manual aktif untuk akun ini."
                         : "Akun ini bisa membaca source publik aktif."}
@@ -554,10 +554,10 @@ export default function SettingsModal({
                 </div>
 
                 {isKnowledgeAdmin && (
-                  <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#d8eadf]">
+                  <div className="rounded-[24px] bg-white p-4 ring-1 ring-[#bec9be]">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="block">
-                        <span className="text-sm font-bold text-[#18392e]">
+                        <span className="text-sm font-bold text-[#191c1d]">
                           Source title
                         </span>
                         <input
@@ -565,12 +565,12 @@ export default function SettingsModal({
                           onChange={(event) =>
                             setKnowledgeTitle(event.target.value)
                           }
-                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                           placeholder="Pedoman ISMUBA"
                         />
                       </label>
                       <label className="block">
-                        <span className="text-sm font-bold text-[#18392e]">
+                        <span className="text-sm font-bold text-[#191c1d]">
                           Category
                         </span>
                         <input
@@ -578,13 +578,13 @@ export default function SettingsModal({
                           onChange={(event) =>
                             setKnowledgeCategory(event.target.value)
                           }
-                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#18392e] outline-none ring-1 ring-[#d8eadf] focus:ring-[#95d6b9]"
+                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#191c1d] outline-none ring-1 ring-[#bec9be] focus:ring-[#004d27]"
                           placeholder="kemuhammadiyahan"
                         />
                       </label>
                     </div>
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <label className="inline-flex h-12 cursor-pointer items-center justify-center rounded-full bg-[#009252] px-6 text-sm font-bold text-white transition hover:bg-[#007c46]">
+                      <label className="inline-flex h-12 cursor-pointer items-center justify-center rounded-full bg-[#004d27] px-6 text-sm font-bold text-white transition hover:bg-[#006837]">
                         {isUploadingKnowledge
                           ? "Mengupload..."
                           : "Upload knowledge document"}
@@ -596,7 +596,7 @@ export default function SettingsModal({
                           className="sr-only"
                         />
                       </label>
-                      <p className="text-sm text-[#4f665c]">
+                      <p className="text-sm text-[#3f4940]">
                         PDF, DOCX, PPTX, XLSX. Teks dipotong otomatis untuk
                         pencarian full-text.
                       </p>
@@ -608,8 +608,8 @@ export default function SettingsModal({
                   <p
                     className={
                       knowledgeError
-                        ? "rounded-2xl bg-[#fff1ed] p-3 text-sm font-semibold text-[#8a3b2b]"
-                        : "rounded-2xl bg-[#eef8f1] p-3 text-sm font-semibold text-[#008d54]"
+                        ? "rounded-2xl bg-[#ffdad6] p-3 text-sm font-semibold text-[#93000a]"
+                        : "rounded-2xl bg-[#004d27]/10 p-3 text-sm font-semibold text-[#004d27]"
                     }
                   >
                     {knowledgeError || knowledgeMessage}
@@ -620,24 +620,24 @@ export default function SettingsModal({
                   {knowledgeSources.map((source) => (
                     <div
                       key={source.id}
-                      className="rounded-[22px] bg-white p-4 ring-1 ring-[#d8eadf]"
+                      className="rounded-[22px] bg-white p-4 ring-1 ring-[#bec9be]"
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-sm font-bold text-[#18392e]">
+                          <p className="text-sm font-bold text-[#191c1d]">
                             {source.title}
                           </p>
-                          <p className="mt-1 text-sm text-[#4f665c]">
+                          <p className="mt-1 text-sm text-[#3f4940]">
                             {source.category} - {source.fileType.toUpperCase()}{" "}
                             - {source.chunkCount} chunks
                           </p>
                         </div>
-                        <span className="w-fit rounded-full bg-[#eef8f1] px-3 py-1 text-xs font-bold text-[#008d54]">
+                        <span className="w-fit rounded-full bg-[#004d27]/10 px-3 py-1 text-xs font-bold text-[#004d27]">
                           {source.status}
                         </span>
                       </div>
                       {source.originalFileName && (
-                        <p className="mt-2 break-words text-xs text-[#6b8177]">
+                        <p className="mt-2 break-words text-xs text-[#6f7a70]">
                           {source.originalFileName}
                         </p>
                       )}
@@ -645,7 +645,7 @@ export default function SettingsModal({
                   ))}
 
                   {!isLoadingKnowledge && knowledgeSources.length === 0 && (
-                    <div className="rounded-[22px] bg-white p-4 text-sm leading-relaxed text-[#4f665c] ring-1 ring-[#d8eadf]">
+                    <div className="rounded-[22px] bg-white p-4 text-sm leading-relaxed text-[#3f4940] ring-1 ring-[#bec9be]">
                       Belum ada knowledge source aktif.
                     </div>
                   )}
@@ -660,8 +660,8 @@ export default function SettingsModal({
                   <p
                     className={
                       profileError
-                        ? "mt-4 rounded-2xl bg-[#fff1ed] p-3 text-sm font-semibold text-[#8a3b2b]"
-                        : "mt-4 rounded-2xl bg-[#eef8f1] p-3 text-sm font-semibold text-[#008d54]"
+                        ? "mt-4 rounded-2xl bg-[#ffdad6] p-3 text-sm font-semibold text-[#93000a]"
+                        : "mt-4 rounded-2xl bg-[#004d27]/10 p-3 text-sm font-semibold text-[#004d27]"
                     }
                   >
                     {profileError || profileSavedMessage}
@@ -672,7 +672,7 @@ export default function SettingsModal({
                   <button
                     type="button"
                     onClick={() => setIsSettingsOpen(false)}
-                    className="h-12 rounded-full bg-white px-6 text-sm font-bold text-[#18392e] ring-1 ring-[#d8eadf] transition hover:bg-[#eef8f1]"
+                    className="h-12 rounded-full bg-white px-6 text-sm font-bold text-[#191c1d] ring-1 ring-[#bec9be] transition hover:bg-[#edeeef]"
                   >
                     Batal
                   </button>
@@ -680,7 +680,7 @@ export default function SettingsModal({
                     type="button"
                     onClick={saveLearningProfile}
                     disabled={isSavingProfile}
-                    className="h-12 rounded-full bg-[#009252] px-6 text-sm font-bold text-white transition hover:bg-[#007c46] disabled:cursor-not-allowed disabled:bg-[#95d6b9]"
+                    className="h-12 rounded-full bg-[#004d27] px-6 text-sm font-bold text-white transition hover:bg-[#006837] disabled:cursor-not-allowed disabled:bg-[#004d27]/40"
                   >
                     {isSavingProfile ? "Menyimpan..." : "Simpan settings"}
                   </button>

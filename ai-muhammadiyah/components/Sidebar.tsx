@@ -124,9 +124,9 @@ export default function Sidebar({
         <button
           type="button"
           onClick={resetMemory}
-          className="flex h-[62px] w-full items-center gap-4 rounded-[28px] bg-white px-6 text-left text-lg font-bold text-[#04140b] shadow-[0_2px_10px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(0,0,0,0.2)]"
+          className="flex h-[62px] w-full items-center gap-4 rounded-[28px] bg-white px-6 text-left text-lg font-bold text-[#191c1d] shadow-[0_2px_10px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(0,0,0,0.2)]"
         >
-          <span className="text-3xl font-light text-[#008d54]">+</span>
+          <span className="text-3xl font-light text-[#004d27]">+</span>
           Obrolan baru
         </button>
         <label className="mt-3 block">
@@ -136,12 +136,12 @@ export default function Sidebar({
             onChange={(event) => setSelectedWorkspaceId(event.target.value)}
             className="h-11 w-full rounded-2xl border border-white/20 bg-white/10 px-4 text-sm font-bold text-white outline-none transition focus:border-white/40"
           >
-            <option className="text-[#04140b]" value="">
+            <option className="text-[#191c1d]" value="">
               General workspace
             </option>
             {workspaces.map((workspace) => (
               <option
-                className="text-[#04140b]"
+                className="text-[#191c1d]"
                 key={workspace.id}
                 value={workspace.id}
               >
@@ -205,7 +205,7 @@ export default function Sidebar({
         )}
 
         {historyError && (
-          <p className="mb-4 rounded-2xl bg-[#8a3b2b]/20 p-3 text-sm font-semibold text-white ring-1 ring-[#8a3b2b]/40">
+          <p className="mb-4 rounded-2xl bg-[#ba1a1a]/20 p-3 text-sm font-semibold text-white ring-1 ring-[#ba1a1a]/40">
             {historyError}
           </p>
         )}
@@ -330,12 +330,12 @@ export default function Sidebar({
                         }
                         className="h-9 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white/80 outline-none focus:border-white/40"
                       >
-                        <option className="text-[#04140b]" value="">
+                        <option className="text-[#191c1d]" value="">
                           General
                         </option>
                         {workspaces.map((workspace) => (
                           <option
-                            className="text-[#04140b]"
+                            className="text-[#191c1d]"
                             key={workspace.id}
                             value={workspace.id}
                           >
@@ -354,24 +354,24 @@ export default function Sidebar({
 
       <div className="relative border-t border-white/10 px-5 py-4">
         {isAccountMenuOpen && (
-          <div className="absolute bottom-[86px] left-5 right-5 z-40 overflow-hidden rounded-[22px] bg-white p-2 text-sm text-[#04140b] shadow-2xl ring-1 ring-[#d8eadf]">
+          <div className="absolute bottom-[86px] left-5 right-5 z-40 overflow-hidden rounded-[22px] bg-white p-2 text-sm text-[#191c1d] shadow-2xl ring-1 ring-[#bec9be]">
             <button
               type="button"
               onClick={() => {
                 setIsAccountMenuOpen(false);
                 router.push("/plans");
               }}
-              className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+              className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
             >
               <span>
-                <span className="block font-bold text-[#18392e]">
+                <span className="block font-bold text-[#191c1d]">
                   Upgrade plan
                 </span>
-                <span className="text-xs font-semibold text-[#4f665c]">
+                <span className="text-xs font-semibold text-[#3f4940]">
                   {currentTierLabel}
                 </span>
               </span>
-              <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
+              <span className="rounded-full bg-[#004d27]/10 px-2 py-1 text-xs font-bold text-[#004d27]">
                 {usageSnapshot
                   ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
                   : "--"}
@@ -383,14 +383,14 @@ export default function Sidebar({
                 setIsAccountMenuOpen(false);
                 openLearningProfile();
               }}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
             >
-              <Icon name="user" className="h-5 w-5 text-[#008d54]" />
+              <Icon name="user" className="h-5 w-5 text-[#004d27]" />
               <span>
-                <span className="block font-bold text-[#18392e]">
+                <span className="block font-bold text-[#191c1d]">
                   Learning Profile
                 </span>
-                <span className="text-xs font-semibold text-[#4f665c]">
+                <span className="text-xs font-semibold text-[#3f4940]">
                   {profileLabel}
                 </span>
               </span>
@@ -401,10 +401,10 @@ export default function Sidebar({
                 setIsAccountMenuOpen(false);
                 openSettings("subscription");
               }}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
             >
-              <Icon name="book" className="h-5 w-5 text-[#008d54]" />
-              <span className="font-bold text-[#18392e]">Usage / quota</span>
+              <Icon name="book" className="h-5 w-5 text-[#004d27]" />
+              <span className="font-bold text-[#191c1d]">Usage / quota</span>
             </button>
             <button
               type="button"
@@ -412,22 +412,22 @@ export default function Sidebar({
                 setIsAccountMenuOpen(false);
                 openSettings("general");
               }}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f7fbf8]"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
             >
-              <Icon name="settings" className="h-5 w-5 text-[#008d54]" />
-              <span className="font-bold text-[#18392e]">Settings</span>
+              <Icon name="settings" className="h-5 w-5 text-[#004d27]" />
+              <span className="font-bold text-[#191c1d]">Settings</span>
             </button>
             <button
               type="button"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#8a3b2b] transition hover:bg-[#fff1ed] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#ba1a1a] transition hover:bg-[#ffdad6] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Icon name="lock" className="h-5 w-5" />
               {isLoggingOut ? "Keluar..." : "Logout"}
             </button>
             {usageError && (
-              <p className="px-3 py-2 text-xs font-semibold text-[#8a3b2b]">
+              <p className="px-3 py-2 text-xs font-semibold text-[#ba1a1a]">
                 {usageError}
               </p>
             )}
@@ -440,7 +440,7 @@ export default function Sidebar({
           className="flex w-full items-center gap-3 rounded-[22px] bg-white/10 p-3 text-left transition hover:bg-white/15"
           aria-expanded={isAccountMenuOpen}
         >
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#c9f7dc] text-base font-bold text-[#008d54]">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fdc003] text-base font-bold text-[#6c5000]">
             {userInitials}
           </div>
           <div className="min-w-0 flex-1">
@@ -451,7 +451,7 @@ export default function Sidebar({
               {userEmail || "Memuat akun..."}
             </p>
           </div>
-          <span className="rounded-full bg-[#eef8f1] px-2 py-1 text-xs font-bold text-[#008d54]">
+          <span className="rounded-full bg-[#fdc003] px-2 py-1 text-xs font-bold text-[#6c5000]">
             {currentTierLabel}
           </span>
         </button>
