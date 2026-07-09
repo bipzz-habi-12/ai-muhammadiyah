@@ -44,13 +44,12 @@ export default function Home() {
     workspaces,
     selectedWorkspaceId,
     setSelectedWorkspaceId,
-    newWorkspaceName,
-    setNewWorkspaceName,
-    isCreatingWorkspace,
     loadWorkspaces,
-    createWorkspace,
   } = useWorkspaces(setHistoryError);
-  const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
+  // Study-mode/model dropdowns were removed from the header (pure-Stitch); the
+  // setters are still threaded into useSkills / Composer toggles, so only the
+  // boolean reads became unused.
+  const [, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const {
     knowledgeSources,
@@ -81,26 +80,21 @@ export default function Home() {
   } = useUsage();
   const {
     skills,
-    skillsLoading,
     selectedSkillId,
     setSelectedSkillId,
     skillsRef,
     loadSkills,
-    selectSkill,
     selectedSkill,
     selectedSkillBadge,
   } = useSkills(usageSnapshot?.tier, setIsStudyModeMenuOpen);
   const {
     selectedModel,
     setSelectedModel,
-    isModelMenuOpen,
     setIsModelMenuOpen,
     isUpgradeOpen,
     setIsUpgradeOpen,
     upgradeTargetModel,
-    selectedModelInfo,
     upgradePlan,
-    selectModel,
   } = useModelSelection(allowedModels);
   const {
     learningProfile,
@@ -157,17 +151,12 @@ export default function Home() {
     activeConversationId,
     setActiveConversationId,
     isLoadingConversations,
-    renamingConversationId,
     setRenamingConversationId,
-    renameValue,
     setRenameValue,
     chatSearch,
     setChatSearch,
     loadConversations,
-    renameConversation,
-    deleteConversation,
     toggleConversationPin,
-    updateConversationWorkspace,
     visibleConversations,
     activeConversation,
   } = useConversations(skillsRef, setHistoryError);
@@ -470,32 +459,7 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[#f8f9fa] text-[#191c1d]">
-      <IconRail openSettings={openSettings} userInitials={userInitials} />
-
-      <Sidebar
-        workspaces={workspaces}
-        selectedWorkspaceId={selectedWorkspaceId}
-        setSelectedWorkspaceId={setSelectedWorkspaceId}
-        newWorkspaceName={newWorkspaceName}
-        setNewWorkspaceName={setNewWorkspaceName}
-        isCreatingWorkspace={isCreatingWorkspace}
-        createWorkspace={createWorkspace}
-        chatSearch={chatSearch}
-        setChatSearch={setChatSearch}
-        isLoadingConversations={isLoadingConversations}
-        historyError={historyError}
-        conversationGroups={conversationGroups}
-        activeConversationId={activeConversationId}
-        renamingConversationId={renamingConversationId}
-        setRenamingConversationId={setRenamingConversationId}
-        renameValue={renameValue}
-        setRenameValue={setRenameValue}
-        loadConversation={loadConversation}
-        renameConversation={renameConversation}
-        toggleConversationPin={toggleConversationPin}
-        deleteConversation={deleteConversation}
-        updateConversationWorkspace={updateConversationWorkspace}
-        resetMemory={resetMemory}
+      <IconRail
         isAccountMenuOpen={isAccountMenuOpen}
         setIsAccountMenuOpen={setIsAccountMenuOpen}
         currentTierLabel={currentTierLabel}
@@ -510,28 +474,23 @@ export default function Home() {
         userEmail={userEmail}
       />
 
+      <Sidebar
+        chatSearch={chatSearch}
+        setChatSearch={setChatSearch}
+        isLoadingConversations={isLoadingConversations}
+        historyError={historyError}
+        conversationGroups={conversationGroups}
+        activeConversationId={activeConversationId}
+        loadConversation={loadConversation}
+        resetMemory={resetMemory}
+      />
+
       <section className="flex min-w-0 flex-1 flex-col bg-white">
         <TopBar
           activeTool={activeTool}
           setActiveTool={setActiveTool}
-          selectedModelInfo={selectedModelInfo}
-          selectedModel={selectedModel}
-          allowedModels={allowedModels}
-          isModelMenuOpen={isModelMenuOpen}
-          setIsModelMenuOpen={setIsModelMenuOpen}
-          selectModel={selectModel}
-          modelOptions={modelOptions}
-          isStudyModeMenuOpen={isStudyModeMenuOpen}
-          setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
-          selectedSkill={selectedSkill}
-          selectedSkillBadge={selectedSkillBadge}
-          skills={skills}
-          skillsLoading={skillsLoading}
-          selectedSkillId={selectedSkillId}
-          selectSkill={selectSkill}
-          usageSnapshot={usageSnapshot}
           activeConversation={activeConversation}
-          toggleConversationPin={toggleConversationPin}
+          selectedSkill={selectedSkill}
           exportActiveChatMarkdown={exportActiveChatMarkdown}
           openSharePreview={openSharePreview}
           currentTierLabel={currentTierLabel}
