@@ -140,37 +140,34 @@ export default function ChatArea({
       {messages.length > 1 && (
         <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end space-y-4">
           {messages.map((message, index) =>
-            message.role === "ai" && !message.text ? null : (
+            message.role === "ai" && !message.text ? null : message.role ===
+              "user" ? (
               <div
                 key={index}
-                className={
-                  message.role === "user"
-                    ? "flex justify-end animate-[messageIn_0.25s_ease-out]"
-                    : "flex justify-start animate-[messageIn_0.25s_ease-out]"
-                }
+                className="flex justify-end animate-[messageIn_0.25s_ease-out]"
               >
-                <div
-                  className={
-                    message.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#e7e8e9] px-5 py-3 text-sm leading-relaxed text-[#3f4940] sm:max-w-xl sm:text-base"
-                      : "max-w-[85%] rounded-[24px] rounded-bl-md bg-[#004d27]/[0.03] px-5 py-3 text-sm leading-relaxed text-[#191c1d] sm:max-w-2xl sm:text-base"
-                  }
-                >
-                  {message.role === "ai" ? (
-                    <>
-                      <MarkdownMessage text={message.text} />
-                      {message.continuationSuggested && !isSending && (
-                        <button
-                          type="button"
-                          onClick={continueAnswer}
-                          className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#004d27]/10 px-4 py-2 text-sm font-bold text-[#004d27] ring-1 ring-[#bec9be] transition hover:bg-[#004d27]/15"
-                        >
-                          Lanjutkan jawaban
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    message.text
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#e7e8e9] px-5 py-3 text-sm leading-relaxed text-[#3f4940] sm:max-w-xl sm:text-base">
+                  {message.text}
+                </div>
+              </div>
+            ) : (
+              <div
+                key={index}
+                className="flex gap-4 animate-[messageIn_0.25s_ease-out]"
+              >
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#004d27]/10 text-[#004d27]">
+                  <SparkIcon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-4 text-sm leading-relaxed text-[#191c1d] sm:text-base">
+                  <MarkdownMessage text={message.text} />
+                  {message.continuationSuggested && !isSending && (
+                    <button
+                      type="button"
+                      onClick={continueAnswer}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#004d27]/10 px-4 py-2 text-sm font-bold text-[#004d27] ring-1 ring-[#bec9be] transition hover:bg-[#004d27]/15"
+                    >
+                      Lanjutkan jawaban
+                    </button>
                   )}
                 </div>
               </div>
@@ -178,8 +175,11 @@ export default function ChatArea({
           )}
 
           {isSending && isAwaitingFirstChunk && (
-            <div className="flex justify-start animate-[messageIn_0.25s_ease-out]">
-              <div className="max-w-[85%] rounded-[24px] rounded-bl-md bg-[#004d27]/[0.03] px-5 py-3 text-sm leading-relaxed text-[#3f4940] sm:max-w-xl sm:text-base">
+            <div className="flex gap-4 animate-[messageIn_0.25s_ease-out]">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#004d27]/10 text-[#004d27]">
+                <SparkIcon className="h-5 w-5" />
+              </div>
+              <div className="flex items-center pt-1.5 text-sm leading-relaxed text-[#3f4940] sm:text-base">
                 Sedang menjawab...
               </div>
             </div>

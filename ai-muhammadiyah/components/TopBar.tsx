@@ -8,12 +8,28 @@ import {
   getLockedModelRequirement,
   getLockedSkillRequirement,
 } from "@/lib/chat/selection-labels";
-import type { Conversation, SettingsTab } from "@/lib/mappers/types";
+import type {
+  ActiveTool,
+  Conversation,
+  SettingsTab,
+} from "@/lib/mappers/types";
 import { canAccessTier, getSkillBadge, type Skill } from "@/lib/skills";
 import { modelCatalog, type PlanModelId } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
 
+const tools: { id: ActiveTool; label: string; icon: string }[] = [
+  { id: "chat", label: "Chat", icon: "chat" },
+  { id: "docs", label: "Docs", icon: "book" },
+  { id: "tasks", label: "Tasks", icon: "tasks" },
+  { id: "sheets", label: "Sheets", icon: "sheets" },
+  { id: "canvas", label: "Canvas", icon: "canvas" },
+];
+
 interface TopBarProps {
+  // tool tab nav
+  activeTool: ActiveTool;
+  setActiveTool: Dispatch<SetStateAction<ActiveTool>>;
+
   // model selector
   selectedModelInfo: (typeof modelCatalog)[PlanModelId];
   selectedModel: PlanModelId;
@@ -52,6 +68,8 @@ interface TopBarProps {
 }
 
 export default function TopBar({
+  activeTool,
+  setActiveTool,
   selectedModelInfo,
   selectedModel,
   allowedModels,
@@ -84,6 +102,7 @@ export default function TopBar({
   const router = useRouter();
 
   return (
+    <>
     <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#bec9be] px-4 sm:px-6 md:px-10">
       <div className="flex min-w-0 items-center gap-3">
         <div className="grid h-11 w-11 place-items-center rounded-full bg-[#004d27] text-white md:hidden">
@@ -361,5 +380,24 @@ export default function TopBar({
         )}
       </div>
     </header>
+
+    <nav className="flex items-center gap-1 overflow-x-auto border-b border-[#bec9be] bg-white px-4 py-2 sm:px-6 md:px-10">
+      {tools.map((tool) => (
+        <button
+          key={tool.id}
+          type="button"
+          onClick={() => setActiveTool(tool.id)}
+          className={
+            activeTool === tool.id
+              ? "flex shrink-0 items-center gap-2 rounded-full bg-[#004d27]/10 px-3 py-1.5 text-sm font-bold text-[#004d27]"
+              : "flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-[#3f4940] transition hover:bg-[#f3f4f5]"
+          }
+        >
+          <Icon name={tool.icon} className="h-4 w-4" />
+          {tool.label}
+        </button>
+      ))}
+    </nav>
+    </>
   );
 }

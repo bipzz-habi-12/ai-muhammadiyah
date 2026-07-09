@@ -10,6 +10,7 @@ import MobileToolbar from "@/components/MobileToolbar";
 import ShareModal from "@/components/ShareModal";
 import Sidebar from "@/components/Sidebar";
 import SettingsModal from "@/components/SettingsModal";
+import ToolPlaceholder from "@/components/ToolPlaceholder";
 import TopBar from "@/components/TopBar";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAttachments } from "@/hooks/useAttachments";
@@ -25,6 +26,7 @@ import { useUserMemory } from "@/hooks/useUserMemory";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { groupConversationsByWorkspace } from "@/lib/mappers/conversation";
+import type { ActiveTool } from "@/lib/mappers/types";
 import { type PlanModelId } from "@/lib/subscriptions/plans";
 
 type SelectedModel = PlanModelId;
@@ -37,6 +39,7 @@ const supportedDocumentAccept =
 export default function Home() {
   const { userId, userEmail, isLoggingOut, handleLogout } = useAuthSession();
   const [historyError, setHistoryError] = useState("");
+  const [activeTool, setActiveTool] = useState<ActiveTool>("chat");
   const {
     workspaces,
     selectedWorkspaceId,
@@ -509,6 +512,8 @@ export default function Home() {
 
       <section className="flex min-w-0 flex-1 flex-col bg-white">
         <TopBar
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
           selectedModelInfo={selectedModelInfo}
           selectedModel={selectedModel}
           allowedModels={allowedModels}
@@ -558,41 +563,47 @@ export default function Home() {
           renderAttachmentChips={renderAttachmentChips}
         />
 
-        <ChatArea
-          messages={messages}
-          input={input}
-          setInput={setInput}
-          sendMessage={sendMessage}
-          isSending={isSending}
-          isAwaitingFirstChunk={isAwaitingFirstChunk}
-          hasMessageQuota={hasMessageQuota}
-          continueAnswer={continueAnswer}
-          messagesEndRef={messagesEndRef}
-          setIsAttachMenuOpen={setIsAttachMenuOpen}
-          renderAttachMenu={renderAttachMenu}
-          renderAttachmentChips={renderAttachmentChips}
-          setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
-          setIsModelMenuOpen={setIsModelMenuOpen}
-          selectedSkill={selectedSkill}
-          selectedSkillBadge={selectedSkillBadge}
-        />
+        {activeTool === "chat" ? (
+          <>
+            <ChatArea
+              messages={messages}
+              input={input}
+              setInput={setInput}
+              sendMessage={sendMessage}
+              isSending={isSending}
+              isAwaitingFirstChunk={isAwaitingFirstChunk}
+              hasMessageQuota={hasMessageQuota}
+              continueAnswer={continueAnswer}
+              messagesEndRef={messagesEndRef}
+              setIsAttachMenuOpen={setIsAttachMenuOpen}
+              renderAttachMenu={renderAttachMenu}
+              renderAttachmentChips={renderAttachmentChips}
+              setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
+              setIsModelMenuOpen={setIsModelMenuOpen}
+              selectedSkill={selectedSkill}
+              selectedSkillBadge={selectedSkillBadge}
+            />
 
-        {messages.length > 1 && (
-          <Composer
-            variant="active"
-            input={input}
-            setInput={setInput}
-            sendMessage={sendMessage}
-            isSending={isSending}
-            hasMessageQuota={hasMessageQuota}
-            setIsAttachMenuOpen={setIsAttachMenuOpen}
-            renderAttachMenu={renderAttachMenu}
-            renderAttachmentChips={renderAttachmentChips}
-            setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
-            setIsModelMenuOpen={setIsModelMenuOpen}
-            selectedSkill={selectedSkill}
-            selectedSkillBadge={selectedSkillBadge}
-          />
+            {messages.length > 1 && (
+              <Composer
+                variant="active"
+                input={input}
+                setInput={setInput}
+                sendMessage={sendMessage}
+                isSending={isSending}
+                hasMessageQuota={hasMessageQuota}
+                setIsAttachMenuOpen={setIsAttachMenuOpen}
+                renderAttachMenu={renderAttachMenu}
+                renderAttachmentChips={renderAttachmentChips}
+                setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
+                setIsModelMenuOpen={setIsModelMenuOpen}
+                selectedSkill={selectedSkill}
+                selectedSkillBadge={selectedSkillBadge}
+              />
+            )}
+          </>
+        ) : (
+          <ToolPlaceholder tool={activeTool} />
         )}
       </section>
 

@@ -162,6 +162,37 @@ export function Icon({
     );
   }
 
+  if (name === "tasks") {
+    return (
+      <svg {...common}>
+        <path d="m4 6 2 2 3-3" />
+        <path d="M11 6h9" />
+        <path d="m4 14 2 2 3-3" />
+        <path d="M11 14h9" />
+      </svg>
+    );
+  }
+
+  if (name === "sheets") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 10h18" />
+        <path d="M9 4v16" />
+      </svg>
+    );
+  }
+
+  if (name === "canvas") {
+    return (
+      <svg {...common}>
+        <path d="M12 3a9 9 0 1 0 9 9c0-1-.5-1.5-1.5-1.5H16a2 2 0 0 1-2-2v-.5A2.5 2.5 0 0 1 16.5 6H17a9 9 0 0 0-5-3Z" />
+        <circle cx="7.5" cy="10.5" r="1" fill="currentColor" stroke="none" />
+        <circle cx="10.5" cy="7" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
   if (name === "settings") {
     return (
       <svg {...common}>

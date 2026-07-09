@@ -97,6 +97,8 @@ export type SettingsTab =
   | "documents"
   | "knowledge";
 
+export type ActiveTool = "chat" | "docs" | "tasks" | "sheets" | "canvas";
+
 export type Workspace = {
   id: string;
   name: string;
