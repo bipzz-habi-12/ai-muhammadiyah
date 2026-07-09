@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ChatMessage } from "@/lib/ai/chat";
 
 export type Doc = {
   id: string;
@@ -19,11 +18,6 @@ type DocRow = {
   source_ref: string | null;
   created_at: string;
   updated_at: string;
-};
-
-type MessageContextRow = {
-  role: "user" | "assistant";
-  content: string;
 };
 
 export const DOC_AUTHOR_SYSTEM_PROMPT = [
@@ -133,28 +127,6 @@ export async function deleteDoc(supabase: SupabaseClient, id: string) {
   }
 
   return true;
-}
-
-export async function loadConversationMessagesForGenerate(
-  supabase: SupabaseClient,
-  conversationId: string,
-): Promise<ChatMessage[]> {
-  const { data, error } = await supabase
-    .from("messages")
-    .select("role,content")
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return ((data ?? []) as MessageContextRow[])
-    .filter((row) => row.content.trim())
-    .map((row) => ({
-      role: row.role === "assistant" ? "ai" : "user",
-      text: row.content,
-    }));
 }
 
 // --- Browser-side fetch wrappers (used by hooks/useDocs.ts) ---
