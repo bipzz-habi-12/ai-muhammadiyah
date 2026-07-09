@@ -162,6 +162,25 @@ export function Icon({
     );
   }
 
+  if (name === "close") {
+    return (
+      <svg {...common}>
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
+    );
+  }
+
+  if (name === "dots") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
   if (name === "star") {
     return (
       <svg {...common}>

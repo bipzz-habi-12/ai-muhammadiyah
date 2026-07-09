@@ -13,6 +13,7 @@ import SettingsModal from "@/components/SettingsModal";
 import ToolPlaceholder from "@/components/ToolPlaceholder";
 import TopBar from "@/components/TopBar";
 import UpgradeModal from "@/components/UpgradeModal";
+import WorkspaceModal from "@/components/WorkspaceModal";
 import { useAttachments } from "@/hooks/useAttachments";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useChatSession } from "@/hooks/useChatSession";
@@ -44,13 +45,17 @@ export default function Home() {
     workspaces,
     selectedWorkspaceId,
     setSelectedWorkspaceId,
+    newWorkspaceName,
+    setNewWorkspaceName,
+    isCreatingWorkspace,
     loadWorkspaces,
+    createWorkspace,
   } = useWorkspaces(setHistoryError);
-  // Study-mode/model dropdowns were removed from the header (pure-Stitch); the
-  // setters are still threaded into useSkills / Composer toggles, so only the
-  // boolean reads became unused.
-  const [, setIsStudyModeMenuOpen] = useState(false);
+  // model/skill dropdowns now live in the Composer (Part 2); the open-state is
+  // still owned here and threaded through.
+  const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const {
     knowledgeSources,
     isKnowledgeAdmin,
@@ -80,21 +85,26 @@ export default function Home() {
   } = useUsage();
   const {
     skills,
+    skillsLoading,
     selectedSkillId,
     setSelectedSkillId,
     skillsRef,
     loadSkills,
+    selectSkill,
     selectedSkill,
     selectedSkillBadge,
   } = useSkills(usageSnapshot?.tier, setIsStudyModeMenuOpen);
   const {
     selectedModel,
     setSelectedModel,
+    isModelMenuOpen,
     setIsModelMenuOpen,
     isUpgradeOpen,
     setIsUpgradeOpen,
     upgradeTargetModel,
+    selectedModelInfo,
     upgradePlan,
+    selectModel,
   } = useModelSelection(allowedModels);
   const {
     learningProfile,
@@ -151,12 +161,17 @@ export default function Home() {
     activeConversationId,
     setActiveConversationId,
     isLoadingConversations,
+    renamingConversationId,
     setRenamingConversationId,
+    renameValue,
     setRenameValue,
     chatSearch,
     setChatSearch,
     loadConversations,
+    renameConversation,
+    deleteConversation,
     toggleConversationPin,
+    updateConversationWorkspace,
     visibleConversations,
     activeConversation,
   } = useConversations(skillsRef, setHistoryError);
@@ -483,6 +498,16 @@ export default function Home() {
         activeConversationId={activeConversationId}
         loadConversation={loadConversation}
         resetMemory={resetMemory}
+        onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
+        workspaces={workspaces}
+        renamingConversationId={renamingConversationId}
+        setRenamingConversationId={setRenamingConversationId}
+        renameValue={renameValue}
+        setRenameValue={setRenameValue}
+        renameConversation={renameConversation}
+        toggleConversationPin={toggleConversationPin}
+        deleteConversation={deleteConversation}
+        updateConversationWorkspace={updateConversationWorkspace}
       />
 
       <section className="flex min-w-0 flex-1 flex-col bg-white">
@@ -541,6 +566,19 @@ export default function Home() {
               setIsModelMenuOpen={setIsModelMenuOpen}
               selectedSkill={selectedSkill}
               selectedSkillBadge={selectedSkillBadge}
+              selectedModel={selectedModel}
+              selectModel={selectModel}
+              allowedModels={allowedModels}
+              isModelMenuOpen={isModelMenuOpen}
+              modelOptions={modelOptions}
+              selectedModelInfo={selectedModelInfo}
+              skills={skills}
+              skillsLoading={skillsLoading}
+              selectedSkillId={selectedSkillId}
+              selectSkill={selectSkill}
+              setSelectedSkillId={setSelectedSkillId}
+              usageSnapshot={usageSnapshot}
+              isStudyModeMenuOpen={isStudyModeMenuOpen}
             />
 
             {messages.length > 1 && (
@@ -558,6 +596,19 @@ export default function Home() {
                 setIsModelMenuOpen={setIsModelMenuOpen}
                 selectedSkill={selectedSkill}
                 selectedSkillBadge={selectedSkillBadge}
+                selectedModel={selectedModel}
+                selectModel={selectModel}
+                allowedModels={allowedModels}
+                isModelMenuOpen={isModelMenuOpen}
+                modelOptions={modelOptions}
+                selectedModelInfo={selectedModelInfo}
+                skills={skills}
+                skillsLoading={skillsLoading}
+                selectedSkillId={selectedSkillId}
+                selectSkill={selectSkill}
+                setSelectedSkillId={setSelectedSkillId}
+                usageSnapshot={usageSnapshot}
+                isStudyModeMenuOpen={isStudyModeMenuOpen}
               />
             )}
           </>
@@ -570,6 +621,18 @@ export default function Home() {
         knowledgeSources={knowledgeSources}
         isLoadingKnowledge={isLoadingKnowledge}
         openSettings={openSettings}
+      />
+
+      <WorkspaceModal
+        isOpen={isWorkspaceModalOpen}
+        onClose={() => setIsWorkspaceModalOpen(false)}
+        workspaces={workspaces}
+        selectedWorkspaceId={selectedWorkspaceId}
+        setSelectedWorkspaceId={setSelectedWorkspaceId}
+        newWorkspaceName={newWorkspaceName}
+        setNewWorkspaceName={setNewWorkspaceName}
+        isCreatingWorkspace={isCreatingWorkspace}
+        createWorkspace={createWorkspace}
       />
 
       <ShareModal sharePreview={sharePreview} setSharePreview={setSharePreview} />
