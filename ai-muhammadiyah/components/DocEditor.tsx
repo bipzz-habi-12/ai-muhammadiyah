@@ -29,9 +29,25 @@ export default function DocEditor({
 }: DocEditorProps) {
   if (!doc) {
     return (
-      <section className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-sm text-[#6f7a70]">
+      <section className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-sm text-[#6f7a70]">
         <Icon name="book" className="h-8 w-8 text-[#bec9be]" />
         <p>Pilih dokumen dari daftar, atau buat dokumen baru.</p>
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={!canGenerate || isGenerating}
+          title={
+            canGenerate
+              ? activeConversationTitle
+                ? `Generate dari "${activeConversationTitle}"`
+                : "Generate dari chat ini"
+              : "Buka percakapan dulu untuk generate"
+          }
+          className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-[#004d27] ring-1 ring-[#bec9be] transition hover:bg-[#edeeef] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <SparkIcon className="h-4 w-4" />
+          {isGenerating ? "Menggenerate..." : "Generate dari chat ini"}
+        </button>
       </section>
     );
   }
