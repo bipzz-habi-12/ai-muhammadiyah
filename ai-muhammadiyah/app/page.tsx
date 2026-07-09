@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
+import DocsPanel from "@/components/DocsPanel";
 import IconRail from "@/components/IconRail";
 import KnowledgeSidebar from "@/components/KnowledgeSidebar";
 import MobileToolbar from "@/components/MobileToolbar";
@@ -612,6 +613,12 @@ export default function Home() {
               />
             )}
           </>
+        ) : activeTool === "docs" ? (
+          <DocsPanel
+            workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
+            activeConversationId={activeConversationId || null}
+            activeConversationTitle={activeConversation?.title}
+          />
         ) : (
           <ToolPlaceholder tool={activeTool} />
         )}
