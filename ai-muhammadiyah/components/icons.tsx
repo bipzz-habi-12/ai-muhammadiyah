@@ -132,6 +132,145 @@ export function Icon({
     );
   }
 
+  if (name === "library") {
+    return (
+      <svg {...common}>
+        <path d="M4 4h4v16H4z" />
+        <path d="M11 4h4v16h-4z" />
+        <path d="m18.5 4.3 3.4 15.6-3.9.9L14.6 5.2z" />
+      </svg>
+    );
+  }
+
+  if (name === "globe") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+      </svg>
+    );
+  }
+
+  if (name === "history") {
+    return (
+      <svg {...common}>
+        <path d="M3 12a9 9 0 1 0 3-6.7" />
+        <path d="M3 4v5h5" />
+        <path d="M12 7v5l4 2" />
+      </svg>
+    );
+  }
+
+  if (name === "close") {
+    return (
+      <svg {...common}>
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
+    );
+  }
+
+  if (name === "dots") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (name === "star") {
+    return (
+      <svg {...common}>
+        <path d="m12 3 2.6 5.5 6 .9-4.3 4.3 1 6-5.3-2.8L6.7 19.7l1-6L3.4 9.4l6-.9L12 3Z" />
+      </svg>
+    );
+  }
+
+  if (name === "info") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 16v-4" />
+        <path d="M12 8h.01" />
+      </svg>
+    );
+  }
+
+  if (name === "link") {
+    return (
+      <svg {...common}>
+        <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
+        <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
+      </svg>
+    );
+  }
+
+  if (name === "external") {
+    return (
+      <svg {...common}>
+        <path d="M15 3h6v6" />
+        <path d="M10 14 21 3" />
+        <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+      </svg>
+    );
+  }
+
+  if (name === "share") {
+    return (
+      <svg {...common}>
+        <circle cx="18" cy="5" r="3" />
+        <circle cx="6" cy="12" r="3" />
+        <circle cx="18" cy="19" r="3" />
+        <path d="m8.6 13.5 6.8 4" />
+        <path d="m15.4 6.5-6.8 4" />
+      </svg>
+    );
+  }
+
+  if (name === "download") {
+    return (
+      <svg {...common}>
+        <path d="M12 3v12" />
+        <path d="m7 12 5 5 5-5" />
+        <path d="M5 21h14" />
+      </svg>
+    );
+  }
+
+  if (name === "tasks") {
+    return (
+      <svg {...common}>
+        <path d="m4 6 2 2 3-3" />
+        <path d="M11 6h9" />
+        <path d="m4 14 2 2 3-3" />
+        <path d="M11 14h9" />
+      </svg>
+    );
+  }
+
+  if (name === "sheets") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 10h18" />
+        <path d="M9 4v16" />
+      </svg>
+    );
+  }
+
+  if (name === "canvas") {
+    return (
+      <svg {...common}>
+        <path d="M12 3a9 9 0 1 0 9 9c0-1-.5-1.5-1.5-1.5H16a2 2 0 0 1-2-2v-.5A2.5 2.5 0 0 1 16.5 6H17a9 9 0 0 0-5-3Z" />
+        <circle cx="7.5" cy="10.5" r="1" fill="currentColor" stroke="none" />
+        <circle cx="10.5" cy="7" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
   if (name === "settings") {
     return (
       <svg {...common}>

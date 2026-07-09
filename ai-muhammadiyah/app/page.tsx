@@ -4,12 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
+import IconRail from "@/components/IconRail";
+import KnowledgeSidebar from "@/components/KnowledgeSidebar";
 import MobileToolbar from "@/components/MobileToolbar";
 import ShareModal from "@/components/ShareModal";
 import Sidebar from "@/components/Sidebar";
 import SettingsModal from "@/components/SettingsModal";
+import ToolPlaceholder from "@/components/ToolPlaceholder";
 import TopBar from "@/components/TopBar";
 import UpgradeModal from "@/components/UpgradeModal";
+import WorkspaceModal from "@/components/WorkspaceModal";
 import { useAttachments } from "@/hooks/useAttachments";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useChatSession } from "@/hooks/useChatSession";
@@ -23,6 +27,7 @@ import { useUserMemory } from "@/hooks/useUserMemory";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { groupConversationsByWorkspace } from "@/lib/mappers/conversation";
+import type { ActiveTool } from "@/lib/mappers/types";
 import { type PlanModelId } from "@/lib/subscriptions/plans";
 
 type SelectedModel = PlanModelId;
@@ -35,6 +40,7 @@ const supportedDocumentAccept =
 export default function Home() {
   const { userId, userEmail, isLoggingOut, handleLogout } = useAuthSession();
   const [historyError, setHistoryError] = useState("");
+  const [activeTool, setActiveTool] = useState<ActiveTool>("chat");
   const {
     workspaces,
     selectedWorkspaceId,
@@ -45,8 +51,11 @@ export default function Home() {
     loadWorkspaces,
     createWorkspace,
   } = useWorkspaces(setHistoryError);
+  // model/skill dropdowns now live in the Composer (Part 2); the open-state is
+  // still owned here and threaded through.
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const {
     knowledgeSources,
     isKnowledgeAdmin,
@@ -465,30 +474,7 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[#f8f9fa] text-[#191c1d]">
-      <Sidebar
-        workspaces={workspaces}
-        selectedWorkspaceId={selectedWorkspaceId}
-        setSelectedWorkspaceId={setSelectedWorkspaceId}
-        newWorkspaceName={newWorkspaceName}
-        setNewWorkspaceName={setNewWorkspaceName}
-        isCreatingWorkspace={isCreatingWorkspace}
-        createWorkspace={createWorkspace}
-        chatSearch={chatSearch}
-        setChatSearch={setChatSearch}
-        isLoadingConversations={isLoadingConversations}
-        historyError={historyError}
-        conversationGroups={conversationGroups}
-        activeConversationId={activeConversationId}
-        renamingConversationId={renamingConversationId}
-        setRenamingConversationId={setRenamingConversationId}
-        renameValue={renameValue}
-        setRenameValue={setRenameValue}
-        loadConversation={loadConversation}
-        renameConversation={renameConversation}
-        toggleConversationPin={toggleConversationPin}
-        deleteConversation={deleteConversation}
-        updateConversationWorkspace={updateConversationWorkspace}
-        resetMemory={resetMemory}
+      <IconRail
         isAccountMenuOpen={isAccountMenuOpen}
         setIsAccountMenuOpen={setIsAccountMenuOpen}
         currentTierLabel={currentTierLabel}
@@ -503,26 +489,33 @@ export default function Home() {
         userEmail={userEmail}
       />
 
+      <Sidebar
+        chatSearch={chatSearch}
+        setChatSearch={setChatSearch}
+        isLoadingConversations={isLoadingConversations}
+        historyError={historyError}
+        conversationGroups={conversationGroups}
+        activeConversationId={activeConversationId}
+        loadConversation={loadConversation}
+        resetMemory={resetMemory}
+        onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
+        workspaces={workspaces}
+        renamingConversationId={renamingConversationId}
+        setRenamingConversationId={setRenamingConversationId}
+        renameValue={renameValue}
+        setRenameValue={setRenameValue}
+        renameConversation={renameConversation}
+        toggleConversationPin={toggleConversationPin}
+        deleteConversation={deleteConversation}
+        updateConversationWorkspace={updateConversationWorkspace}
+      />
+
       <section className="flex min-w-0 flex-1 flex-col bg-white">
         <TopBar
-          selectedModelInfo={selectedModelInfo}
-          selectedModel={selectedModel}
-          allowedModels={allowedModels}
-          isModelMenuOpen={isModelMenuOpen}
-          setIsModelMenuOpen={setIsModelMenuOpen}
-          selectModel={selectModel}
-          modelOptions={modelOptions}
-          isStudyModeMenuOpen={isStudyModeMenuOpen}
-          setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
-          selectedSkill={selectedSkill}
-          selectedSkillBadge={selectedSkillBadge}
-          skills={skills}
-          skillsLoading={skillsLoading}
-          selectedSkillId={selectedSkillId}
-          selectSkill={selectSkill}
-          usageSnapshot={usageSnapshot}
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
           activeConversation={activeConversation}
-          toggleConversationPin={toggleConversationPin}
+          selectedSkill={selectedSkill}
           exportActiveChatMarkdown={exportActiveChatMarkdown}
           openSharePreview={openSharePreview}
           currentTierLabel={currentTierLabel}
@@ -554,43 +547,93 @@ export default function Home() {
           renderAttachmentChips={renderAttachmentChips}
         />
 
-        <ChatArea
-          messages={messages}
-          input={input}
-          setInput={setInput}
-          sendMessage={sendMessage}
-          isSending={isSending}
-          isAwaitingFirstChunk={isAwaitingFirstChunk}
-          hasMessageQuota={hasMessageQuota}
-          continueAnswer={continueAnswer}
-          messagesEndRef={messagesEndRef}
-          setIsAttachMenuOpen={setIsAttachMenuOpen}
-          renderAttachMenu={renderAttachMenu}
-          renderAttachmentChips={renderAttachmentChips}
-          setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
-          setIsModelMenuOpen={setIsModelMenuOpen}
-          selectedSkill={selectedSkill}
-          selectedSkillBadge={selectedSkillBadge}
-        />
+        {activeTool === "chat" ? (
+          <>
+            <ChatArea
+              messages={messages}
+              input={input}
+              setInput={setInput}
+              sendMessage={sendMessage}
+              isSending={isSending}
+              isAwaitingFirstChunk={isAwaitingFirstChunk}
+              hasMessageQuota={hasMessageQuota}
+              continueAnswer={continueAnswer}
+              messagesEndRef={messagesEndRef}
+              setIsAttachMenuOpen={setIsAttachMenuOpen}
+              renderAttachMenu={renderAttachMenu}
+              renderAttachmentChips={renderAttachmentChips}
+              setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
+              setIsModelMenuOpen={setIsModelMenuOpen}
+              selectedSkill={selectedSkill}
+              selectedSkillBadge={selectedSkillBadge}
+              selectedModel={selectedModel}
+              selectModel={selectModel}
+              allowedModels={allowedModels}
+              isModelMenuOpen={isModelMenuOpen}
+              modelOptions={modelOptions}
+              selectedModelInfo={selectedModelInfo}
+              skills={skills}
+              skillsLoading={skillsLoading}
+              selectedSkillId={selectedSkillId}
+              selectSkill={selectSkill}
+              setSelectedSkillId={setSelectedSkillId}
+              usageSnapshot={usageSnapshot}
+              isStudyModeMenuOpen={isStudyModeMenuOpen}
+            />
 
-        {messages.length > 1 && (
-          <Composer
-            variant="active"
-            input={input}
-            setInput={setInput}
-            sendMessage={sendMessage}
-            isSending={isSending}
-            hasMessageQuota={hasMessageQuota}
-            setIsAttachMenuOpen={setIsAttachMenuOpen}
-            renderAttachMenu={renderAttachMenu}
-            renderAttachmentChips={renderAttachmentChips}
-            setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
-            setIsModelMenuOpen={setIsModelMenuOpen}
-            selectedSkill={selectedSkill}
-            selectedSkillBadge={selectedSkillBadge}
-          />
+            {messages.length > 1 && (
+              <Composer
+                variant="active"
+                input={input}
+                setInput={setInput}
+                sendMessage={sendMessage}
+                isSending={isSending}
+                hasMessageQuota={hasMessageQuota}
+                setIsAttachMenuOpen={setIsAttachMenuOpen}
+                renderAttachMenu={renderAttachMenu}
+                renderAttachmentChips={renderAttachmentChips}
+                setIsStudyModeMenuOpen={setIsStudyModeMenuOpen}
+                setIsModelMenuOpen={setIsModelMenuOpen}
+                selectedSkill={selectedSkill}
+                selectedSkillBadge={selectedSkillBadge}
+                selectedModel={selectedModel}
+                selectModel={selectModel}
+                allowedModels={allowedModels}
+                isModelMenuOpen={isModelMenuOpen}
+                modelOptions={modelOptions}
+                selectedModelInfo={selectedModelInfo}
+                skills={skills}
+                skillsLoading={skillsLoading}
+                selectedSkillId={selectedSkillId}
+                selectSkill={selectSkill}
+                setSelectedSkillId={setSelectedSkillId}
+                usageSnapshot={usageSnapshot}
+                isStudyModeMenuOpen={isStudyModeMenuOpen}
+              />
+            )}
+          </>
+        ) : (
+          <ToolPlaceholder tool={activeTool} />
         )}
       </section>
+
+      <KnowledgeSidebar
+        knowledgeSources={knowledgeSources}
+        isLoadingKnowledge={isLoadingKnowledge}
+        openSettings={openSettings}
+      />
+
+      <WorkspaceModal
+        isOpen={isWorkspaceModalOpen}
+        onClose={() => setIsWorkspaceModalOpen(false)}
+        workspaces={workspaces}
+        selectedWorkspaceId={selectedWorkspaceId}
+        setSelectedWorkspaceId={setSelectedWorkspaceId}
+        newWorkspaceName={newWorkspaceName}
+        setNewWorkspaceName={setNewWorkspaceName}
+        isCreatingWorkspace={isCreatingWorkspace}
+        createWorkspace={createWorkspace}
+      />
 
       <ShareModal sharePreview={sharePreview} setSharePreview={setSharePreview} />
 
