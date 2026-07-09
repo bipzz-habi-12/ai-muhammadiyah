@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Dispatch, SetStateAction } from "react";
-import { SparkIcon, Icon } from "@/components/icons";
+import { Icon } from "@/components/icons";
 import type { groupConversationsByWorkspace } from "@/lib/mappers/conversation";
 import type { Conversation, SettingsTab, Workspace } from "@/lib/mappers/types";
 import type { UsageSnapshot } from "@/lib/usage/limits";
@@ -98,29 +98,8 @@ export default function Sidebar({
   const router = useRouter();
 
   return (
-    <aside className="hidden w-[340px] shrink-0 border-r border-[#00522a] bg-[#006837] text-white md:flex md:flex-col">
-      <div className="flex items-center justify-between px-5 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white shadow-xl shadow-emerald-900/10">
-            <SparkIcon className="h-7 w-7" />
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-white">
-            AI-mu
-          </h1>
-        </div>
-
-        <button
-          type="button"
-          aria-label="Alihkan sidebar"
-          title="Alihkan sidebar"
-          className="grid h-10 w-10 place-items-center rounded-full text-white/80 transition hover:bg-white/10"
-        >
-          <Icon name="book" className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="px-4">
+    <aside className="hidden w-[260px] shrink-0 border-r border-[#00522a] bg-[#006837] text-white md:flex md:flex-col">
+      <div className="px-4 pt-5">
         <button
           type="button"
           onClick={resetMemory}

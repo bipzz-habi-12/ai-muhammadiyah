@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
+import IconRail from "@/components/IconRail";
+import KnowledgeSidebar from "@/components/KnowledgeSidebar";
 import MobileToolbar from "@/components/MobileToolbar";
 import ShareModal from "@/components/ShareModal";
 import Sidebar from "@/components/Sidebar";
@@ -465,6 +467,8 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[#f8f9fa] text-[#191c1d]">
+      <IconRail openSettings={openSettings} userInitials={userInitials} />
+
       <Sidebar
         workspaces={workspaces}
         selectedWorkspaceId={selectedWorkspaceId}
@@ -591,6 +595,12 @@ export default function Home() {
           />
         )}
       </section>
+
+      <KnowledgeSidebar
+        knowledgeSources={knowledgeSources}
+        isLoadingKnowledge={isLoadingKnowledge}
+        openSettings={openSettings}
+      />
 
       <ShareModal sharePreview={sharePreview} setSharePreview={setSharePreview} />
 

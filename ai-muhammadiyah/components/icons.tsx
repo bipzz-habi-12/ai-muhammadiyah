@@ -132,6 +132,36 @@ export function Icon({
     );
   }
 
+  if (name === "library") {
+    return (
+      <svg {...common}>
+        <path d="M4 4h4v16H4z" />
+        <path d="M11 4h4v16h-4z" />
+        <path d="m18.5 4.3 3.4 15.6-3.9.9L14.6 5.2z" />
+      </svg>
+    );
+  }
+
+  if (name === "globe") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+      </svg>
+    );
+  }
+
+  if (name === "history") {
+    return (
+      <svg {...common}>
+        <path d="M3 12a9 9 0 1 0 3-6.7" />
+        <path d="M3 4v5h5" />
+        <path d="M12 7v5l4 2" />
+      </svg>
+    );
+  }
+
   if (name === "settings") {
     return (
       <svg {...common}>
