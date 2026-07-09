@@ -6,11 +6,13 @@ import type {
   ReactNode,
   SetStateAction,
 } from "react";
-import Composer from "@/components/Composer";
+import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import type { Message } from "@/lib/mappers/types";
 import type { Skill } from "@/lib/skills";
+import { modelCatalog, type PlanModelId } from "@/lib/subscriptions/plans";
+import type { UsageSnapshot } from "@/lib/usage/limits";
 
 const quickPrompts = [
   {
@@ -52,6 +54,21 @@ interface ChatAreaProps {
   setIsModelMenuOpen: Dispatch<SetStateAction<boolean>>;
   selectedSkill: Skill | null;
   selectedSkillBadge: string;
+
+  // model + skill selection (forwarded to the welcome composer)
+  selectedModel: PlanModelId;
+  selectModel: (model: PlanModelId) => void;
+  allowedModels: string[];
+  isModelMenuOpen: boolean;
+  modelOptions: PlanModelId[];
+  selectedModelInfo: (typeof modelCatalog)[PlanModelId];
+  skills: Skill[];
+  skillsLoading: boolean;
+  selectedSkillId: string | null;
+  selectSkill: (skillId: string) => void;
+  setSelectedSkillId: Dispatch<SetStateAction<string | null>>;
+  usageSnapshot: UsageSnapshot | null;
+  isStudyModeMenuOpen: boolean;
 }
 
 export default function ChatArea({
@@ -71,6 +88,19 @@ export default function ChatArea({
   setIsModelMenuOpen,
   selectedSkill,
   selectedSkillBadge,
+  selectedModel,
+  selectModel,
+  allowedModels,
+  isModelMenuOpen,
+  modelOptions,
+  selectedModelInfo,
+  skills,
+  skillsLoading,
+  selectedSkillId,
+  selectSkill,
+  setSelectedSkillId,
+  usageSnapshot,
+  isStudyModeMenuOpen,
 }: ChatAreaProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
@@ -105,6 +135,19 @@ export default function ChatArea({
             setIsModelMenuOpen={setIsModelMenuOpen}
             selectedSkill={selectedSkill}
             selectedSkillBadge={selectedSkillBadge}
+            selectedModel={selectedModel}
+            selectModel={selectModel}
+            allowedModels={allowedModels}
+            isModelMenuOpen={isModelMenuOpen}
+            modelOptions={modelOptions}
+            selectedModelInfo={selectedModelInfo}
+            skills={skills}
+            skillsLoading={skillsLoading}
+            selectedSkillId={selectedSkillId}
+            selectSkill={selectSkill}
+            setSelectedSkillId={setSelectedSkillId}
+            usageSnapshot={usageSnapshot}
+            isStudyModeMenuOpen={isStudyModeMenuOpen}
           />
 
           <div className="grid w-full gap-3 sm:grid-cols-2">
@@ -131,8 +174,7 @@ export default function ChatArea({
           </div>
 
           <p className="max-w-2xl text-center text-base leading-relaxed text-[#3f4940]">
-            AI-mu dapat keliru. Selalu verifikasi informasi penting, terutama
-            dalam urusan ibadah & syariah.
+            {CHAT_DISCLAIMER}
           </p>
         </div>
       )}
@@ -144,11 +186,16 @@ export default function ChatArea({
               "user" ? (
               <div
                 key={index}
-                className="flex justify-end animate-[messageIn_0.25s_ease-out]"
+                className="flex flex-col items-end gap-1 animate-[messageIn_0.25s_ease-out]"
               >
                 <div className="max-w-[85%] whitespace-pre-wrap rounded-[24px] rounded-br-md bg-[#e7e8e9] px-5 py-3 text-sm leading-relaxed text-[#3f4940] sm:max-w-xl sm:text-base">
                   {message.text}
                 </div>
+                {/* Static caption — no per-message delivery-source data exists;
+                    visual-only, matching the Stitch mockup. */}
+                <span className="mr-2 text-[10px] text-[#6f7a70]">
+                  Terkirim via AI Muhammadiyah
+                </span>
               </div>
             ) : (
               <div
