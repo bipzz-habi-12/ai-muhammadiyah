@@ -618,6 +618,7 @@ export default function Home() {
             workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
             activeConversationId={activeConversationId || null}
             activeConversationTitle={activeConversation?.title}
+            onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
           />
         ) : (
           <ToolPlaceholder tool={activeTool} />
