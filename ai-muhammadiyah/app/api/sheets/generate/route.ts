@@ -79,10 +79,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // "smart" (not "auto") so routing is deterministic instead of depending
+    // on a heuristic read of the conversation's last chat message — it also
+    // tries OpenAI GPT first for tiers that have premium smart access, then
+    // Gemini, before ever considering the free/less-reliable OpenRouter
+    // route (see generateProviderReply's shouldTryGemini in lib/ai/chat.ts,
+    // which always attempts Gemini regardless of route). We want the more
+    // capable, instruction-compliant models here, not just any provider.
     const result = await generateChatReply(
       messages,
       "",
-      "auto",
+      "smart",
       SHEET_EXTRACTOR_SYSTEM_PROMPT,
       usageSnapshot
         ? { tier: usageSnapshot.tier, allowedModels: usageSnapshot.allowedModels }
@@ -93,12 +100,20 @@ export async function POST(request: Request) {
     // instead of real content when every AI provider is rate-limited/down —
     // check for that BEFORE trying to parse it as sheet data, so the user
     // sees "model AI sedang tidak tersedia" instead of a misleading
-    // "gagal memproses hasil AI" that implies our parser is broken.
-    if (isAiUnavailableFallback(result.reply)) {
-      console.error("Sheets generate: AI provider unavailable:", result.reply);
+    // "gagal memproses hasil AI" that implies our parser is broken. Also
+    // explicitly refuse an OpenRouter-provided reply outright — Sheets
+    // generation needs Gemini/GPT specifically (better JSON-instruction
+    // compliance, see the Markdown-fallback fix above), OpenRouter's free
+    // models are the least reliable fit for this and should never be
+    // silently accepted here even if their output happens to parse.
+    if (isAiUnavailableFallback(result.reply) || result.provider === "openrouter") {
+      console.error("Sheets generate: AI provider unavailable or non-Gemini/GPT:", {
+        provider: result.provider,
+        reply: result.reply,
+      });
 
       return NextResponse.json(
-        { error: "Model AI sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
+        { error: "Model AI (Gemini/GPT) sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
         { status: 503 },
       );
     }
