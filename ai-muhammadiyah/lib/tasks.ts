@@ -29,10 +29,22 @@ type TaskListRow = {
   updated_at: string;
 };
 
+// This is appended after AI Muhammadiyah's shared "always use clean Markdown
+// with headings/bullets/tables" style prompt (see responseStyleSystemPrompt
+// in lib/ai/chat.ts) — that instruction directly conflicts with "JSON only"
+// here, and models frequently obey the earlier, more general style guidance
+// instead (confirmed: this exact conflict broke Sheets' generate-from-chat,
+// see lib/sheets.ts). The override line below is a best-effort nudge; it is
+// NOT relied on for correctness — parseExtractedTasks() below has Markdown
+// list/table fallbacks specifically because this drift is expected.
 export const TASK_EXTRACTOR_SYSTEM_PROMPT = [
   "You extract concrete action items from a chat conversation for AI Muhammadiyah's Tasks tool.",
   "Read the conversation and identify specific, actionable tasks — not a general summary.",
-  "Respond with ONLY a JSON array, no markdown code fences, no extra commentary, in this exact shape:",
+  "This response is consumed directly by a program, not shown to the user as-is — general",
+  "Markdown/formatting style instructions do NOT apply here, they apply to normal chat replies only.",
+  "Respond with ONLY a raw JSON array: no markdown code fences, no ``` blocks, no bullet or numbered",
+  "list, no explanation before or after. The very first character of your response must be '['.",
+  "Use exactly this shape:",
   '[{"title": "short imperative task title", "description": "optional 1-2 sentence detail, or empty string"}]',
   "If there are no concrete action items in the conversation, respond with an empty array: []",
   "Write in the same language the conversation is mostly in (Indonesian or English).",
@@ -170,53 +182,248 @@ export async function deleteTaskList(supabase: SupabaseClient, id: string) {
   return true;
 }
 
-// Parses the AI's JSON-array response into extracted action items.
-// Returns null on unrecoverable parse failure (caller should surface a clear
-// error) — an empty array is a valid "no action items found" result, distinct
-// from a parse failure.
-export function parseExtractedTasks(
-  aiText: string,
-): { title: string; description: string }[] | null {
-  const candidates = [aiText.trim()];
-  const fencedMatch = aiText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+type ExtractedTask = { title: string; description: string };
 
-  if (fencedMatch) {
-    candidates.push(fencedMatch[1].trim());
+// Scans for the first syntactically-balanced [...] array in the text,
+// respecting string literals (so brackets inside quoted values don't throw
+// off the depth count) and any trailing prose after the array. More robust
+// than a greedy /\[[\s\S]*\]/ regex, which breaks if the model adds
+// commentary containing its own brackets after the JSON.
+function extractFirstJsonArray(text: string): string | null {
+  const start = text.indexOf("[");
+
+  if (start === -1) {
+    return null;
   }
 
-  const bracketMatch = aiText.match(/\[[\s\S]*\]/);
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
 
-  if (bracketMatch) {
-    candidates.push(bracketMatch[0]);
-  }
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
 
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate);
-
-      if (!Array.isArray(parsed)) {
-        continue;
-      }
-
-      return parsed
-        .filter(
-          (item): item is { title: string; description?: string } =>
-            item &&
-            typeof item === "object" &&
-            typeof item.title === "string" &&
-            item.title.trim().length > 0,
-        )
-        .map((item) => ({
-          title: item.title.trim(),
-          description:
-            typeof item.description === "string" ? item.description : "",
-        }));
-    } catch {
+    if (escapeNext) {
+      escapeNext = false;
       continue;
+    }
+
+    if (ch === "\\" && inString) {
+      escapeNext = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (ch === "[") {
+      depth += 1;
+    } else if (ch === "]") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
     }
   }
 
   return null;
+}
+
+function tryParseTaskArray(candidate: string): ExtractedTask[] | null {
+  try {
+    const parsed = JSON.parse(candidate);
+
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed
+      .filter(
+        (item): item is { title: string; description?: string } =>
+          item &&
+          typeof item === "object" &&
+          typeof item.title === "string" &&
+          item.title.trim().length > 0,
+      )
+      .map((item) => ({
+        title: item.title.trim(),
+        description:
+          typeof item.description === "string" ? item.description : "",
+      }));
+  } catch {
+    return null;
+  }
+}
+
+function tryParseJsonTasks(aiText: string): ExtractedTask[] | null {
+  // Whole-response and fenced-code-block candidates are trusted enough that
+  // an empty [] result from them means "AI intentionally found nothing".
+  const trustedCandidates = [aiText.trim()];
+  const fencedMatch = aiText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+
+  if (fencedMatch) {
+    trustedCandidates.push(fencedMatch[1].trim());
+  }
+
+  for (const candidate of trustedCandidates) {
+    const parsed = tryParseTaskArray(candidate);
+
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  // The balanced-bracket scan is a much weaker signal — it can accidentally
+  // land on an unrelated "[ ]"/"[x]" checkbox marker inside a Markdown
+  // checklist (itself valid, empty-array JSON), which would otherwise get
+  // mistaken for "AI replied with an intentionally empty array" and skip the
+  // Markdown-list fallback below it. Require a non-empty result here.
+  const balancedArray = extractFirstJsonArray(aiText);
+
+  if (balancedArray) {
+    const parsed = tryParseTaskArray(balancedArray);
+
+    if (parsed !== null && parsed.length > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+const listItemPattern = /^\s*(?:[-*•]|\d+[.)])\s+(?:\[[ xX]\]\s+)?(.+)$/;
+
+// "**Title**: description" or "Title — description" style content within a
+// single list item — split on the first colon/dash separator that's
+// followed by whitespace (so mid-word hyphens like "Follow-up" don't split).
+function splitTitleDescription(content: string): ExtractedTask {
+  const boldMatch = content.match(/^\*\*(.+?)\*\*\s*[:\-–—]?\s*(.*)$/);
+
+  if (boldMatch) {
+    return { title: boldMatch[1].trim(), description: boldMatch[2].trim() };
+  }
+
+  const separatorMatch = content.match(/^(.+?)\s*[:\-–—]\s+(.+)$/);
+
+  if (separatorMatch && separatorMatch[1].trim()) {
+    return {
+      title: separatorMatch[1].trim(),
+      description: separatorMatch[2].trim(),
+    };
+  }
+
+  return { title: content.trim(), description: "" };
+}
+
+// Fallback for when the model ignores the JSON-only instruction and replies
+// with a normal Markdown bullet/numbered/checkbox list instead (the most
+// natural format for "action items" — see the comment above
+// TASK_EXTRACTOR_SYSTEM_PROMPT).
+function parseMarkdownListTasks(aiText: string): ExtractedTask[] | null {
+  const items: ExtractedTask[] = [];
+
+  for (const line of aiText.split("\n")) {
+    const match = line.match(listItemPattern);
+    const content = match?.[1]?.trim();
+
+    if (!content) {
+      continue;
+    }
+
+    const item = splitTitleDescription(content);
+
+    if (item.title) {
+      items.push(item);
+    }
+  }
+
+  return items.length > 0 ? items : null;
+}
+
+function splitMarkdownTableRow(line: string): string[] {
+  let trimmed = line.trim();
+
+  if (trimmed.startsWith("|")) {
+    trimmed = trimmed.slice(1);
+  }
+
+  if (trimmed.endsWith("|")) {
+    trimmed = trimmed.slice(0, -1);
+  }
+
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function isMarkdownSeparatorRow(cells: string[]): boolean {
+  return (
+    cells.length > 0 &&
+    cells.every((cell) => cell === "" || /^:?-{2,}:?$/.test(cell))
+  );
+}
+
+// Second-choice fallback for a Markdown table instead of a list — maps the
+// first column to title and the second (if present) to description,
+// regardless of header names.
+function parseMarkdownTableTasks(aiText: string): ExtractedTask[] | null {
+  const lines = aiText.split("\n");
+  let bestBlock: string[] = [];
+  let currentBlock: string[] = [];
+
+  const flush = () => {
+    if (currentBlock.length > bestBlock.length) {
+      bestBlock = currentBlock;
+    }
+
+    currentBlock = [];
+  };
+
+  for (const line of lines) {
+    if (line.includes("|") && line.trim().length > 0) {
+      currentBlock.push(line);
+    } else {
+      flush();
+    }
+  }
+
+  flush();
+
+  if (bestBlock.length < 2) {
+    return null;
+  }
+
+  const parsedRows = bestBlock.map(splitMarkdownTableRow);
+  const dataStart = isMarkdownSeparatorRow(parsedRows[1] ?? []) ? 2 : 1;
+  const items = parsedRows
+    .slice(dataStart)
+    .filter((row) => !isMarkdownSeparatorRow(row))
+    .map((row) => ({
+      title: (row[0] ?? "").trim(),
+      description: (row[1] ?? "").trim(),
+    }))
+    .filter((item) => item.title.length > 0);
+
+  return items.length > 0 ? items : null;
+}
+
+// Parses the AI's response into extracted action items. Tries strict JSON
+// first (the documented contract), then a Markdown list, then a Markdown
+// table (the realistic failure modes — see TASK_EXTRACTOR_SYSTEM_PROMPT
+// comment). Returns null only if none succeed — an empty array from the
+// JSON path is a valid "no action items found" result, distinct from a
+// parse failure.
+export function parseExtractedTasks(aiText: string): ExtractedTask[] | null {
+  return (
+    tryParseJsonTasks(aiText) ??
+    parseMarkdownListTasks(aiText) ??
+    parseMarkdownTableTasks(aiText)
+  );
 }
 
 // --- Browser-side fetch wrappers (used by hooks/useTasks.ts) ---
