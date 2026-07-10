@@ -78,8 +78,8 @@ export default function SheetsPanel({
       <div
         className={
           selectedSheetId
-            ? "flex flex-1 flex-col"
-            : "hidden flex-1 flex-col md:flex"
+            ? "flex min-w-0 flex-1 flex-col"
+            : "hidden min-w-0 flex-1 flex-col md:flex"
         }
       >
         {error && (

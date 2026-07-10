@@ -9,6 +9,7 @@ import IconRail from "@/components/IconRail";
 import KnowledgeSidebar from "@/components/KnowledgeSidebar";
 import MobileToolbar from "@/components/MobileToolbar";
 import ShareModal from "@/components/ShareModal";
+import SheetsPanel from "@/components/SheetsPanel";
 import Sidebar from "@/components/Sidebar";
 import SettingsModal from "@/components/SettingsModal";
 import TasksPanel from "@/components/TasksPanel";
@@ -623,6 +624,13 @@ export default function Home() {
           />
         ) : activeTool === "tasks" ? (
           <TasksPanel
+            workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
+            activeConversationId={activeConversationId || null}
+            activeConversationTitle={activeConversation?.title}
+            onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
+          />
+        ) : activeTool === "sheets" ? (
+          <SheetsPanel
             workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
             activeConversationId={activeConversationId || null}
             activeConversationTitle={activeConversation?.title}
