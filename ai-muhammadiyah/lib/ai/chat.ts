@@ -55,6 +55,7 @@ type OpenAiResponsesPayload = {
   max_output_tokens: number;
   stream?: boolean;
   temperature?: number;
+  reasoning?: { effort: "minimal" | "low" | "medium" | "high" };
 };
 type ChatContextOptions = {
   knowledgeContext?: string;
@@ -192,10 +193,6 @@ function resolveOpenRouterModel(route: AiRoute) {
   return aiRouteConfig[route]?.fallbackOpenRouterModel ?? openRouterDefaultModel;
 }
 
-function hasPremiumSmartAccess(tier: SubscriptionTier) {
-  return tier !== "free";
-}
-
 function hasGeminiProAccess(tier: SubscriptionTier) {
   return (
     tier === "muallim_pro" ||
@@ -251,7 +248,20 @@ function createOpenAiResponsesPayload({
     payload.stream = true;
   }
 
-  if (!isGpt5MiniModel(model)) {
+  if (isGpt5MiniModel(model)) {
+    // GPT-5 reasoning models default to medium effort, which is the main
+    // latency driver (measured ~7.7s medium vs ~5.6s low vs ~2.6s minimal for
+    // the same task). GPT is now tried first for every request (all tiers),
+    // so this speed matters for the whole app.
+    //
+    // Split by call type — `stream` is only set for the main chat, while the
+    // four "generate from chat" tools (Docs/Tasks/Sheets/Canvas) go through
+    // the non-streaming path:
+    //   - Chat  -> "low": keep some reasoning for math/OSN/STEM tutoring.
+    //   - Tools -> "minimal": fastest, and these are structured extraction
+    //     where minimal effort was verified to produce clean output.
+    payload.reasoning = { effort: stream ? "low" : "minimal" };
+  } else {
     payload.temperature = 0.4;
   }
 
@@ -1882,7 +1892,14 @@ async function generateProviderReply(
 ): Promise<GenerateChatReplyResult> {
   const routeConfig = aiRouteConfig[route];
 
-  if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
+  // GPT first for every request, regardless of tier or route (product
+  // decision — see streamChatReply for the same order): try OpenAI GPT,
+  // then Gemini, then OpenRouter. Only gated on the key existing; the
+  // OpenAI helper itself returns a null reply (never throws) on any failure,
+  // so a miss simply falls through to Gemini below.
+  const attemptedOpenAi = Boolean(process.env.OPENAI_API_KEY);
+
+  if (attemptedOpenAi) {
     const openAiResult = await generateOpenAiGptReply(
       messages,
       pdfContext,
@@ -1958,9 +1975,7 @@ async function generateProviderReply(
         model: geminiResult.model,
         fallbackEvent:
           geminiResult.fallbackEvent ??
-          (route === "smart" && hasPremiumSmartAccess(access.tier)
-            ? "openai_to_gemini"
-            : undefined),
+          (attemptedOpenAi ? "openai_to_gemini" : undefined),
       };
     }
 
@@ -2137,7 +2152,13 @@ export async function streamChatReply(
 
   const routeConfig = aiRouteConfig[route];
 
-  if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
+  // GPT first for every request, regardless of tier or route (same order as
+  // generateProviderReply): OpenAI GPT, then Gemini, then OpenRouter. Only
+  // gated on the key existing; streamOpenAiGptReply returns a falsy reply on
+  // any failure, so a miss falls through to Gemini below.
+  const attemptedOpenAi = Boolean(process.env.OPENAI_API_KEY);
+
+  if (attemptedOpenAi) {
     const openAiResult = await streamOpenAiGptReply(
       recentMessages,
       pdfContext,
@@ -2232,9 +2253,7 @@ export async function streamChatReply(
         model: geminiResult.model,
         fallbackEvent:
           geminiResult.fallbackEvent ??
-          (route === "smart" && hasPremiumSmartAccess(access.tier)
-            ? "openai_to_gemini"
-            : undefined),
+          (attemptedOpenAi ? "openai_to_gemini" : undefined),
         finishReason: geminiResult.finishReason,
         needsContinuation: finalResult.needsContinuation,
       };
