@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateChatReply } from "@/lib/ai/chat";
+import { generateChatReply, isAiUnavailableFallback } from "@/lib/ai/chat";
 import { loadConversationMessagesForGenerate } from "@/lib/ai/context";
 import {
   createSheet,
@@ -88,6 +88,20 @@ export async function POST(request: Request) {
         ? { tier: usageSnapshot.tier, allowedModels: usageSnapshot.allowedModels }
         : undefined,
     );
+
+    // generateChatReply() can "succeed" (no throw) with a canned apology
+    // instead of real content when every AI provider is rate-limited/down —
+    // check for that BEFORE trying to parse it as sheet data, so the user
+    // sees "model AI sedang tidak tersedia" instead of a misleading
+    // "gagal memproses hasil AI" that implies our parser is broken.
+    if (isAiUnavailableFallback(result.reply)) {
+      console.error("Sheets generate: AI provider unavailable:", result.reply);
+
+      return NextResponse.json(
+        { error: "Model AI sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
+        { status: 503 },
+      );
+    }
 
     const generated = parseGeneratedSheet(result.reply);
 
