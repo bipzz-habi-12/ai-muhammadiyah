@@ -85,10 +85,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // "smart" (not "auto") so this deterministically tries OpenAI GPT first
-    // (for tiers with premium smart access) then Gemini, never landing on
-    // the free/less-reliable OpenRouter route by heuristic accident — same
-    // reasoning as Sheets' generate route (see app/api/sheets/generate).
+    // "smart" (not "auto") so this PREFERS the capable, instruction-compliant
+    // models: OpenAI GPT first for tiers with premium smart access, then
+    // Gemini (which is what free tier gets, since GPT is premium-only). We
+    // intentionally do NOT hard-reject an OpenRouter result here: on free
+    // tier Gemini is the only premium provider tried, so a single momentary
+    // Gemini hiccup would otherwise fall to OpenRouter and — if we rejected
+    // it — 503 the whole feature, which made Canvas/Sheets generate feel
+    // "broken" even though the AI was reachable seconds earlier. OpenRouter
+    // is the genuine last-resort fallback and parseGeneratedCanvas() below
+    // has a Markdown fallback specifically for its less-JSON-strict output.
     const result = await generateChatReply(
       messages,
       "",
@@ -99,18 +105,17 @@ export async function POST(request: Request) {
         : undefined,
     );
 
-    // generateChatReply() can "succeed" (no throw) with a canned apology
-    // instead of real content when every AI provider is rate-limited/down,
-    // and Canvas generation needs Gemini/GPT specifically — same checks as
-    // Sheets' generate route, see the comment there for the full story.
-    if (isAiUnavailableFallback(result.reply) || result.provider === "openrouter") {
-      console.error("Canvas generate: AI provider unavailable or non-Gemini/GPT:", {
+    // Only bail when EVERY provider (Gemini, GPT, and OpenRouter) was down and
+    // generateChatReply() returned a canned apology string as its `reply` —
+    // that's a real outage, not content to parse.
+    if (isAiUnavailableFallback(result.reply)) {
+      console.error("Canvas generate: all AI providers unavailable:", {
         provider: result.provider,
         reply: result.reply,
       });
 
       return NextResponse.json(
-        { error: "Model AI (Gemini/GPT) sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
+        { error: "Model AI sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
         { status: 503 },
       );
     }
