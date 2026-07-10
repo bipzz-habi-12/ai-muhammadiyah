@@ -79,13 +79,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // "smart" (not "auto") so routing is deterministic instead of depending
-    // on a heuristic read of the conversation's last chat message — it also
-    // tries OpenAI GPT first for tiers that have premium smart access, then
-    // Gemini, before ever considering the free/less-reliable OpenRouter
-    // route (see generateProviderReply's shouldTryGemini in lib/ai/chat.ts,
-    // which always attempts Gemini regardless of route). We want the more
-    // capable, instruction-compliant models here, not just any provider.
+    // "smart" (not "auto") so this PREFERS the capable, instruction-compliant
+    // models: OpenAI GPT first for tiers with premium smart access, then
+    // Gemini (which is what free tier gets, since GPT is premium-only). We
+    // intentionally do NOT hard-reject an OpenRouter result: on free tier
+    // Gemini is the only premium provider tried, so a single momentary Gemini
+    // hiccup would otherwise fall to OpenRouter and — if we rejected it — 503
+    // the whole feature even though the AI was reachable seconds earlier
+    // (this made generate feel "broken"). OpenRouter is the genuine
+    // last-resort fallback and parseGeneratedSheet() has a Markdown fallback
+    // for its less-JSON-strict output.
     const result = await generateChatReply(
       messages,
       "",
@@ -96,24 +99,19 @@ export async function POST(request: Request) {
         : undefined,
     );
 
-    // generateChatReply() can "succeed" (no throw) with a canned apology
-    // instead of real content when every AI provider is rate-limited/down —
-    // check for that BEFORE trying to parse it as sheet data, so the user
-    // sees "model AI sedang tidak tersedia" instead of a misleading
-    // "gagal memproses hasil AI" that implies our parser is broken. Also
-    // explicitly refuse an OpenRouter-provided reply outright — Sheets
-    // generation needs Gemini/GPT specifically (better JSON-instruction
-    // compliance, see the Markdown-fallback fix above), OpenRouter's free
-    // models are the least reliable fit for this and should never be
-    // silently accepted here even if their output happens to parse.
-    if (isAiUnavailableFallback(result.reply) || result.provider === "openrouter") {
-      console.error("Sheets generate: AI provider unavailable or non-Gemini/GPT:", {
+    // Only bail when EVERY provider (Gemini, GPT, and OpenRouter) was down and
+    // generateChatReply() returned a canned apology string as its `reply` —
+    // that's a real outage, not content to parse. Checked BEFORE parsing so
+    // the user sees "model AI tidak tersedia" instead of a misleading
+    // "gagal memproses hasil AI" that implies our parser is broken.
+    if (isAiUnavailableFallback(result.reply)) {
+      console.error("Sheets generate: all AI providers unavailable:", {
         provider: result.provider,
         reply: result.reply,
       });
 
       return NextResponse.json(
-        { error: "Model AI (Gemini/GPT) sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
+        { error: "Model AI sedang penuh atau tidak tersedia, coba lagi sebentar lagi." },
         { status: 503 },
       );
     }
