@@ -26,6 +26,8 @@ interface CanvasBoardProps {
   isGenerating: boolean;
   canGenerate: boolean;
   activeConversationTitle: string | undefined;
+  lastTruncated: boolean;
+  onClearTruncated: () => void;
   onTitleChange: (title: string) => void;
   onGraphChange: (nodes: CanvasNode[], edges: CanvasEdge[]) => void;
   onAddNode: () => void;
@@ -78,6 +80,8 @@ export default function CanvasBoard({
   isGenerating,
   canGenerate,
   activeConversationTitle,
+  lastTruncated,
+  onClearTruncated,
   onTitleChange,
   onGraphChange,
   onAddNode,
@@ -249,6 +253,19 @@ export default function CanvasBoard({
           Hapus
         </button>
       </div>
+
+      {lastTruncated && (
+        <p className="flex items-center justify-between gap-3 bg-[#fdc003]/20 p-3 text-sm font-semibold text-[#6c5000]">
+          <span>Hasil generate dipotong ke batas {MAX_NODES} node × {MAX_EDGES} edge.</span>
+          <button
+            type="button"
+            onClick={onClearTruncated}
+            className="shrink-0 text-xs font-bold underline"
+          >
+            Tutup
+          </button>
+        </p>
+      )}
 
       <div className="min-h-0 flex-1">
         <ReactFlow
