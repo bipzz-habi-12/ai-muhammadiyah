@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
+import CanvasPanel from "@/components/CanvasPanel";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
 import DocsPanel from "@/components/DocsPanel";
@@ -623,6 +624,13 @@ export default function Home() {
           />
         ) : activeTool === "tasks" ? (
           <TasksPanel
+            workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
+            activeConversationId={activeConversationId || null}
+            activeConversationTitle={activeConversation?.title}
+            onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
+          />
+        ) : activeTool === "canvas" ? (
+          <CanvasPanel
             workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
             activeConversationId={activeConversationId || null}
             activeConversationTitle={activeConversation?.title}
