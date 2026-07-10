@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateChatReply } from "@/lib/ai/chat";
-import {
-  createDoc,
-  DOC_AUTHOR_SYSTEM_PROMPT,
-  loadConversationMessagesForGenerate,
-} from "@/lib/docs";
+import { loadConversationMessagesForGenerate } from "@/lib/ai/context";
+import { createDoc, DOC_AUTHOR_SYSTEM_PROMPT } from "@/lib/docs";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import {
   estimateTokenUsage,
