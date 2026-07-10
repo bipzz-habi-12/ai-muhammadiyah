@@ -4,14 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
-import DocsPanel from "@/components/DocsPanel";
 import IconRail from "@/components/IconRail";
 import KnowledgeSidebar from "@/components/KnowledgeSidebar";
 import MobileToolbar from "@/components/MobileToolbar";
 import ShareModal from "@/components/ShareModal";
 import Sidebar from "@/components/Sidebar";
 import SettingsModal from "@/components/SettingsModal";
-import TasksPanel from "@/components/TasksPanel";
 import ToolPlaceholder from "@/components/ToolPlaceholder";
 import TopBar from "@/components/TopBar";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -614,20 +612,6 @@ export default function Home() {
               />
             )}
           </>
-        ) : activeTool === "docs" ? (
-          <DocsPanel
-            workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
-            activeConversationId={activeConversationId || null}
-            activeConversationTitle={activeConversation?.title}
-            onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
-          />
-        ) : activeTool === "tasks" ? (
-          <TasksPanel
-            workspaceId={activeConversation?.workspaceId ?? selectedWorkspaceId}
-            activeConversationId={activeConversationId || null}
-            activeConversationTitle={activeConversation?.title}
-            onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
-          />
         ) : (
           <ToolPlaceholder tool={activeTool} />
         )}
