@@ -1,16 +1,18 @@
 # AI Muhammadiyah — Konteks Proyek untuk Claude Code
 
+> **Mengikuti Master Plan v2 (Juli 2026).** v2 menggantikan rencana lama "4 tools kaku" (Docs/Tasks/Sheets/Canvas) dengan sistem **Artifacts + Skill via slash command + banyak chat per workspace**. Kalau ada dokumen/kode lama yang masih menyebut Docs/Tasks/Sheets/Canvas sebagai arah pengembangan, itu **sudah usang** — lihat bagian "Status v1 yang Deprecated" di bawah.
+
 ## Ringkasan
-Platform AI yang bisa dikustomisasi untuk belajar, bekerja, meneliti, dan membangun sistem, dengan fondasi nilai Islam Berkemajuan dan Muhammadiyah Knowledge Base. Sudah live di **aimuhammadiyah.my.id**. Proyek ini **bukan** dibangun dari nol — kode yang ada tetap dipakai, kita melakukan refactor & penambahan fitur besar di atasnya.
+Platform AI yang bisa dikustomisasi untuk belajar, bekerja, meneliti, membangun sistem, dan membantu berbagai bidang, dengan fondasi nilai Islam Berkemajuan dan Muhammadiyah Knowledge Base. Sudah live di **aimuhammadiyah.my.id**. Proyek ini **bukan** dibangun dari nol — kode yang ada tetap dipakai sebagai basis, kita melakukan refactor & penambahan fitur besar di atasnya.
 
 Target pengguna: Pelajar, Mahasiswa, Guru, Dosen, Peneliti, Developer, Organisasi, Sekolah, Rumah Sakit, Perusahaan, masyarakat umum. Platform terbuka untuk siapa saja, bukan hanya warga Muhammadiyah.
 
-**Prinsip penting:** Ini bukan clone ChatGPT. Inti pengalaman adalah sistem **Workspace + Skill**.
+**Prinsip penting:** Ini bukan clone ChatGPT. Inti pengalaman adalah **Workspace + Chat + Skill (slash) + Artifacts**.
 
 ## Stack Teknis
 - **Frontend:** Next.js + Tailwind, deploy ke Vercel
 - **Database:** Supabase (Auth, Chat history, Knowledge Base, Workspaces, Subscription, Memory)
-- **AI Providers:** OpenAI GPT-5 mini, Gemini 2.5, OpenRouter (fallback) — smart routing, streaming, auto-fallback, vision, multimodal
+- **AI Providers:** OpenAI GPT-5 mini, Gemini 2.5, OpenRouter (fallback). **Urutan routing sekarang: GPT dulu → Gemini → OpenRouter, untuk semua tier** (lihat `lib/ai/chat.ts`). Streaming, auto-fallback, vision, multimodal.
 - **Auth:** Email/Password + OTP email
 
 ## Fitur yang Sudah Ada (jangan dirusak saat refactor)
@@ -18,112 +20,136 @@ Chat AI, Streaming Response, Markdown, Math Rendering, Upload (PDF/DOCX/PPTX/XLS
 
 Belum dikerjakan (ditunda dulu): Voice Avatar, Marketplace GPT, Forum, Mobile App, Gamification, Learning Progress.
 
-## Restrukturisasi Konsep (Sedang Dikerjakan)
+---
 
-### Migrasi 4 tools lama → 4 tools baru (UNIVERSAL, bukan cuma belajar)
-| Lama (dibuang) | Baru | Alasan |
+## Status v1 yang Deprecated (PENTING — baca sebelum menyentuh 4 tools)
+
+Rencana lama membangun 4 halaman/tab kaku: **Docs, Tasks, Sheets, Canvas**. Master Plan v2 **menghapus total** keempatnya dan menggantinya dengan sistem **Artifacts** (satu sistem fleksibel, AI yang menentukan bentuk output). Kondisi kode saat ini:
+
+- **Sudah terlanjur dibangun & sebagian di `main`:** Docs & Tasks sudah di-merge ke `main` (tabel `docs`, `tasks` + route `app/api/docs`, `app/api/tasks` + komponen `DocsPanel`/`TasksPanel`). Sheets & Canvas ada di branch `feature/four-tools-integration` (belum di-merge, belum production).
+- **Keputusan:** kode 4 tools ini **DEPRECATED oleh v2**. **JANGAN** merge `feature/four-tools-integration` ke production sebagai fitur final, dan **jangan** bangun fitur baru di atas Docs/Tasks/Sheets/Canvas. Nasib akhir kode itu (dihapus / dijadikan basis migrasi ke Artifacts) adalah keputusan terpisah — belum diputuskan, jangan diasumsikan.
+- **Yang tetap dipakai dari kerja itu:** perbaikan `lib/ai/chat.ts` (routing GPT-first, deteksi provider-outage `isAiUnavailableFallback`, reasoning effort per jenis panggilan) tetap relevan dan tetap dipakai di v2.
+
+---
+
+## Sistem v2 (arah pengembangan sekarang)
+
+### A. Anatomi Workspace (BERUBAH)
+- **1 Workspace = banyak Chat** (dulu 1 workspace = 1 chat). User menyimpan beberapa percakapan berbeda dalam satu workspace.
+- **Workspace System** — instruksi permanen (system prompt) level-workspace yang berlaku ke **semua** chat di dalamnya. Contoh: *"Selalu jawab evidence-based dan sertakan referensi jurnal."* Disimpan di `workspaces.system_instructions`.
+- Semua chat mewarisi Workspace System yang sama, tapi tiap chat bisa punya topik & skill aktif berbeda.
+
+### B. Sistem Skill via slash command (BERUBAH)
+- Skill = template fokus domain (Software Engineering, Medical, Islamic Studies, dst) — bawaan platform atau custom buatan user.
+- **Diaktifkan per-pesan lewat `/`**: ketik `/` di awal pesan → muncul picker (ikon + nama + `slash_command`) → pilih → skill berlaku untuk pesan itu. Bukan lagi badge permanen di workspace.
+- Tiap skill punya `slash_command` unik (mis. `/coding`, `/riset`, `/tarjih`).
+- User bisa membuat skill custom: nama, kategori, instruksi, dan slash command pilihan.
+- Skill aktif dicatat langsung di `messages.skill_id` — **tidak** perlu tabel `skill_change_log` terpisah.
+
+### C. Sistem Artifacts (BARU — inti perubahan v2)
+Artifact = hasil kerja substansial yang muncul otomatis di **panel samping kanan** saat AI membuat sesuatu. **AI yang menentukan bentuknya**, bukan user memilih tipe halaman dulu. Tersimpan otomatis, bisa dicari lagi di halaman Library.
+
+4 kategori:
+| Kategori | Contoh | Render |
 |---|---|---|
-| Notes | **Docs** | Laporan, draft, ringkasan riset, dokumen bisnis |
-| Quiz | **Tasks** | Action items/checklist dari percakapan — riset, proyek dev, planning bisnis |
-| Flashcards | **Sheets** | Tabel data, analisis sederhana — peneliti, bisnis, finance |
-| Mind Map | **Canvas** | Diagram umum: flowchart, arsitektur sistem, org chart |
+| **Dokumen & data** | Laporan, ringkasan, tabel | Rich text viewer / grid editor |
+| **Visual** | Diagram, mockup, chart | SVG/canvas viewer (bisa zoom) |
+| **Kode** | Snippet, script, function | Syntax-highlighted viewer + copy/download |
+| **Mini aplikasi** | Game, kalkulator, tool interaktif, prototype UI | **Sandboxed iframe** — HTML/CSS/JS atau React live preview |
 
-### Workspace sebagai pusat
-Setiap Workspace punya: Nama, Deskripsi, Icon, Color, Knowledge Sources, Memory, AI Persona, Skill, Chat + 4 tools (Docs/Tasks/Sheets/Canvas).
+**Mini aplikasi = komponen paling berisiko (keamanan). Wajib:**
+- Render di dalam `<iframe sandbox="allow-scripts">` yang terisolasi dari halaman utama (tidak bisa akses cookie/session di luar iframe).
+- CDN allowlist untuk resource eksternal — jangan izinkan iframe memanggil domain sembarangan.
+- Pola sama seperti Artifacts di Claude — bukan hal baru dari nol, tapi **butuh implementasi serius**, bukan sekadar `dangerouslySetInnerHTML`.
+- **Riset teknis sandboxing dulu sebelum coding kategori ini.** Kerjakan paling akhir.
 
-### Sistem Skill
-- Skill mengubah fokus/perilaku AI (contoh: Software Engineering → fokus coding & arsitektur; Medical → terminologi medis & evidence-based; Islamic Studies → Quran/Hadith/Tarjih/HPT)
-- **Skill terpisah dari Persona** (Persona = gaya bicara, diatur di halaman Personalization; Skill = fokus domain keahlian)
-- Skill bisa bawaan platform atau custom buatan user — disimpan di **satu tabel yang sama**, dibedakan lewat `owner_id` (null = bawaan platform)
-- Setiap kali Skill diganti di tengah workspace, sistem mencatat di `skill_change_log` dan menampilkan penanda transparan di histori chat
+### D. Komposisi konteks tiap respons AI
+AI selalu menggabungkan 3 lapis: **Workspace System** (permanen) + **Skill aktif** (opsional, per-pesan via `messages.skill_id`) + **riwayat chat** itu sendiri.
 
-### Muhammadiyah Hub
-Satu knowledge base terpusat (HPT, Tarjih, ISMUBA, Keputusan Muktamar, Pedoman Muhammadiyah) — bukan silo terpisah dari Skill "Islamic Studies". Workspace mana pun bisa "menyambung" ke sumber yang sama lewat tabel `hub_links`, tidak ada duplikasi data. **Selalu gratis di semua tier pricing.**
+---
 
-## Skema Database — KONDISI AKTUAL (hasil audit 9 file migration, Juli 2026)
+## Skema Database v2
 
-**Koreksi dari draft awal:** Tabel `notes`, `quizzes`, `flashcard_decks`, `mindmaps` **tidak pernah ada** di migration maupun kode manapun — jadi ini BUKAN migrasi rename, melainkan pembangunan skema baru dari nol. Nama tabel workspace aktual adalah **`chat_workspaces`** (bukan `workspaces`), sudah punya FK dari `conversations.workspace_id` — jangan diganti nama, cukup di-extend via `ALTER TABLE`.
-
-### Tabel yang SUDAH ADA (extend, jangan diganti nama/struktur inti)
+### Kondisi aktual sekarang (yang sudah ada di production)
 ```
-chat_workspaces: id (PK), user_id (FK), name  -- versi ringan, akan di-ALTER tambah kolom
-conversations: id (PK), workspace_id (FK -> chat_workspaces)
-messages: id (PK), conversation_id (FK)
-user_memory: key-value, di-key per USER (bukan per workspace)
-knowledge_sources / knowledge_chunks: khusus file RAG, bukan tabel SOURCES generik
-```
-`study-modes.ts` (7 study mode hardcoded di `lib/`) adalah pendahulu informal sistem Skill — **akan digantikan penuh** oleh tabel `skills` (lihat Keputusan Scope).
-
-### Tabel BARU yang akan dibuat
-```
-skills: id (PK), owner_id (FK auth.users, nullable = bawaan platform), name, category, system_prompt, is_custom (boolean), created_at, updated_at
-docs: id (PK), workspace_id (FK chat_workspaces), title, content, source_ref (FK conversations, nullable), created_at, updated_at
-tasks: id (PK), workspace_id (FK), title, tasks (jsonb), source_ref, created_at, updated_at
-sheets: id (PK), workspace_id (FK), title, data (jsonb), source_ref, created_at, updated_at
-canvases: id (PK), workspace_id (FK), title, nodes (jsonb), source_ref, created_at, updated_at
-skill_change_log: id (PK), workspace_id (FK), skill_id (FK), conversation_id (FK, nullable), changed_at
+chat_workspaces : id (PK), user_id (FK), name, icon, color, skill_id, persona_config
+                  (catatan: nama tabel workspace AKTUAL = chat_workspaces, bukan workspaces — jangan diganti nama)
+conversations   : id (PK), workspace_id (FK -> chat_workspaces), title, ...
+messages        : id (PK), conversation_id (FK), role, content, ...
+skills          : id (PK), owner_id (nullable = bawaan platform), name, category, system_prompt, is_custom
+user_memory     : key-value per USER
+knowledge_sources / knowledge_chunks : file RAG
+-- DEPRECATED (dibuat untuk v1, jangan dikembangkan): docs, tasks, sheets, canvases, skill_change_log
 ```
 
-### ALTER pada tabel existing
-```sql
-ALTER TABLE chat_workspaces
-  ADD COLUMN icon text,
-  ADD COLUMN color text,
-  ADD COLUMN skill_id uuid REFERENCES skills(id),
-  ADD COLUMN persona_config jsonb DEFAULT '{}'::jsonb;
-```
+### Target v2 (migrasi berikutnya — konfirmasi + backup dulu sebelum apply)
+- **`chat_workspaces`**: tambah `system_instructions text` (Workspace System).
+- **`messages`**: tambah `skill_id uuid (FK skills, nullable)` — skill aktif per pesan.
+- **`skills`**: tambah `slash_command text unik`.
+- **Tabel `artifacts` BARU** (menggantikan docs/tasks/sheets/canvases):
+  ```
+  artifacts: id (PK), conversation_id (FK), type (document|table|diagram|code|html_app|react_app|...),
+             title, content (jsonb), runtime (nullable: 'html'|'react'|null → penanda butuh sandboxed iframe),
+             created_at, updated_at
+  ```
+- **Hapus (setelah migrasi Artifacts stabil):** `docs`, `tasks`, `sheets`, `canvases`, `skill_change_log`.
+- RLS tetap pola lama: kepemilikan lewat join ke `chat_workspaces.user_id = auth.uid()`, trigger `set_updated_at`.
+- `hub_links` (integrasi Muhammadiyah Hub) tetap **DITUNDA** sampai Artifacts inti stabil.
 
-### DITUNDA (di luar scope fase ini)
-`hub_links` dan integrasi Muhammadiyah Hub — dikerjakan setelah 4 tools (Docs/Tasks/Sheets/Canvas) stabil. Jangan buat tabel ini dulu.
+---
 
-## Keputusan Scope (Juli 2026)
-1. **study-modes.ts → digantikan penuh oleh tabel `skills`.** 7 study mode hardcoded perlu di-seed sebagai baris di `skills` (owner_id = null). Semua pemanggilan `study-modes.ts` di `lib/ai/chat.ts` dan `app/page.tsx` disesuaikan ke skema baru.
-2. **UI Docs/Tasks/Sheets/Canvas: tab di dalam SPA existing (`app/page.tsx`)**, BUKAN routing App Router baru. Sitemap 13 halaman di Master Plan adalah visi jangka panjang, bukan target langsung fase ini.
-3. **hub_links ditunda** — fokus dulu ke 4 tools inti.
-4. `app/page.tsx` adalah monolith ~4600 baris — pertimbangkan ekstrak bagian besar jadi komponen terpisah sebelum menambah tab baru, supaya perubahan lebih terisolasi.
-
-## Sitemap (13 Halaman)
-| # | Halaman | Rute | Keterangan |
+## Sitemap v2 (10 Halaman)
+| # | Halaman | Rute contoh | Catatan |
 |---|---|---|---|
-| 1 | Home (landing) | `/` | Halaman publik pertama |
-| 2 | Login/Register | `/login`, `/register` | Password + OTP email |
-| 3 | Workspace/Chat | `/workspace/[id]` | Halaman inti, paling kompleks |
-| 4 | Docs | `/workspace/[id]/docs` | Bagian dari Workspace |
-| 5 | Tasks | `/workspace/[id]/tasks` | Bagian dari Workspace |
-| 6 | Sheets | `/workspace/[id]/sheets` | Bagian dari Workspace |
-| 7 | Canvas | `/workspace/[id]/canvas` | Bagian dari Workspace |
-| 8 | Muhammadiyah Hub | `/hub` | Knowledge base publik, akses tanpa workspace |
-| 9 | Research | `/research` | Deep research mode berdiri sendiri |
-| 10 | Library | `/library` | Agregasi semua item dari semua workspace |
-| 11 | Personalization | `/settings/personalization` | Atur persona/gaya bicara AI |
-| 12 | Pricing | `/pricing` | 4 tier |
-| 13 | Settings | `/settings` | Profil, keamanan, notifikasi, billing, privasi, skill |
+| 1 | Home | `/` | Tidak berubah |
+| 2 | Login/Register | `/login`, `/register` | Tidak berubah |
+| 3 | Workspace | `/workspace/[id]` | **Baru**: daftar chat + akses Workspace System, bukan langsung ke satu chat |
+| 4 | Chat | `/workspace/[id]/chat/[chatId]` | **Berubah**: banyak chat per workspace; panel Artifact di kanan; slash picker skill |
+| 5 | Muhammadiyah Hub | `/hub` | Tidak berubah — knowledge base publik, gratis semua tier |
+| 6 | Research | `/research` | Tidak berubah |
+| 7 | Library | `/library` | **Berubah**: agregasi Artifacts (filter: Semua/Dokumen/Visual/Kode/Mini aplikasi), bukan Docs/Tasks/Sheets/Canvas |
+| 8 | Personalization | `/settings/personalization` | Tidak berubah |
+| 9 | Pricing | `/pricing` | Struktur sama, istilah fitur disesuaikan ke Artifacts |
+| 10 | Settings | `/settings` | Tab "Skill saya" menampilkan `slash_command` tiap skill + form buat skill (dengan field slash command) |
 
-### Layout Halaman Chat (kunci arsitektur)
-- Icon rail (paling kiri) → Workspace list sidebar → Area chat utama → Sidebar kanan **Knowledge** (kontekstual: sumber aktif workspace + link ke Muhammadiyah Hub)
-- Top bar chat: nama workspace + badge Skill aktif + tab **Chat | Docs | Tasks | Sheets | Canvas**
-- Gaya pesan AI: **tanpa bubble** (gaya Claude, bukan gaya ChatGPT)
+**Dihapus dari v1:** halaman Docs, Tasks, Sheets, Canvas — melebur ke Artifacts di dalam Chat.
 
-## Pricing (4 Tier)
-| Tier | Target | Harga | Fitur Kunci |
-|---|---|---|---|
-| Gratis | Adopsi massal | Rp0 | 1 workspace, ~30-50 pesan/hari, tools terbatas, Hub tanpa batas |
-| Plus | Individu | ~Rp49-79rb/bulan | Workspace & chat tanpa batas, skill/persona custom, export, prioritas |
-| Sekolah & Kampus | Institusi pendidikan | Harga khusus per-seat | Dashboard admin, knowledge base sekolah |
-| Enterprise | RS, perusahaan | Kustom/quote | SSO, audit log, knowledge base organisasi |
+### Layout Halaman Chat (kunci arsitektur v2)
+- Icon rail (kiri) → sidebar daftar workspace → area chat utama → **panel Artifact (kanan)** yang muncul otomatis saat AI menghasilkan artifact.
+- Panel Artifact: untuk tipe kode/aplikasi ada tab kecil "Preview" & "Kode"; untuk `html_app`/`react_app` tampilkan iframe sandboxed dengan live preview.
+- Sidebar Knowledge (sumber + link Hub) bisa di-collapse saat panel Artifact terbuka supaya tidak sempit.
+- Input: ketik `/` → dropdown picker skill (filter saat mengetik).
+- Gaya pesan AI: **tanpa bubble** (gaya Claude, bukan ChatGPT).
 
-## Alur Kerja Coding (Urutan Prioritas, revisi Juli 2026)
-1. **Backup database Supabase** sebelum migration apa pun (kebiasaan baku, meski tidak ada data lama untuk dipindah)
-2. **Migration SQL baru**: extend `chat_workspaces`, buat tabel `skills`, `docs`, `tasks`, `sheets`, `canvases`, `skill_change_log` — ikuti pola migration existing (RLS per user via join, trigger `set_updated_at`)
-3. **Seed data `skills`** dari isi `study-modes.ts` (7 study mode jadi baris skill bawaan platform)
-4. **Route handler + lib helper** untuk Docs/Tasks/Sheets/Canvas (`app/api/docs`, `app/api/tasks`, dst — mirror pola `app/api/knowledge/route.ts`)
-5. **UI tab Docs/Tasks/Sheets/Canvas di `app/page.tsx`** (tab di SPA existing, bukan routing baru) — ekstrak komponen dulu kalau perlu untuk isolasi risiko
-6. `npm run lint && npm run build` + smoke test manual (chat streaming, upload, RLS antar-user) setiap selesai satu tahap
-7. **Muhammadiyah Hub linking (`hub_links`)** — DITUNDA, dikerjakan di fase berikutnya setelah 4 tools stabil
-8. Halaman pendukung lainnya (Library, Personalization, Pricing, Settings) — belum diprioritaskan
+---
+
+## Pricing (4 Tier) — struktur tetap, istilah disesuaikan
+| Tier | Harga | Fitur kunci |
+|---|---|---|
+| Gratis | Rp0 | 1 workspace, ~30-50 pesan/hari, Artifact terbatas/bulan, Hub tanpa batas, skill bawaan saja |
+| Plus | ~Rp49-79rb/bulan | Workspace & chat tanpa batas, Artifact tanpa batas, skill custom tanpa batas, export artifact |
+| Sekolah & Kampus | Harga khusus per-seat | Dashboard admin, knowledge base sekolah |
+| Enterprise | Kustom | SSO, audit log, knowledge base organisasi |
+
+Muhammadiyah Hub tetap gratis di semua tier.
+
+---
+
+## Urutan Kerja Coding v2 (prioritas)
+1. **Backup database Supabase** sebelum migration apa pun.
+2. **Migration v2**: tambah `workspaces.system_instructions`, `messages.skill_id`, `skills.slash_command`; buat tabel `artifacts`. (Hapus `docs/tasks/sheets/canvases/skill_change_log` **belakangan**, setelah Artifacts stabil.)
+3. **Workspace multi-chat**: halaman Workspace (daftar chat) + editor Workspace System.
+4. **Chat + slash skill picker**: ketik `/` → picker skill → simpan `messages.skill_id`; komposisi 3-lapis konteks (Workspace System + Skill + history).
+5. **Artifacts dasar dulu**: Dokumen → Tabel → Visual (yang tidak eksekusi kode). Panel Artifact + simpan ke `artifacts` + tampil di Library.
+6. **Mini aplikasi (paling akhir)**: riset sandboxing iframe dulu → HTML app → React app.
+7. `npm run lint && npm run build` + smoke test manual (chat streaming, upload, RLS antar-user, slash picker, render artifact) tiap selesai satu tahap.
+8. Muhammadiyah Hub linking (`hub_links`) — tetap DITUNDA sampai Artifacts inti stabil.
+
+---
 
 ## Aturan Kerja untuk Claude Code
-- Kode yang sudah ada di aimuhammadiyah.my.id **tetap dipakai** — jangan membangun ulang dari nol
-- Selalu cek `PROJECT_STATUS.md` dan `README.md` untuk info tambahan sebelum membuat perubahan besar
-- Sebelum migrasi skema/data yang mengubah struktur database produksi, konfirmasi dulu ke user dan pastikan backup sudah dibuat
-- Identitas visual: hijau Muhammadiyah sebagai warna primer, putih, aksen emas/gold hangat, gaya modern-minimalis (gabungan Claude/Linear/Notion/NotebookLM/Perplexity), rounded corners, tanpa gradient
+- Kode yang sudah ada di aimuhammadiyah.my.id **tetap dipakai** sebagai basis — jangan bangun ulang dari nol.
+- Selalu cek `PROJECT_STATUS.md` dan `README.md` untuk info tambahan sebelum perubahan besar.
+- Sebelum migrasi skema/data yang mengubah struktur database produksi, **konfirmasi dulu ke user dan pastikan backup sudah dibuat**.
+- **Jangan** kembangkan fitur baru di atas Docs/Tasks/Sheets/Canvas (deprecated) — arahkan ke sistem Artifacts.
+- Identitas visual: hijau Muhammadiyah (primer), putih (base), aksen emas/gold hangat (dipakai sedikit), biru redup (sekunder opsional), abu-abu (netral). Sans-serif untuk UI, serif (`--font-voice`) untuk konten resmi/formal (Muhammadiyah Hub, artifact dokumen panjang). Rounded corners konsisten, border tipis, tanpa gradient/shadow tebal. Gaya gabungan Claude/Linear/Notion/NotebookLM/Perplexity.
