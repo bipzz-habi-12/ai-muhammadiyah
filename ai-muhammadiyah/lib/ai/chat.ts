@@ -535,13 +535,13 @@ function createGenericAiFallback() {
   return "Maaf, chat AI sedang bermasalah. Silakan coba lagi.";
 }
 
-// Docs/Tasks/Sheets "generate from chat" endpoints call generateChatReply()
-// and treat any non-throwing result as real, parseable AI content. But
-// generateChatReply() also returns these exact human-readable "sorry"
-// strings as a normal (non-throwing) `reply` when every provider is
-// rate-limited or down — intentional graceful degradation for the chat UI,
-// where showing this text as if the AI said it is reasonable. For
-// structured-extraction callers that isn't content to parse, it's a
+// Docs/Tasks/Sheets/Canvas "generate from chat" endpoints call
+// generateChatReply() and treat any non-throwing result as real, parseable
+// AI content. But generateChatReply() also returns these exact human-
+// readable "sorry" strings as a normal (non-throwing) `reply` when every
+// provider is rate-limited or down — intentional graceful degradation for
+// the chat UI, where showing this text as if the AI said it is reasonable.
+// For structured-extraction callers that isn't content to parse, it's a
 // provider outage — check this before attempting to parse/use `reply`, and
 // surface a specific "try again" error instead of a generic parse-failure
 // one. generate() calls always pass pdfContext="", so only the no-PDF
