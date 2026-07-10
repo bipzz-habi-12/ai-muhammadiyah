@@ -22,11 +22,22 @@ type SheetRow = {
   updated_at: string;
 };
 
+// This is appended after AI Muhammadiyah's shared "always use clean Markdown
+// with headings/bullets/tables" style prompt (see responseStyleSystemPrompt
+// in lib/ai/chat.ts) — that instruction directly conflicts with "JSON only"
+// here, and models frequently obey the earlier, more general style guidance
+// instead. The override line below is a best-effort nudge; it is NOT relied
+// on for correctness — parseGeneratedSheet() below has a Markdown-table
+// fallback specifically because this drift is expected, not exceptional.
 export const SHEET_EXTRACTOR_SYSTEM_PROMPT = [
   "You extract tabular data from a chat conversation for AI Muhammadiyah's Sheets tool.",
   "Read the conversation and identify concrete tabular data — lists of items with attributes,",
   "figures, comparisons, or similar data that fits naturally into a spreadsheet grid.",
-  "Respond with ONLY a JSON object, no markdown code fences, no extra commentary, in this exact shape:",
+  "This response is consumed directly by a program, not shown to the user as-is — general",
+  "Markdown/formatting style instructions do NOT apply here, they apply to normal chat replies only.",
+  "Respond with ONLY a raw JSON object: no markdown code fences, no ``` blocks, no Markdown table,",
+  "no headings, no explanation before or after. The very first character of your response must be '{'.",
+  "Use exactly this shape:",
   '{"title": "short sheet title", "columns": ["Column A", "Column B"], "rows": [["value", "value"]]}',
   "Every row must have the same number of cells as `columns`. Use literal text/number values only —",
   "never write spreadsheet formulas (no leading '=').",
@@ -187,12 +198,83 @@ export async function deleteSheet(supabase: SupabaseClient, id: string) {
   return true;
 }
 
-// Parses the AI's JSON-object response ({title, columns, rows}) into a
-// generated grid. Returns null on unrecoverable parse failure — the caller
-// should surface a clear error rather than create an empty/corrupt sheet.
-export function parseGeneratedSheet(
-  aiText: string,
-): { title: string; columns: string[]; rows: string[][]; truncated: boolean } | null {
+type GeneratedSheet = {
+  title: string;
+  columns: string[];
+  rows: string[][];
+  truncated: boolean;
+};
+
+function clampGrid(
+  title: string,
+  rawColumns: string[],
+  rawRows: unknown[],
+): GeneratedSheet {
+  const wasTooBig = rawColumns.length > MAX_COLUMNS || rawRows.length > MAX_ROWS;
+  const columns = rawColumns.length > 0 ? rawColumns.slice(0, MAX_COLUMNS) : [""];
+  const rows = rawRows.slice(0, MAX_ROWS).map((row) => {
+    const cells = Array.isArray(row) ? row : [];
+    return Array.from({ length: columns.length }, (_, index) =>
+      String(cells[index] ?? ""),
+    );
+  });
+
+  return { title, columns, rows, truncated: wasTooBig };
+}
+
+// Scans for the first syntactically-balanced {...} object in the text,
+// respecting string literals (so braces inside quoted values don't throw off
+// the depth count) and any trailing prose after the object. More robust than
+// a greedy /\{[\s\S]*\}/ regex, which breaks if the model adds commentary
+// containing its own braces after the JSON.
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+
+  if (start === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (ch === "\\" && inString) {
+      escapeNext = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function tryParseJsonSheet(aiText: string): GeneratedSheet | null {
   const candidates = [aiText.trim()];
   const fencedMatch = aiText.match(/```(?:json)?\s*([\s\S]*?)```/i);
 
@@ -200,10 +282,10 @@ export function parseGeneratedSheet(
     candidates.push(fencedMatch[1].trim());
   }
 
-  const braceMatch = aiText.match(/\{[\s\S]*\}/);
+  const balancedObject = extractFirstJsonObject(aiText);
 
-  if (braceMatch) {
-    candidates.push(braceMatch[0]);
+  if (balancedObject) {
+    candidates.push(balancedObject);
   }
 
   for (const candidate of candidates) {
@@ -218,26 +300,110 @@ export function parseGeneratedSheet(
         typeof parsed.title === "string" && parsed.title.trim()
           ? parsed.title.trim()
           : "Sheet dari chat";
-
       const rawColumns = parsed.columns.map((cell) => String(cell ?? ""));
       const rawRows = Array.isArray(parsed.rows) ? parsed.rows : [];
-      const wasTooBig = rawColumns.length > MAX_COLUMNS || rawRows.length > MAX_ROWS;
 
-      const columns = rawColumns.length > 0 ? rawColumns.slice(0, MAX_COLUMNS) : [""];
-      const rows = rawRows.slice(0, MAX_ROWS).map((row) => {
-        const cells = Array.isArray(row) ? row : [];
-        return Array.from({ length: columns.length }, (_, index) =>
-          String(cells[index] ?? ""),
-        );
-      });
-
-      return { title, columns, rows, truncated: wasTooBig };
+      return clampGrid(title, rawColumns, rawRows);
     } catch {
       continue;
     }
   }
 
   return null;
+}
+
+function splitMarkdownTableRow(line: string): string[] {
+  let trimmed = line.trim();
+
+  if (trimmed.startsWith("|")) {
+    trimmed = trimmed.slice(1);
+  }
+
+  if (trimmed.endsWith("|")) {
+    trimmed = trimmed.slice(0, -1);
+  }
+
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+// A Markdown "---|---" separator row, or a row that's otherwise all dashes/
+// colons/blank cells.
+function isMarkdownSeparatorRow(cells: string[]): boolean {
+  return (
+    cells.length > 0 &&
+    cells.every((cell) => cell === "" || /^:?-{2,}:?$/.test(cell))
+  );
+}
+
+// Fallback for when the model ignores the JSON-only instruction and replies
+// with a normal Markdown table instead (the shared response-style system
+// prompt explicitly nudges toward Markdown tables for this kind of content —
+// see the comment above SHEET_EXTRACTOR_SYSTEM_PROMPT). Finds the longest
+// contiguous block of "|"-delimited lines and treats the first row as
+// headers, an optional "---|---" row as the separator, and the rest as data.
+function parseMarkdownTableSheet(aiText: string): GeneratedSheet | null {
+  const lines = aiText.split("\n");
+  let bestBlock: string[] = [];
+  let currentBlock: string[] = [];
+
+  const flush = () => {
+    if (currentBlock.length > bestBlock.length) {
+      bestBlock = currentBlock;
+    }
+
+    currentBlock = [];
+  };
+
+  for (const line of lines) {
+    if (line.includes("|") && line.trim().length > 0) {
+      currentBlock.push(line);
+    } else {
+      flush();
+    }
+  }
+
+  flush();
+
+  if (bestBlock.length < 2) {
+    return null;
+  }
+
+  const parsedRows = bestBlock.map(splitMarkdownTableRow);
+  const header = parsedRows[0];
+  const dataStart = isMarkdownSeparatorRow(parsedRows[1] ?? []) ? 2 : 1;
+  const dataRows = parsedRows
+    .slice(dataStart)
+    .filter((row) => !isMarkdownSeparatorRow(row));
+
+  if (header.length === 0 || header.every((cell) => !cell)) {
+    return null;
+  }
+
+  const blockStartIndex = lines.indexOf(bestBlock[0]);
+  let title = "Sheet dari chat";
+
+  for (let i = blockStartIndex - 1; i >= 0; i -= 1) {
+    const candidate = lines[i].trim();
+
+    if (!candidate) {
+      continue;
+    }
+
+    const cleaned = candidate.replace(/^#+\s*/, "").replace(/[:.]\s*$/, "").trim();
+    title = cleaned || title;
+    break;
+  }
+
+  return clampGrid(title, header, dataRows);
+}
+
+// Parses the AI's response into a generated grid. Tries strict JSON first
+// (the documented contract), then falls back to a Markdown-table parse
+// (the realistic failure mode — see SHEET_EXTRACTOR_SYSTEM_PROMPT comment).
+// Returns null only if neither succeeds — the caller should surface a clear
+// error rather than create an empty/corrupt sheet.
+export function parseGeneratedSheet(aiText: string): GeneratedSheet | null {
+  return tryParseJsonSheet(aiText) ?? parseMarkdownTableSheet(aiText);
 }
 
 // --- Browser-side fetch wrappers (used by hooks/useSheets.ts) ---
