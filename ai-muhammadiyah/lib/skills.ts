@@ -11,6 +11,7 @@ export type Skill = {
   systemPromptPremium: string | null;
   isCustom: boolean;
   minTier: SubscriptionTier;
+  slashCommand: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -24,6 +25,7 @@ type SkillRow = {
   system_prompt_premium: string | null;
   is_custom: boolean;
   min_tier: string;
+  slash_command?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,6 +55,7 @@ function mapSkillRow(row: SkillRow): Skill {
     systemPromptPremium: row.system_prompt_premium,
     isCustom: row.is_custom,
     minTier: normalizeTier(row.min_tier),
+    slashCommand: row.slash_command ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -65,7 +68,7 @@ export async function fetchSkills(
   const { data, error } = await supabase
     .from("skills")
     .select(
-      "id,owner_id,name,category,system_prompt,system_prompt_premium,is_custom,min_tier,created_at,updated_at",
+      "id,owner_id,name,category,system_prompt,system_prompt_premium,is_custom,min_tier,slash_command,created_at,updated_at",
     )
     .or(`owner_id.is.null,owner_id.eq.${userId}`)
     .order("is_custom", { ascending: true })

@@ -69,6 +69,8 @@ interface ChatAreaProps {
   setSelectedSkillId: Dispatch<SetStateAction<string | null>>;
   usageSnapshot: UsageSnapshot | null;
   isStudyModeMenuOpen: boolean;
+  messageSkillOverrideId: string | null;
+  setMessageSkillOverrideId: Dispatch<SetStateAction<string | null>>;
 }
 
 export default function ChatArea({
@@ -101,6 +103,8 @@ export default function ChatArea({
   setSelectedSkillId,
   usageSnapshot,
   isStudyModeMenuOpen,
+  messageSkillOverrideId,
+  setMessageSkillOverrideId,
 }: ChatAreaProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
@@ -148,6 +152,8 @@ export default function ChatArea({
             setSelectedSkillId={setSelectedSkillId}
             usageSnapshot={usageSnapshot}
             isStudyModeMenuOpen={isStudyModeMenuOpen}
+            messageSkillOverrideId={messageSkillOverrideId}
+            setMessageSkillOverrideId={setMessageSkillOverrideId}
           />
 
           <div className="grid w-full gap-3 sm:grid-cols-2">

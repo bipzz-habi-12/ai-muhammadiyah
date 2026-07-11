@@ -94,6 +94,8 @@ export default function Home() {
     selectSkill,
     selectedSkill,
     selectedSkillBadge,
+    messageSkillOverrideId,
+    setMessageSkillOverrideId,
   } = useSkills(usageSnapshot?.tier, setIsStudyModeMenuOpen);
   const {
     selectedModel,
@@ -220,6 +222,8 @@ export default function Home() {
     setConversations,
     activeConversation,
     setActiveConversationId,
+    messageSkillOverrideId,
+    setMessageSkillOverrideId,
   );
   const resetMemory = useCallback(() => {
     setActiveConversationId("");
@@ -580,6 +584,8 @@ export default function Home() {
               setSelectedSkillId={setSelectedSkillId}
               usageSnapshot={usageSnapshot}
               isStudyModeMenuOpen={isStudyModeMenuOpen}
+              messageSkillOverrideId={messageSkillOverrideId}
+              setMessageSkillOverrideId={setMessageSkillOverrideId}
             />
 
             {messages.length > 1 && (
@@ -610,6 +616,8 @@ export default function Home() {
                 setSelectedSkillId={setSelectedSkillId}
                 usageSnapshot={usageSnapshot}
                 isStudyModeMenuOpen={isStudyModeMenuOpen}
+                messageSkillOverrideId={messageSkillOverrideId}
+                setMessageSkillOverrideId={setMessageSkillOverrideId}
               />
             )}
           </>

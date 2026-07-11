@@ -71,6 +71,8 @@ export function useChatSession(
   setConversations: Dispatch<SetStateAction<Conversation[]>>,
   activeConversation: Conversation | undefined,
   setActiveConversationId: Dispatch<SetStateAction<string>>,
+  messageSkillOverrideId: string | null,
+  setMessageSkillOverrideId: Dispatch<SetStateAction<string | null>>,
 ) {
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [input, setInput] = useState("");
@@ -230,8 +232,12 @@ export function useChatSession(
 
     if (!userText || isSending || !hasMessageQuota) return;
 
+    // A "/" slash override applies to this one visible message only; hidden
+    // instructions (e.g. continueAnswer) keep the session's selected skill.
     const activeSkill = resolveAllowedSkill(
-      selectedSkillId,
+      isHiddenInstruction
+        ? selectedSkillId
+        : (messageSkillOverrideId ?? selectedSkillId),
       usageSnapshot?.tier,
       skills,
     );
@@ -240,6 +246,15 @@ export function useChatSession(
       setComposerNotice("Skill masih dimuat, coba lagi sebentar.");
       return;
     }
+
+    // The conversation's persistent skill tracks the SESSION selection, never the
+    // one-shot "/" override — otherwise the override would leak into the stored
+    // conversation and reappear as the default on the next reload.
+    const sessionSkill =
+      !isHiddenInstruction && messageSkillOverrideId
+        ? (resolveAllowedSkill(selectedSkillId, usageSnapshot?.tier, skills) ??
+          activeSkill)
+        : activeSkill;
 
     const currentDocumentContext = documentTextRef.current || documentText;
     const documentContexts = uploadedAttachments
@@ -362,6 +377,7 @@ export function useChatSession(
           content: userText,
           selected_model: selectedModel,
           study_mode: skillToLegacyStudyMode(activeSkill),
+          skill_id: activeSkill.id,
           document_metadata: documentMetadata,
         });
 
@@ -483,6 +499,7 @@ export function useChatSession(
               content: finalAssistantText,
               selected_model: selectedModel,
               study_mode: skillToLegacyStudyMode(activeSkill),
+              skill_id: activeSkill.id,
               document_metadata: documentMetadata,
             })
             .eq("id", appendTarget.id)
@@ -494,6 +511,7 @@ export function useChatSession(
               content: finalAssistantText,
               selected_model: selectedModel,
               study_mode: skillToLegacyStudyMode(activeSkill),
+              skill_id: activeSkill.id,
               document_metadata: documentMetadata,
             })
             .select("id")
@@ -530,7 +548,7 @@ export function useChatSession(
         .from("conversations")
         .update({
           selected_model: selectedModel,
-          study_mode: skillToLegacyStudyMode(activeSkill),
+          study_mode: skillToLegacyStudyMode(sessionSkill),
           document_metadata: documentMetadata,
           workspace_id:
             currentConversation.workspaceId ?? (selectedWorkspaceId || null),
@@ -545,7 +563,7 @@ export function useChatSession(
               ? {
                   ...item,
                   model: selectedModel,
-                  skillId: activeSkill.id,
+                  skillId: sessionSkill.id,
                   documentMetadata,
                   workspaceId:
                     currentConversation.workspaceId ??
@@ -575,6 +593,7 @@ export function useChatSession(
           content: errorText,
           selected_model: selectedModel,
           study_mode: skillToLegacyStudyMode(activeSkill),
+          skill_id: activeSkill.id,
           document_metadata: documentMetadata,
         });
       }
@@ -609,6 +628,12 @@ export function useChatSession(
 
       if (activeRequestRef.current === requestController) {
         activeRequestRef.current = null;
+      }
+
+      // The one-shot "/" override is consumed by this visible message; clear it
+      // so the next message reverts to the session's selected skill.
+      if (!isHiddenInstruction) {
+        setMessageSkillOverrideId(null);
       }
 
       await loadUsage();

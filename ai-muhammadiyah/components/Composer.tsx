@@ -1,6 +1,13 @@
 "use client";
 
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useState,
+  type Dispatch,
+  type KeyboardEvent,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { SparkIcon, Icon } from "@/components/icons";
 import {
   getLockedModelRequirement,
@@ -45,6 +52,10 @@ interface ComposerProps {
   usageSnapshot: UsageSnapshot | null;
   isStudyModeMenuOpen: boolean;
   setIsStudyModeMenuOpen: Dispatch<SetStateAction<boolean>>;
+
+  // one-shot per-message skill override (chosen via the "/" slash picker)
+  messageSkillOverrideId: string | null;
+  setMessageSkillOverrideId: Dispatch<SetStateAction<string | null>>;
 }
 
 export default function Composer({
@@ -74,7 +85,72 @@ export default function Composer({
   usageSnapshot,
   isStudyModeMenuOpen,
   setIsStudyModeMenuOpen,
+  messageSkillOverrideId,
+  setMessageSkillOverrideId,
 }: ComposerProps) {
+  const router = useRouter();
+  // The "/" slash picker opens whenever the input starts with "/". Escape sets
+  // this flag to dismiss it without wiping the text; typing anything that no
+  // longer starts with "/" re-arms it.
+  const [isSlashDismissed, setIsSlashDismissed] = useState(false);
+
+  const isSlashCommand = input.startsWith("/");
+  const isSlashPickerOpen = isSlashCommand && !isSlashDismissed;
+  const slashMatches = isSlashCommand
+    ? skills.filter((skill) =>
+        skill.slashCommand
+          ?.toLowerCase()
+          .startsWith(input.toLowerCase()),
+      )
+    : [];
+  const messageSkillOverride =
+    skills.find((skill) => skill.id === messageSkillOverrideId) ?? null;
+
+  function handleInputChange(value: string) {
+    setInput(value);
+    if (!value.startsWith("/")) {
+      setIsSlashDismissed(false);
+    }
+  }
+
+  // One-shot skill selection via "/": sets the per-message override (NOT
+  // selectSkill, which would persist to localStorage), then clears the command
+  // text so the user types their actual message next. Locked skills route to
+  // the upgrade page, mirroring the dropdown's gating.
+  function pickSlashSkill(skill: Skill) {
+    if (!canAccessTier(usageSnapshot?.tier, skill.minTier)) {
+      setIsSlashDismissed(true);
+      router.push("/plans");
+      return;
+    }
+
+    setMessageSkillOverrideId(skill.id);
+    setInput("");
+    setIsSlashDismissed(false);
+  }
+
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (isSlashPickerOpen) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (slashMatches.length > 0) {
+          pickSlashSkill(slashMatches[0]);
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsSlashDismissed(true);
+        return;
+      }
+    }
+
+    if (event.key === "Enter") {
+      void sendMessage();
+    }
+  }
+
   function toggleModelMenu() {
     setIsStudyModeMenuOpen(false);
     setIsModelMenuOpen((isOpen) => !isOpen);
@@ -258,22 +334,113 @@ export default function Composer({
     );
   }
 
+  // "/" picker: upward-opening popover listing skills whose slash_command matches
+  // what's typed after "/". Reuses the model/skill menu styling.
+  function renderSlashPicker() {
+    if (!isSlashPickerOpen) {
+      return null;
+    }
+
+    return (
+      <div className="absolute bottom-full left-0 z-30 mb-2 w-[min(88vw,360px)] overflow-hidden rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#bec9be]">
+        <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-[#6f7a70]">
+          Skill sekali pakai
+        </div>
+        {slashMatches.length === 0 ? (
+          <div className="p-3 text-xs font-semibold text-[#6f7a70]">
+            {skillsLoading && !skills.length
+              ? "Memuat skill..."
+              : "Tidak ada skill dengan perintah itu."}
+          </div>
+        ) : (
+          slashMatches.map((skill) => {
+            const isAllowed = canAccessTier(usageSnapshot?.tier, skill.minTier);
+
+            return (
+              <button
+                key={skill.id}
+                type="button"
+                onClick={() => pickSlashSkill(skill)}
+                className="flex w-full items-center gap-3 rounded-[16px] p-3 text-left transition hover:bg-[#f3f4f5]"
+              >
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#004d27]/10 text-[#004d27]">
+                  <Icon name={isAllowed ? "book" : "lock"} className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2 font-bold text-[#191c1d]">
+                    <span className="font-mono text-[#004d27]">
+                      {skill.slashCommand}
+                    </span>
+                    {skill.name}
+                  </span>
+                  <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#3f4940]">
+                    {isAllowed
+                      ? (skill.category ?? "")
+                      : getLockedSkillRequirement(skill)}
+                  </span>
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    );
+  }
+
+  // Amber pill shown when a one-shot "/" skill is armed for the next message.
+  function renderOverrideChip() {
+    if (!messageSkillOverride) {
+      return null;
+    }
+
+    return (
+      <div className="inline-flex items-center gap-1 rounded-full bg-[#fdc003] px-3 py-1 text-xs font-bold text-[#6c5000]">
+        <Icon name="idea" className="h-4 w-4" />
+        <span className="max-w-[160px] truncate">
+          Sekali pakai: {messageSkillOverride.name}
+        </span>
+        <button
+          type="button"
+          onClick={() => setMessageSkillOverrideId(null)}
+          className="transition hover:text-[#191c1d]"
+          aria-label="Batalkan skill sekali pakai"
+          title="Batalkan skill sekali pakai"
+        >
+          <Icon name="close" className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Shared text input + slash picker, used by both variants (different sizing).
+  function renderComposerInput(inputClassName: string, wrapperClassName: string) {
+    return (
+      <div className={`relative ${wrapperClassName}`}>
+        <input
+          value={input}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+          placeholder={
+            isSlashPickerOpen
+              ? "Ketik perintah skill, mis. /coding..."
+              : "Tanyakan apa saja kepada AI-mu... (ketik / untuk skill)"
+          }
+          disabled={isSending}
+          className={inputClassName}
+        />
+        {renderSlashPicker()}
+      </div>
+    );
+  }
+
   if (variant === "welcome") {
     return (
       <div className="w-full rounded-[34px] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-[#bec9be]">
         {renderAttachmentChips("mb-3")}
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              sendMessage();
-            }
-          }}
-          placeholder="Tanyakan apa saja kepada AI-mu..."
-          disabled={isSending}
-          className="h-20 w-full bg-transparent text-xl text-[#191c1d] outline-none placeholder:text-[#6f7a70]"
-        />
+        {renderComposerInput(
+          "h-20 w-full bg-transparent text-xl text-[#191c1d] outline-none placeholder:text-[#6f7a70]",
+          "w-full",
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-[#3f4940]">
           <div className="relative">
@@ -290,6 +457,7 @@ export default function Composer({
 
           {renderModelTrigger()}
           {renderSkillChip()}
+          {renderOverrideChip()}
 
           <button
             type="button"
@@ -325,6 +493,7 @@ export default function Composer({
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {renderModelTrigger()}
           {renderSkillChip()}
+          {renderOverrideChip()}
         </div>
 
         <div className="flex items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-[#bec9be] focus-within:ring-[#004d27] sm:gap-3 sm:px-4">
@@ -341,18 +510,10 @@ export default function Composer({
             {renderAttachMenu()}
           </div>
 
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                sendMessage();
-              }
-            }}
-            placeholder="Tanyakan apa saja kepada AI-mu..."
-            disabled={isSending}
-            className="min-w-0 flex-1 bg-transparent text-sm text-[#191c1d] outline-none placeholder:text-[#6f7a70] sm:text-base"
-          />
+          {renderComposerInput(
+            "w-full bg-transparent text-sm text-[#191c1d] outline-none placeholder:text-[#6f7a70] sm:text-base",
+            "min-w-0 flex-1",
+          )}
 
           <button
             type="button"
