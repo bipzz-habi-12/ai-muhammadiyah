@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
@@ -26,8 +26,13 @@ import { applyUsageConstraints, useUsage } from "@/hooks/useUsage";
 import { useUserMemory } from "@/hooks/useUserMemory";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { getEmailInitials } from "@/lib/formatting/text";
-import { groupConversationsByWorkspace } from "@/lib/mappers/conversation";
-import type { ActiveTool } from "@/lib/mappers/types";
+import {
+  groupConversationsByWorkspace,
+  mapConversationRow,
+  sortConversations,
+} from "@/lib/mappers/conversation";
+import type { ActiveTool, ConversationRow } from "@/lib/mappers/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { type PlanModelId } from "@/lib/subscriptions/plans";
 
 type SelectedModel = PlanModelId;
@@ -57,6 +62,11 @@ export default function Home() {
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
+  // Deep link from /workspace/[id]: "/?conversationId=<uuid>" opens that chat
+  // once after the conversation list finishes its initial load. A ref (not
+  // state): consumed exactly once, and the resolve effect is already re-run by
+  // the isLoadingConversations flip, so no extra render is needed.
+  const pendingConversationIdRef = useRef<string | null>(null);
   const {
     knowledgeSources,
     isKnowledgeAdmin,
@@ -160,6 +170,7 @@ export default function Home() {
     showComposerNotice,
   } = useAttachments(userId, hasUploadQuota, loadUsage);
   const {
+    conversations,
     setConversations,
     activeConversationId,
     setActiveConversationId,
@@ -267,6 +278,86 @@ export default function Home() {
     loadSkills,
     loadUsage,
     loadWorkspaces,
+  ]);
+
+  // Capture ?conversationId= once on mount, then strip it from the URL so a
+  // reload doesn't re-trigger the deep link.
+  useEffect(() => {
+    const conversationId = new URLSearchParams(window.location.search).get(
+      "conversationId",
+    );
+
+    if (
+      conversationId &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        conversationId,
+      )
+    ) {
+      pendingConversationIdRef.current = conversationId;
+    }
+
+    if (window.location.search) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  // Resolve the deep link after the initial conversation load. If the target is
+  // outside the 40-item list, fetch it directly and MERGE it into the list first —
+  // activeConversation is derived from that list, and sendMessage would otherwise
+  // treat the loaded chat as brand new and create a duplicate conversation.
+  useEffect(() => {
+    const pendingConversationId = pendingConversationIdRef.current;
+
+    if (!pendingConversationId || isLoadingConversations) {
+      return;
+    }
+
+    pendingConversationIdRef.current = null;
+
+    const target = conversations.find(
+      (conversation) => conversation.id === pendingConversationId,
+    );
+
+    if (target) {
+      void loadConversation(target);
+      return;
+    }
+
+    void (async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("conversations")
+        .select(
+          "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+        )
+        .eq("id", pendingConversationId)
+        .maybeSingle();
+
+      if (error || !data) {
+        if (error) {
+          console.error(error);
+        }
+        setHistoryError("Obrolan dari tautan belum bisa dimuat.");
+        return;
+      }
+
+      const conversation = mapConversationRow(
+        data as ConversationRow,
+        skillsRef.current,
+      );
+      setConversations((prev) =>
+        prev.some((item) => item.id === conversation.id)
+          ? prev
+          : sortConversations([...prev, conversation]),
+      );
+      void loadConversation(conversation);
+    })();
+  }, [
+    isLoadingConversations,
+    conversations,
+    loadConversation,
+    setConversations,
+    skillsRef,
   ]);
 
   const {

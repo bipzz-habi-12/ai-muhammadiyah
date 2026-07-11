@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Icon } from "@/components/icons";
@@ -162,35 +163,50 @@ export default function WorkspaceModal({
                 const isActive = option.id === selectedWorkspaceId;
 
                 return (
-                  <button
+                  <div
                     key={option.id || "general"}
-                    type="button"
-                    onClick={() => {
-                      // Select (don't close) so the Workspace System editor below
-                      // switches to this workspace. Close via the X button.
-                      setSelectedWorkspaceId(option.id);
-                    }}
-                    className={
-                      isActive
-                        ? "flex w-full items-center justify-between gap-3 rounded-2xl bg-[#004d27]/10 px-4 py-3 text-left ring-1 ring-[#004d27]/30"
-                        : "flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left ring-1 ring-[#bec9be] transition hover:bg-[#f3f4f5]"
-                    }
+                    className="flex items-center gap-2"
                   >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <Icon
-                        name="book"
-                        className="h-5 w-5 shrink-0 text-[#004d27]"
-                      />
-                      <span className="truncate font-bold text-[#191c1d]">
-                        {option.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Select (don't close) so the Workspace System editor below
+                        // switches to this workspace. Close via the X button.
+                        setSelectedWorkspaceId(option.id);
+                      }}
+                      className={
+                        isActive
+                          ? "flex min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-[#004d27]/10 px-4 py-3 text-left ring-1 ring-[#004d27]/30"
+                          : "flex min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left ring-1 ring-[#bec9be] transition hover:bg-[#f3f4f5]"
+                      }
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Icon
+                          name="book"
+                          className="h-5 w-5 shrink-0 text-[#004d27]"
+                        />
+                        <span className="truncate font-bold text-[#191c1d]">
+                          {option.name}
+                        </span>
                       </span>
-                    </span>
-                    {isActive && (
-                      <span className="shrink-0 rounded-full bg-[#004d27]/10 px-2 py-1 text-xs font-bold text-[#004d27]">
-                        Aktif
-                      </span>
+                      {isActive && (
+                        <span className="shrink-0 rounded-full bg-[#004d27]/10 px-2 py-1 text-xs font-bold text-[#004d27]">
+                          Aktif
+                        </span>
+                      )}
+                    </button>
+                    {/* General (id "") has no chat_workspaces row, so no page. */}
+                    {option.id && (
+                      <Link
+                        href={`/workspace/${option.id}`}
+                        title="Buka halaman workspace"
+                        aria-label={`Buka halaman workspace ${option.name}`}
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#3f4940] ring-1 ring-[#bec9be] transition hover:bg-[#edeeef]"
+                      >
+                        <Icon name="external" className="h-4 w-4" />
+                      </Link>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
