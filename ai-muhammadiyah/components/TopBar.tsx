@@ -33,6 +33,11 @@ interface TopBarProps {
   exportActiveChatMarkdown: () => void;
   openSharePreview: () => void;
 
+  // artifact panel toggle — the panel itself is lg-only, so the pill is too
+  artifactCount: number;
+  isArtifactPanelOpen: boolean;
+  setIsArtifactPanelOpen: Dispatch<SetStateAction<boolean>>;
+
   // account menu — mobile-only popover here (desktop lives in the Icon Rail)
   currentTierLabel: string;
   isAccountMenuOpen: boolean;
@@ -51,6 +56,9 @@ export default function TopBar({
   selectedSkill,
   exportActiveChatMarkdown,
   openSharePreview,
+  artifactCount,
+  isArtifactPanelOpen,
+  setIsArtifactPanelOpen,
   currentTierLabel,
   isAccountMenuOpen,
   setIsAccountMenuOpen,
@@ -103,6 +111,26 @@ export default function TopBar({
             <Icon name={tool.icon} className="h-5 w-5" />
           </button>
         ))}
+
+        {artifactCount > 0 && activeTool === "chat" && (
+          <button
+            type="button"
+            onClick={() => setIsArtifactPanelOpen((isOpen) => !isOpen)}
+            aria-label="Panel artifact"
+            title="Panel artifact"
+            aria-expanded={isArtifactPanelOpen}
+            className={
+              isArtifactPanelOpen
+                ? "hidden items-center gap-1.5 rounded-full bg-[#004d27]/10 px-3 py-1.5 text-xs font-bold text-[#004d27] lg:inline-flex"
+                : "hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-[#3f4940] ring-1 ring-[#bec9be] transition hover:bg-[#edeeef] lg:inline-flex"
+            }
+          >
+            Artifact
+            <span className="rounded-full bg-[#fdc003] px-1.5 text-[10px] font-bold text-[#6c5000]">
+              {artifactCount}
+            </span>
+          </button>
+        )}
 
         {activeConversation && (
           <button

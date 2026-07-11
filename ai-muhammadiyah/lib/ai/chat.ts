@@ -110,6 +110,22 @@ const responseStyleSystemPrompt = [
   "- Use Indonesian by default unless the user asks for English or another language.",
 ].join("\n");
 
+// Artifact sentinel contract — the parser lives in lib/artifacts.ts
+// (parseArtifactBlocks / formatArtifactTextForDisplay); keep the marker syntax
+// here in sync with it.
+const artifactSystemPrompt = [
+  "ARTIFACT RULES:",
+  "When the user asks you to produce a substantial standalone deliverable — a document/report/essay, a data table, a diagram, or a complete code file/script of roughly 15 lines or more — wrap THAT deliverable (and only it) in artifact markers:",
+  "[[AI_MU_ARTIFACT:type|Short descriptive title]]",
+  "...the deliverable content...",
+  "[[/AI_MU_ARTIFACT]]",
+  "- Both markers must be on their own lines. Everything between them is saved as the artifact.",
+  "- type must be exactly one of: document (Markdown), table (a Markdown table), diagram (Mermaid syntax), code (raw source code, no ``` fences).",
+  "- Keep your conversational explanation OUTSIDE the markers, and keep it brief.",
+  "- Do NOT use artifact markers for short answers, chit-chat, small snippets, or minor edits. At most one artifact per reply unless the user explicitly asks for more.",
+  "- Never use any other type value (interactive HTML/React apps are not supported yet).",
+].join("\n");
+
 const contextPrioritySystemPrompt = [
   "CONTEXT PRIORITY RULES:",
   "1. If the user asks about personal information, names, preferences, or previous conversation, answer from the conversation memory first.",
@@ -640,6 +656,7 @@ function createOpenRouterMessages(
     { role: "system", content: contextPrioritySystemPrompt },
     { role: "system", content: answerCompletionSystemPrompt },
     { role: "system", content: responseStyleSystemPrompt },
+    { role: "system", content: artifactSystemPrompt },
     ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
     ...(memorySystemPrompt
       ? [{ role: "system", content: memorySystemPrompt }]
@@ -734,6 +751,7 @@ function createOpenAiInstructions(
     contextPrioritySystemPrompt,
     answerCompletionSystemPrompt,
     responseStyleSystemPrompt,
+    artifactSystemPrompt,
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]
@@ -750,6 +768,7 @@ function createGeminiSystemInstruction(
     contextPrioritySystemPrompt,
     answerCompletionSystemPrompt,
     responseStyleSystemPrompt,
+    artifactSystemPrompt,
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]

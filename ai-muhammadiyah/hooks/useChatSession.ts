@@ -8,6 +8,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import { parseArtifactBlocks, type ArtifactDraft } from "@/lib/artifacts";
 import {
   getFriendlyChatError,
   parseContinuationMarker,
@@ -73,6 +74,11 @@ export function useChatSession(
   setActiveConversationId: Dispatch<SetStateAction<string>>,
   messageSkillOverrideId: string | null,
   setMessageSkillOverrideId: Dispatch<SetStateAction<string | null>>,
+  saveArtifacts: (
+    conversationId: string,
+    drafts: ArtifactDraft[],
+  ) => Promise<boolean>,
+  loadArtifacts: (conversationId: string) => Promise<void>,
 ) {
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [input, setInput] = useState("");
@@ -121,6 +127,7 @@ export function useChatSession(
 
     setHistoryError("");
     setActiveConversationId(conversation.id);
+    void loadArtifacts(conversation.id);
     setSelectedModel(
       allowedModels.includes(conversation.model) ? conversation.model : "auto",
     );
@@ -578,6 +585,24 @@ export function useChatSession(
               new Date(first.updatedAt).getTime(),
           ),
       );
+
+      // Artifacts: parse only the newly streamed part (finalReply.text) — on a
+      // "continue answer" append, re-parsing the combined text would re-save
+      // blocks that were already saved by the previous send.
+      const artifactDrafts = parseArtifactBlocks(finalReply.text);
+
+      if (artifactDrafts.length) {
+        const artifactsSaved = await saveArtifacts(
+          currentConversation.id,
+          artifactDrafts,
+        );
+
+        if (!artifactsSaved) {
+          setComposerNotice(
+            "Artifact belum bisa disimpan. Isi lengkapnya tetap ada di balasan ini.",
+          );
+        }
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;

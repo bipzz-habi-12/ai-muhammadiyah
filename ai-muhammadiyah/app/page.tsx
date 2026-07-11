@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
+import ArtifactPanel from "@/components/ArtifactPanel";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
 import IconRail from "@/components/IconRail";
@@ -14,6 +15,7 @@ import ToolPlaceholder from "@/components/ToolPlaceholder";
 import TopBar from "@/components/TopBar";
 import UpgradeModal from "@/components/UpgradeModal";
 import WorkspaceModal from "@/components/WorkspaceModal";
+import { useArtifacts } from "@/hooks/useArtifacts";
 import { useAttachments } from "@/hooks/useAttachments";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { useChatSession } from "@/hooks/useChatSession";
@@ -190,6 +192,18 @@ export default function Home() {
     activeConversation,
   } = useConversations(skillsRef, setHistoryError);
   const {
+    artifacts,
+    isLoadingArtifacts,
+    activeArtifact,
+    setActiveArtifactId,
+    isArtifactPanelOpen,
+    setIsArtifactPanelOpen,
+    loadArtifacts,
+    saveArtifacts,
+    deleteArtifact,
+    resetArtifacts,
+  } = useArtifacts();
+  const {
     messages,
     input,
     setInput,
@@ -235,6 +249,8 @@ export default function Home() {
     setActiveConversationId,
     messageSkillOverrideId,
     setMessageSkillOverrideId,
+    saveArtifacts,
+    loadArtifacts,
   );
   const resetMemory = useCallback(() => {
     setActiveConversationId("");
@@ -242,12 +258,14 @@ export default function Home() {
     setRenameValue("");
     resetChatSessionState();
     resetDocumentState();
+    resetArtifacts();
   }, [
     setActiveConversationId,
     setRenamingConversationId,
     setRenameValue,
     resetChatSessionState,
     resetDocumentState,
+    resetArtifacts,
   ]);
   const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
   const conversationGroups = useMemo(
@@ -614,6 +632,9 @@ export default function Home() {
           selectedSkill={selectedSkill}
           exportActiveChatMarkdown={exportActiveChatMarkdown}
           openSharePreview={openSharePreview}
+          artifactCount={artifacts.length}
+          isArtifactPanelOpen={isArtifactPanelOpen}
+          setIsArtifactPanelOpen={setIsArtifactPanelOpen}
           currentTierLabel={currentTierLabel}
           isAccountMenuOpen={isAccountMenuOpen}
           setIsAccountMenuOpen={setIsAccountMenuOpen}
@@ -717,11 +738,24 @@ export default function Home() {
         )}
       </section>
 
-      <KnowledgeSidebar
-        knowledgeSources={knowledgeSources}
-        isLoadingKnowledge={isLoadingKnowledge}
-        openSettings={openSettings}
-      />
+      {/* Artifact panel replaces the knowledge sidebar while open (Master Plan
+          v2: knowledge sidebar collapses so the layout doesn't get cramped). */}
+      {activeTool === "chat" && isArtifactPanelOpen ? (
+        <ArtifactPanel
+          artifacts={artifacts}
+          isLoadingArtifacts={isLoadingArtifacts}
+          activeArtifact={activeArtifact}
+          setActiveArtifactId={setActiveArtifactId}
+          onClose={() => setIsArtifactPanelOpen(false)}
+          deleteArtifact={deleteArtifact}
+        />
+      ) : (
+        <KnowledgeSidebar
+          knowledgeSources={knowledgeSources}
+          isLoadingKnowledge={isLoadingKnowledge}
+          openSettings={openSettings}
+        />
+      )}
 
       <WorkspaceModal
         isOpen={isWorkspaceModalOpen}

@@ -9,6 +9,7 @@ import type {
 import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import { formatArtifactTextForDisplay } from "@/lib/artifacts";
 import type { Message } from "@/lib/mappers/types";
 import type { Skill } from "@/lib/skills";
 import { modelCatalog, type PlanModelId } from "@/lib/subscriptions/plans";
@@ -212,7 +213,11 @@ export default function ChatArea({
                   <SparkIcon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1 space-y-4 text-sm leading-relaxed text-[#191c1d] sm:text-base">
-                  <MarkdownMessage text={message.text} />
+                  {/* Rows store raw artifact markers; collapse them to a panel
+                      reference at render time (works mid-stream too). */}
+                  <MarkdownMessage
+                    text={formatArtifactTextForDisplay(message.text)}
+                  />
                   {message.continuationSuggested && !isSending && (
                     <button
                       type="button"
