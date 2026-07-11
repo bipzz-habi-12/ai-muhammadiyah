@@ -15,7 +15,7 @@ export function useWorkspaces(setHistoryError: (message: string) => void) {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("chat_workspaces")
-      .select("id,name,created_at")
+      .select("id,name,created_at,system_instructions")
       .order("name", { ascending: true });
 
     if (error) {
@@ -41,7 +41,7 @@ export function useWorkspaces(setHistoryError: (message: string) => void) {
     const { data, error } = await supabase
       .from("chat_workspaces")
       .insert({ name })
-      .select("id,name,created_at")
+      .select("id,name,created_at,system_instructions")
       .single();
 
     if (error) {
@@ -62,6 +62,38 @@ export function useWorkspaces(setHistoryError: (message: string) => void) {
     setIsCreatingWorkspace(false);
   }
 
+  // Workspace System (v2): the permanent per-workspace instruction layer injected
+  // into every chat in the workspace. Persisted on chat_workspaces.system_instructions.
+  async function updateWorkspaceSystemInstructions(
+    workspaceId: string,
+    instructions: string,
+  ) {
+    if (!workspaceId) {
+      return;
+    }
+
+    const nextValue = instructions.trim() || null;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("chat_workspaces")
+      .update({ system_instructions: nextValue })
+      .eq("id", workspaceId);
+
+    if (error) {
+      console.error(error);
+      setHistoryError("Workspace System belum bisa disimpan.");
+      return;
+    }
+
+    setWorkspaces((current) =>
+      current.map((workspace) =>
+        workspace.id === workspaceId
+          ? { ...workspace, systemInstructions: nextValue }
+          : workspace,
+      ),
+    );
+  }
+
   return {
     workspaces,
     selectedWorkspaceId,
@@ -71,5 +103,6 @@ export function useWorkspaces(setHistoryError: (message: string) => void) {
     isCreatingWorkspace,
     loadWorkspaces,
     createWorkspace,
+    updateWorkspaceSystemInstructions,
   };
 }

@@ -5,5 +5,6 @@ export function mapWorkspaceRow(row: WorkspaceRow): Workspace {
     id: row.id,
     name: row.name,
     createdAt: row.created_at,
+    systemInstructions: row.system_instructions ?? null,
   };
 }

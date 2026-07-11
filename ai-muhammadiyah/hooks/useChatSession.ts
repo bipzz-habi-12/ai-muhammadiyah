@@ -268,6 +268,14 @@ export function useChatSession(
         data: attachment.data ?? "",
       }));
     const documentMetadata = getCurrentDocumentMetadata();
+    // Workspace System (v2): permanent per-workspace instructions injected into
+    // every chat in the workspace. Follow the conversation's own workspace when it
+    // has one, else the workspace a new chat will be created under.
+    const activeWorkspaceId =
+      activeConversation?.workspaceId ?? selectedWorkspaceId;
+    const workspaceSystemInstructions =
+      workspaces.find((workspace) => workspace.id === activeWorkspaceId)
+        ?.systemInstructions ?? "";
     let conversation = activeConversation;
     const visibleUserMessage: Message = {
       role: "user",
@@ -400,6 +408,7 @@ export function useChatSession(
           imageContexts,
           selectedModel,
           skillId: activeSkill.id,
+          workspaceSystemInstructions,
         }),
       });
 

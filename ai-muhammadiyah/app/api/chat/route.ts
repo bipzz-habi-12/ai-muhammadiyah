@@ -32,10 +32,12 @@ type ChatRequestBody = {
   imageContexts?: ImageContext[];
   selectedModel?: string;
   skillId?: string;
+  workspaceSystemInstructions?: string;
 };
 
 const maxRecentChatMessages = 10;
 const maxMessageTextLength = 2000;
+const maxWorkspaceSystemInstructionsLength = 4000;
 
 function isChatMessage(message: unknown): message is ChatMessage {
   if (!message || typeof message !== "object") {
@@ -119,6 +121,7 @@ export async function POST(request: Request) {
     const imageContexts = body.imageContexts ?? [];
     const selectedModel = body.selectedModel ?? "auto";
     const skillId = body.skillId ?? "";
+    const workspaceSystemInstructions = body.workspaceSystemInstructions ?? "";
 
     if (!Array.isArray(rawHistory) || !rawHistory.every(isChatMessage)) {
       return NextResponse.json(
@@ -168,6 +171,13 @@ export async function POST(request: Request) {
     if (typeof skillId !== "string") {
       return NextResponse.json(
         { error: "Pilihan skill tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    if (typeof workspaceSystemInstructions !== "string") {
+      return NextResponse.json(
+        { error: "Workspace System tidak valid." },
         { status: 400 },
       );
     }
@@ -260,7 +270,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const systemPrompt = getSkillSystemPrompt(activeSkill, usageSnapshot?.tier);
+    const skillSystemPrompt = getSkillSystemPrompt(
+      activeSkill,
+      usageSnapshot?.tier,
+    );
+    // Compose the Workspace System layer (permanent per-workspace instructions)
+    // on top of the skill prompt. Trimmed + length-capped to stay within budget.
+    const trimmedWorkspaceInstructions = workspaceSystemInstructions
+      .trim()
+      .slice(0, maxWorkspaceSystemInstructionsLength);
+    const systemPrompt = trimmedWorkspaceInstructions
+      ? [
+          skillSystemPrompt,
+          "WORKSPACE SYSTEM INSTRUCTIONS (set by the user for this workspace; always apply unless they conflict with safety or the AI Muhammadiyah identity):",
+          trimmedWorkspaceInstructions,
+        ].join("\n\n")
+      : skillSystemPrompt;
 
     const userMemory = await loadUserMemory(supabase, user.id).catch((error) => {
       console.error("User memory load failed:", error);

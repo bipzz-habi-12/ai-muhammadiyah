@@ -50,6 +50,7 @@ export default function Home() {
     isCreatingWorkspace,
     loadWorkspaces,
     createWorkspace,
+    updateWorkspaceSystemInstructions,
   } = useWorkspaces(setHistoryError);
   // model/skill dropdowns now live in the Composer (Part 2); the open-state is
   // still owned here and threaded through.
@@ -633,6 +634,7 @@ export default function Home() {
         setNewWorkspaceName={setNewWorkspaceName}
         isCreatingWorkspace={isCreatingWorkspace}
         createWorkspace={createWorkspace}
+        updateWorkspaceSystemInstructions={updateWorkspaceSystemInstructions}
       />
 
       <ShareModal sharePreview={sharePreview} setSharePreview={setSharePreview} />

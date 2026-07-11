@@ -103,10 +103,12 @@ export type Workspace = {
   id: string;
   name: string;
   createdAt: string;
+  systemInstructions: string | null;
 };
 
 export type WorkspaceRow = {
   id: string;
   name: string;
   created_at: string;
+  system_instructions?: string | null;
 };

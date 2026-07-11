@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Icon } from "@/components/icons";
 import type { Workspace } from "@/lib/mappers/types";
+
+const systemInstructionsAutosaveMs = 800;
 
 interface WorkspaceModalProps {
   isOpen: boolean;
@@ -14,6 +17,90 @@ interface WorkspaceModalProps {
   setNewWorkspaceName: Dispatch<SetStateAction<string>>;
   isCreatingWorkspace: boolean;
   createWorkspace: () => Promise<void>;
+  updateWorkspaceSystemInstructions: (
+    workspaceId: string,
+    instructions: string,
+  ) => Promise<void>;
+}
+
+// Workspace System editor: permanent per-workspace instructions injected into
+// every chat in the workspace. Autosaves (debounced) + flushes on blur, mirroring
+// the proven autosave pattern from the (now-removed) DocEditor. Remounted per
+// workspace via `key`, so the draft always seeds from the correct workspace.
+function WorkspaceSystemEditor({
+  workspace,
+  updateWorkspaceSystemInstructions,
+}: {
+  workspace: Workspace;
+  updateWorkspaceSystemInstructions: (
+    workspaceId: string,
+    instructions: string,
+  ) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(workspace.systemInstructions ?? "");
+  const [isSaved, setIsSaved] = useState(false);
+  const debounceRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  function flush(value: string) {
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    void updateWorkspaceSystemInstructions(workspace.id, value);
+    setIsSaved(true);
+  }
+
+  function handleChange(value: string) {
+    setDraft(value);
+    setIsSaved(false);
+
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = window.setTimeout(() => {
+      debounceRef.current = null;
+      void updateWorkspaceSystemInstructions(workspace.id, value);
+      setIsSaved(true);
+    }, systemInstructionsAutosaveMs);
+  }
+
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[#3f4940]">
+          Workspace System
+        </h3>
+        {isSaved && (
+          <span className="text-xs font-semibold text-[#004d27]">
+            Tersimpan
+          </span>
+        )}
+      </div>
+      <p className="mb-2 text-xs leading-relaxed text-[#6f7a70]">
+        Instruksi permanen yang berlaku ke semua chat di workspace{" "}
+        <span className="font-bold text-[#3f4940]">{workspace.name}</span>.
+        Contoh: &ldquo;Selalu jawab evidence-based dan sertakan referensi
+        jurnal.&rdquo;
+      </p>
+      <textarea
+        value={draft}
+        onChange={(event) => handleChange(event.target.value)}
+        onBlur={() => flush(draft)}
+        rows={4}
+        placeholder="Tulis instruksi permanen untuk workspace ini..."
+        className="w-full resize-y rounded-2xl border border-[#bec9be] bg-white px-4 py-3 text-sm leading-relaxed text-[#191c1d] outline-none transition focus:border-[#004d27]"
+      />
+    </section>
+  );
 }
 
 export default function WorkspaceModal({
@@ -26,6 +113,7 @@ export default function WorkspaceModal({
   setNewWorkspaceName,
   isCreatingWorkspace,
   createWorkspace,
+  updateWorkspaceSystemInstructions,
 }: WorkspaceModalProps) {
   if (!isOpen) {
     return null;
@@ -38,6 +126,12 @@ export default function WorkspaceModal({
       name: workspace.name,
     })),
   ];
+
+  // Workspace System targets the active workspace. General (id "") has no DB row,
+  // so it has no editable system instructions.
+  const activeWorkspace = selectedWorkspaceId
+    ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
+    : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#191c1d]/40 px-3 py-4 sm:items-center sm:justify-center">
@@ -72,8 +166,9 @@ export default function WorkspaceModal({
                     key={option.id || "general"}
                     type="button"
                     onClick={() => {
+                      // Select (don't close) so the Workspace System editor below
+                      // switches to this workspace. Close via the X button.
                       setSelectedWorkspaceId(option.id);
-                      onClose();
                     }}
                     className={
                       isActive
@@ -100,6 +195,16 @@ export default function WorkspaceModal({
               })}
             </div>
           </section>
+
+          {activeWorkspace && (
+            <WorkspaceSystemEditor
+              key={activeWorkspace.id}
+              workspace={activeWorkspace}
+              updateWorkspaceSystemInstructions={
+                updateWorkspaceSystemInstructions
+              }
+            />
+          )}
 
           <section>
             <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#3f4940]">
