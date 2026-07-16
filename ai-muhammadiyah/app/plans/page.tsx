@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import PlanCard from "@/app/plans/PlanCard";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
-import {
-  modelCatalog,
-  subscriptionPlans,
-} from "@/lib/subscriptions/plans";
+import { modelCatalog, subscriptionPlans } from "@/lib/subscriptions/plans";
 import { normalizeUsageSnapshot, tierLabels } from "@/lib/usage/limits";
+
+// Pricing v2 (Pricing.dc.html port). Design layout, real data: the actual
+// subscriptionPlans (5 tiers, monthly-only) and the live current tier. No
+// billing toggle — there is no yearly pricing in the data, so a Monthly/Yearly
+// switch would be a dead control. Payments aren't active yet, so the CTAs stay
+// honestly disabled (see PlanCard).
+
+const popularTier = "kader_pintar";
 
 export default async function PlansPage() {
   const supabase = await createSupabaseAuthServerClient();
@@ -22,170 +28,64 @@ export default async function PlansPage() {
   const currentTier = usageSnapshot?.tier ?? "free";
 
   return (
-    <main className="min-h-dvh bg-[#f7fbf8] px-4 py-5 text-[#04140b] sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-4 border-b border-[#d9e9df] pb-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#008d54]">
-              Paket AI-mu
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-normal text-[#05150d] sm:text-4xl">
-              Plans
-            </h1>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#4f665c]">
-              Pilih paket untuk membuka model yang lebih kuat, kuota lebih
-              besar, dan rute dokumen premium. Pembayaran otomatis belum aktif.
-            </p>
-          </div>
+    <main className="min-h-dvh bg-[#f5f3ec] text-[#16211c]">
+      <div className="mx-auto max-w-[1180px] px-6 pb-16 pt-10 sm:px-8">
+        <div className="flex items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#0f5a3d] transition hover:text-[#0a3d2a]"
+          >
+            <span aria-hidden="true">&larr;</span> Kembali ke chat
+          </Link>
+          <span className="rounded-full bg-[#0f5a3d]/[0.08] px-3.5 py-1.5 text-[13px] font-semibold text-[#0f5a3d]">
+            Paket aktif: {tierLabels[currentTier]}
+          </span>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf]">
-              Aktif: {tierLabels[currentTier]}
-            </span>
-            <Link
-              href="/"
-              className="rounded-full bg-[#009252] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#007c46]"
-            >
-              Kembali ke chat
-            </Link>
+        <header className="mx-auto mt-8 max-w-[720px] text-center">
+          <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+            Pricing
           </div>
+          <h1 className="font-serif text-[42px] font-normal leading-[1.08] tracking-[-0.02em] text-[#12211b] sm:text-[52px]">
+            Mulai gratis. Berkembang sesuai kebutuhan.
+          </h1>
+          <p className="mx-auto mt-5 max-w-[560px] text-[17px] leading-relaxed text-[#4a554f]">
+            Muhammadiyah Hub tetap gratis di setiap paket — selamanya.
+          </p>
         </header>
 
-        <section className="mt-6 grid gap-4 lg:grid-cols-5">
-          {subscriptionPlans.map((plan) => {
-            const isCurrent = plan.tier === currentTier;
-
-            return (
-              <article
-                key={plan.tier}
-                className={
-                  isCurrent
-                    ? "rounded-[26px] bg-white p-5 shadow-[0_16px_42px_rgba(27,77,50,0.08)] ring-2 ring-[#95d6b9]"
-                    : plan.isGptPowered
-                      ? "rounded-[26px] bg-white p-5 shadow-[0_14px_36px_rgba(138,90,0,0.08)] ring-1 ring-[#efdba8]"
-                      : "rounded-[26px] bg-white p-5 shadow-sm ring-1 ring-[#d8eadf]"
-                }
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-bold text-[#18392e]">
-                      {plan.name}
-                    </h2>
-                    <p className="mt-2 text-3xl font-bold text-[#05150d]">
-                      {plan.price}
-                    </p>
-                    <p className="text-sm font-semibold text-[#4f665c]">
-                      per bulan
-                    </p>
-                  </div>
-                  {isCurrent && (
-                    <span className="rounded-full bg-[#eef8f1] px-3 py-1 text-xs font-bold text-[#008d54]">
-                      Aktif
-                    </span>
-                  )}
-                  {!isCurrent && plan.isGptPowered && (
-                    <span className="rounded-full bg-[#fff4d8] px-3 py-1 text-xs font-bold text-[#8a5a00]">
-                      GPT
-                    </span>
-                  )}
-                </div>
-
-                <p className="mt-4 min-h-12 text-sm leading-relaxed text-[#4f665c]">
-                  {plan.tagline}
-                </p>
-
-                <div className="mt-5 rounded-[20px] bg-[#f7fbf8] p-4 ring-1 ring-[#d8eadf]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#008d54]">
-                    Model AI
-                  </p>
-                  <p className="mt-2 text-sm font-semibold leading-relaxed text-[#18392e]">
-                    {plan.modelNames.join(", ")}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {plan.modelBadges.map((badge) => (
-                      <span
-                        key={badge}
-                        className={
-                          badge.includes("GPT")
-                            ? "rounded-full bg-[#fff4d8] px-2.5 py-1 text-[11px] font-bold text-[#8a5a00]"
-                            : badge.includes("Gemini 2.5 Pro")
-                              ? "rounded-full bg-[#e8f1ff] px-2.5 py-1 text-[11px] font-bold text-[#28528a]"
-                              : "rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#008d54] ring-1 ring-[#d8eadf]"
-                        }
-                      >
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#008d54]">
-                      Upload limits
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#18392e]">
-                      {plan.dailyUploadLimit} dokumen per hari
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#008d54]">
-                      Quotas
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#18392e]">
-                      {plan.dailyMessageLimit} pesan per hari
-                    </p>
-                  </div>
-                </div>
-
-                <ul className="mt-5 space-y-2 text-sm leading-relaxed text-[#38534a]">
-                  {plan.isGptPowered && (
-                    <li className="flex gap-2 font-semibold text-[#18392e]">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d49b00]" />
-                      <span>Includes GPT-5 mini</span>
-                    </li>
-                  )}
-                  {plan.modelBadges.includes("Includes Gemini 2.5 Pro") && (
-                    <li className="flex gap-2 font-semibold text-[#18392e]">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#3f72b5]" />
-                      <span>Includes Gemini 2.5 Pro</span>
-                    </li>
-                  )}
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex gap-2">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#009252]" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  disabled
-                  className="mt-6 h-11 w-full rounded-full bg-[#eef8f1] text-sm font-bold text-[#008d54] ring-1 ring-[#d8eadf] disabled:cursor-not-allowed disabled:opacity-80"
-                >
-                  Coming Soon
-                </button>
-              </article>
-            );
-          })}
+        <section className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {subscriptionPlans.map((plan) => (
+            <PlanCard
+              key={plan.tier}
+              plan={plan}
+              isCurrent={plan.tier === currentTier}
+              isPopular={plan.tier === popularTier}
+            />
+          ))}
         </section>
 
-        <section className="mt-6 rounded-[26px] bg-white p-5 ring-1 ring-[#d8eadf]">
-          <h2 className="text-xl font-bold text-[#18392e]">
+        <p className="mt-7 text-center text-[13.5px] text-[#8a9089]">
+          Semua paket mencakup Muhammadiyah Hub, respons streaming, dan upload
+          dokumen. Harga dalam IDR, belum termasuk pajak. Pembayaran otomatis
+          belum aktif.
+        </p>
+
+        <section className="mt-14">
+          <h2 className="font-serif text-[26px] font-normal text-[#12211b]">
             Akses model berdasarkan paket
           </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries(modelCatalog).map(([model, detail]) => (
               <div
                 key={model}
-                className="rounded-[20px] bg-[#f7fbf8] p-4 ring-1 ring-[#d8eadf]"
+                className="rounded-[16px] border border-[#0b3d2a]/10 bg-[#fbfaf6] p-5"
               >
-                <p className="font-bold text-[#18392e]">{detail.label}</p>
-                <p className="mt-2 text-sm leading-relaxed text-[#4f665c]">
+                <p className="font-semibold text-[#25302a]">{detail.label}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#5d6862]">
                   {detail.description}
                 </p>
-                <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-[#008d54]">
+                <p className="mt-3 text-[11.5px] font-bold uppercase tracking-[0.06em] text-[#0f5a3d]">
                   Mulai {tierLabels[detail.minimumTier]}
                 </p>
               </div>

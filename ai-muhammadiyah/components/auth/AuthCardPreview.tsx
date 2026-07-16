@@ -1,17 +1,21 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Geist, Inter } from "next/font/google";
 import { useState } from "react";
 import { getAuthErrorMessage, logAuthError } from "@/lib/auth/errors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
-const geist = Geist({ subsets: ["latin"], weight: ["400", "500"] });
+// Design v2 auth screen (Login.dc.html port). Two-panel layout: brand panel
+// left, form panel right. The REAL flow is unchanged — email → 6-digit OTP via
+// Supabase; password & Google remain honestly marked "Segera hadir". Shared by
+// /login and /register through the `mode` prop.
 
 const otpLength = 6;
+
+// Subtle diamond-grid brand-panel texture (inline data URI).
+const brandPattern =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.06' stroke-width='1'%3E%3Crect x='24' y='24' width='48' height='48'/%3E%3Crect x='24' y='24' width='48' height='48' transform='rotate(45 48 48)'/%3E%3C/g%3E%3C/svg%3E\")";
 
 type AuthCardPreviewProps = {
   mode: "login" | "register";
@@ -22,7 +26,7 @@ type AuthStep = "email" | "otp";
 function ComingSoonBadge({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`${geist.className} pointer-events-none whitespace-nowrap rounded-full bg-[#fdc003] px-2 py-0.5 text-[10px] font-medium leading-none text-[#6c5000] ${className}`}
+      className={`pointer-events-none whitespace-nowrap rounded-full bg-[#e7c77e] px-2 py-0.5 text-[10px] font-semibold leading-none text-[#8a6a1f] ${className}`}
     >
       Segera hadir
     </span>
@@ -40,39 +44,20 @@ function GoogleIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function SunburstMotif() {
-  return (
-    <svg
-      fill="none"
-      width="800"
-      height="800"
-      viewBox="0 0 100 100"
-      aria-hidden="true"
-      className="pointer-events-none fixed -top-[20%] -left-[20%] -z-10 animate-[spin_120s_linear_infinite] opacity-[0.03]"
-    >
-      <circle cx="50" cy="50" r="15" stroke="#004d27" strokeWidth="0.5" />
-      <g stroke="#004d27" strokeWidth="2" strokeLinecap="round">
-        <line x1="50" x2="50" y1="5" y2="25" />
-        <line x1="50" x2="50" y1="75" y2="95" />
-        <line x1="95" x2="75" y1="50" y2="50" />
-        <line x1="25" x2="5" y1="50" y2="50" />
-        <line x1="18.5" x2="32.5" y1="18.5" y2="32.5" />
-        <line x1="67.5" x2="81.5" y1="67.5" y2="81.5" />
-        <line x1="81.5" x2="67.5" y1="18.5" y2="32.5" />
-        <line x1="32.5" x2="18.5" y1="67.5" y2="81.5" />
-      </g>
-    </svg>
-  );
-}
-
-function StatusBanner({ tone, children }: { tone: "error" | "success"; children: React.ReactNode }) {
+function StatusBanner({
+  tone,
+  children,
+}: {
+  tone: "error" | "success";
+  children: React.ReactNode;
+}) {
   const toneClasses =
     tone === "error"
       ? "border-[#ffb4ab] bg-[#ffdad6] text-[#93000a]"
-      : "border-[#bfe3cb] bg-[#e6f4ea] text-[#004d27]";
+      : "border-[#0f5a3d]/25 bg-[#0f5a3d]/[0.08] text-[#0f5a3d]";
 
   return (
-    <p className={`rounded-lg border px-4 py-3 text-[14px] leading-[20px] font-medium ${toneClasses}`}>
+    <p className={`rounded-[10px] border px-4 py-3 text-sm font-medium leading-[20px] ${toneClasses}`}>
       {children}
     </p>
   );
@@ -213,55 +198,119 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
     setSuccessMessage("");
   }
 
-  return (
-    <div className={`${inter.className} relative flex min-h-screen flex-col items-center justify-center overflow-x-hidden bg-[#f8f9fa] p-4 text-[#191c1d]`}>
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_50%_50%,rgba(0,77,39,0.03)_0%,transparent_70%)]" />
-      <SunburstMotif />
+  const inputClass =
+    "h-[46px] w-full rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-[15px] text-[15px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]";
+  const labelClass =
+    "mb-[7px] block text-[13px] font-semibold text-[#3a453e]";
+  const primaryButtonClass =
+    "flex h-12 w-full items-center justify-center rounded-[10px] bg-[#0f5a3d] text-[15px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
 
-      <main className="flex w-full max-w-[400px] flex-col items-center">
-        <div className="mb-6">
-          <Image src="/logo.svg" alt="AI Muhammadiyah Logo" width={96} height={96} className="h-24 w-24 object-contain" />
+  const subheading =
+    step === "otp"
+      ? `Masukkan kode 6 digit yang dikirim ke ${email}`
+      : isLogin
+        ? "Masuk untuk melanjutkan ke workspace-mu."
+        : "Mulai gratis — satu workspace, tanpa kartu.";
+
+  return (
+    <div className="grid min-h-dvh bg-[#f5f3ec] text-[#16211c] lg:grid-cols-[1.05fr_1fr]">
+      {/* BRAND PANEL */}
+      <div
+        className="relative hidden flex-col justify-between overflow-hidden bg-[#0b3d2a] px-16 py-14 text-[#ede9dc] lg:flex"
+        style={{ backgroundImage: brandPattern, backgroundSize: "96px 96px" }}
+      >
+        <Link href="/login" className="relative flex items-center gap-3">
+          <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[#e7c77e] text-[17px] font-bold text-[#0b3d2a]">
+            م
+          </span>
+          <span className="text-[16.5px] font-semibold text-[#f3efe2]">
+            AI Muhammadiyah
+          </span>
+        </Link>
+
+        <div className="relative max-w-[460px]">
+          <div className="mb-[22px] text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#c7a560]">
+            Islam Berkemajuan
+          </div>
+          <blockquote className="font-serif text-[34px] italic leading-[1.28] tracking-[-0.01em] text-[#f3efe2]">
+            &ldquo;Ilmu tanpa nilai kehilangan arah. Nilai tanpa ilmu kehilangan
+            daya. Platform ini dibuat untuk merangkul keduanya.&rdquo;
+          </blockquote>
+          <div className="mt-[34px] flex flex-col gap-3.5 text-[14.5px] text-[#b9c3b7]">
+            <div className="flex items-center gap-3">
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[#e7c77e]" />
+              Workspace, skill, dan artifact dalam satu tempat
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[#e7c77e]" />
+              Berlandaskan Muhammadiyah Knowledge Base
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[#e7c77e]" />
+              Terbuka untuk semua, gratis untuk memulai
+            </div>
+          </div>
         </div>
 
-        <div className="flex w-full flex-col gap-6 rounded-lg border border-[#e9ecef] bg-white p-6 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
-          <header className="text-center">
-            <h1 className="mb-2 text-[24px] font-semibold leading-[32px] text-[#191c1d]">
-              {isLogin ? "Selamat Datang" : "Buat Akun Baru"}
-            </h1>
-            <p className={`${geist.className} text-[14px] leading-[20px] tracking-[0.01em] text-[#3f4940]`}>
-              {step === "email"
-                ? isLogin
-                  ? "Masuk ke platform AI Muhammadiyah"
-                  : "Daftar ke platform AI Muhammadiyah"
-                : `Masukkan kode 6 digit yang dikirim ke ${email}`}
-            </p>
-          </header>
+        <div className="relative text-[13px] text-[#8fa091]">
+          aimuhammadiyah.my.id
+        </div>
+      </div>
+
+      {/* FORM PANEL */}
+      <div className="flex items-center justify-center px-6 py-12 sm:px-10">
+        <div className="w-full max-w-[400px] [animation:fade_.5s_ease]">
+          {/* Brand row for small screens (brand panel is desktop-only) */}
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[#0f5a3d] text-[17px] font-bold text-[#f5f3ec]">
+              م
+            </span>
+            <span className="text-[16.5px] font-semibold text-[#12211b]">
+              AI Muhammadiyah
+            </span>
+          </div>
 
           {step === "email" && (
-            <div className={`${geist.className} flex gap-2 rounded-full bg-[#f3f4f5] p-2`}>
-              <div className="relative flex-1">
-                <button
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="Segera hadir"
-                  className="w-full cursor-not-allowed rounded-full py-2 text-[14px] leading-[20px] tracking-[0.01em] text-[#3f4940] opacity-50"
-                >
-                  Password
-                </button>
-                <ComingSoonBadge className="absolute -top-2 -right-1" />
-              </div>
-              <div className="flex-1 rounded-full bg-[#004d27] py-2 text-center text-[14px] leading-[20px] tracking-[0.01em] text-white">
-                Kode OTP
-              </div>
+            <div className="mb-8 flex rounded-[12px] bg-[#ece9df] p-1">
+              <Link
+                href="/login"
+                className={
+                  isLogin
+                    ? "flex-1 rounded-[9px] bg-[#fbfaf6] py-2 text-center text-sm font-semibold text-[#0f5a3d] shadow-[0_1px_3px_rgba(11,61,42,0.12)]"
+                    : "flex-1 rounded-[9px] py-2 text-center text-sm font-semibold text-[#6b746e] transition hover:text-[#0f5a3d]"
+                }
+              >
+                Masuk
+              </Link>
+              <Link
+                href="/register"
+                className={
+                  !isLogin
+                    ? "flex-1 rounded-[9px] bg-[#fbfaf6] py-2 text-center text-sm font-semibold text-[#0f5a3d] shadow-[0_1px_3px_rgba(11,61,42,0.12)]"
+                    : "flex-1 rounded-[9px] py-2 text-center text-sm font-semibold text-[#6b746e] transition hover:text-[#0f5a3d]"
+                }
+              >
+                Buat akun
+              </Link>
             </div>
           )}
 
+          <h1 className="mb-2 font-serif text-[33px] font-normal tracking-[-0.01em] text-[#12211b]">
+            {step === "otp"
+              ? "Verifikasi kode"
+              : isLogin
+                ? "Selamat datang"
+                : "Buat akun"}
+          </h1>
+          <p className="mb-7 text-[15px] leading-relaxed text-[#5d6862]">
+            {subheading}
+          </p>
+
           {step === "email" ? (
             <form onSubmit={handleSendOtp} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="email" className={`${geist.className} px-2 text-[14px] leading-[20px] tracking-[0.01em] text-[#3f4940]`}>
-                  Email
+              <div>
+                <label htmlFor="email" className={labelClass}>
+                  Alamat email
                 </label>
                 <input
                   id="email"
@@ -271,25 +320,21 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   placeholder="nama@domain.com"
                   autoComplete="email"
                   required
-                  className="w-full rounded-lg border border-[#bec9be] bg-[#f8f9fa] px-6 py-4 text-[16px] leading-[24px] text-[#191c1d] transition-all focus:border-[#004d27] focus:outline-none focus:ring-1 focus:ring-[#004d27]"
+                  className={inputClass}
                 />
               </div>
 
               {errorMessage && <StatusBanner tone="error">{errorMessage}</StatusBanner>}
               {successMessage && <StatusBanner tone="success">{successMessage}</StatusBanner>}
 
-              <button
-                type="submit"
-                disabled={isSending}
-                className={`${geist.className} mt-2 w-full rounded-lg bg-[#004d27] py-4 text-[14px] leading-[20px] tracking-[0.01em] text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60`}
-              >
-                {isSending ? "Mengirim kode..." : "Kirim Kode OTP"}
+              <button type="submit" disabled={isSending} className={primaryButtonClass}>
+                {isSending ? "Mengirim kode…" : "Kirim kode OTP"}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="otp" className={`${geist.className} px-2 text-[14px] leading-[20px] tracking-[0.01em] text-[#3f4940]`}>
+              <div>
+                <label htmlFor="otp" className={labelClass}>
                   Kode OTP
                 </label>
                 <input
@@ -297,13 +342,15 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   type="text"
                   inputMode="numeric"
                   value={otp}
-                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, otpLength))}
-                  placeholder="6 digit kode"
+                  onChange={(event) =>
+                    setOtp(event.target.value.replace(/\D/g, "").slice(0, otpLength))
+                  }
+                  placeholder="••••••"
                   autoComplete="one-time-code"
                   minLength={otpLength}
                   maxLength={otpLength}
                   required
-                  className="w-full rounded-lg border border-[#bec9be] bg-[#f8f9fa] px-6 py-4 text-center text-[20px] font-bold leading-[24px] tracking-[0.3em] text-[#191c1d] transition-all focus:border-[#004d27] focus:outline-none focus:ring-1 focus:ring-[#004d27]"
+                  className="h-[54px] w-full rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-[15px] text-center text-[22px] font-bold tracking-[0.4em] text-[#16211c] outline-none transition focus:border-[#0f5a3d]"
                 />
               </div>
 
@@ -313,16 +360,20 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
               <button
                 type="submit"
                 disabled={isVerifying || otp.length !== otpLength}
-                className={`${geist.className} mt-2 w-full rounded-lg bg-[#004d27] py-4 text-[14px] leading-[20px] tracking-[0.01em] text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60`}
+                className={primaryButtonClass}
               >
-                {isVerifying ? "Memverifikasi..." : isLogin ? "Verifikasi & Masuk" : "Verifikasi & Daftar"}
+                {isVerifying
+                  ? "Memverifikasi…"
+                  : isLogin
+                    ? "Verifikasi & masuk"
+                    : "Verifikasi & daftar"}
               </button>
 
-              <div className={`${geist.className} flex items-center justify-between text-[14px] leading-[20px] tracking-[0.01em]`}>
+              <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
                   onClick={handleChangeEmail}
-                  className="text-[#3f4940] hover:underline"
+                  className="text-[#5d6862] transition hover:text-[#0f5a3d]"
                 >
                   Ganti email
                 </button>
@@ -330,9 +381,9 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={isResending}
-                  className="text-[#004d27] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                  className="font-semibold text-[#0f5a3d] transition hover:text-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isResending ? "Mengirim ulang..." : "Kirim ulang kode"}
+                  {isResending ? "Mengirim ulang…" : "Kirim ulang kode"}
                 </button>
               </div>
             </form>
@@ -340,12 +391,12 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
 
           {step === "email" && (
             <>
-              <div className="relative flex items-center py-2">
-                <div className="grow border-t border-[#bec9be]" />
-                <span className={`${geist.className} mx-6 shrink text-[14px] leading-[20px] tracking-[0.01em] text-[#3f4940]`}>
-                  atau
+              <div className="my-6 flex items-center gap-3.5">
+                <span className="h-px flex-1 bg-[#0b3d2a]/10" />
+                <span className="text-[12.5px] text-[#8a9089]">
+                  atau lanjutkan dengan
                 </span>
-                <div className="grow border-t border-[#bec9be]" />
+                <span className="h-px flex-1 bg-[#0b3d2a]/10" />
               </div>
 
               <div className="relative">
@@ -354,36 +405,29 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   disabled
                   aria-disabled="true"
                   title="Segera hadir"
-                  className="flex w-full cursor-not-allowed items-center justify-center gap-4 rounded-lg border border-[#bec9be] bg-white py-4 opacity-50"
+                  className="flex h-12 w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] text-[14.5px] font-semibold text-[#25302a] opacity-60"
                 >
-                  <GoogleIcon />
-                  <span className={`${geist.className} text-[14px] leading-[20px] tracking-[0.01em] text-[#191c1d]`}>
-                    Lanjutkan dengan Google
-                  </span>
+                  <GoogleIcon className="h-5 w-5" />
+                  Lanjutkan dengan Google
                 </button>
-                <ComingSoonBadge className="absolute -top-2 -right-2" />
+                <ComingSoonBadge className="absolute -top-2 right-3" />
               </div>
             </>
           )}
-        </div>
 
-        <p className="mt-6 text-center text-[16px] leading-[24px] text-[#3f4940]">
-          {isLogin ? "Belum punya akun? " : "Sudah punya akun? "}
-          <Link href={isLogin ? "/register" : "/login"} className="font-bold text-[#004d27] hover:underline">
-            {isLogin ? "Daftar" : "Masuk"}
-          </Link>
-        </p>
-
-        <div className={`${geist.className} mt-20 flex flex-wrap justify-center gap-4 text-[14px] leading-[20px] tracking-[0.01em] text-[#3f4940]/60`}>
-          <a href="#" className="transition-colors hover:text-[#004d27]">
-            Syarat &amp; Ketentuan
-          </a>
-          <span>•</span>
-          <a href="#" className="transition-colors hover:text-[#004d27]">
-            Kebijakan Privasi
-          </a>
+          <p className="mt-8 text-center text-[13px] leading-relaxed text-[#8a9089]">
+            Dengan melanjutkan, kamu menyetujui{" "}
+            <a href="#" className="font-medium text-[#0f5a3d] hover:underline">
+              Syarat &amp; Ketentuan
+            </a>{" "}
+            dan{" "}
+            <a href="#" className="font-medium text-[#0f5a3d] hover:underline">
+              Kebijakan Privasi
+            </a>{" "}
+            AI Muhammadiyah.
+          </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
