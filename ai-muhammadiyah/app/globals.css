@@ -22,17 +22,20 @@
   --ink-soft: #25302a;
   --muted: #7c857f;
   --hairline: rgba(20, 40, 30, 0.1);
+}
 
-  /* Font stacks fed by next/head <link> in app/layout.tsx */
-  --font-sans: "Hanken Grotesk", system-ui, -apple-system, Segoe UI, sans-serif;
+/* Font families (fed by the Google Fonts <link> in app/layout.tsx). A plain
+   @theme block (not @theme inline) so it overrides Tailwind's default
+   --font-sans / --font-serif — both the CSS vars and the font-sans / font-serif
+   utilities then resolve to these stacks. */
+@theme {
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
   --font-mono: var(--font-geist-mono);
 }
 
