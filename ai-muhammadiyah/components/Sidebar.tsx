@@ -87,7 +87,7 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[#004d27]/10 bg-[#006837] text-white md:flex">
+    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[#0f5a3d]/10 bg-[#0a3d2a] text-white md:flex">
       <div className="flex flex-col gap-3 p-4">
         <div className="relative">
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-white/70">
@@ -109,14 +109,14 @@ export default function Sidebar({
             value={chatSearch}
             onChange={(event) => setChatSearch(event.target.value)}
             placeholder="Cari obrolan..."
-            className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-8 pr-2 text-sm text-white placeholder-white/50 outline-none transition focus:border-[#fdc003]"
+            className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-8 pr-2 text-sm text-white placeholder-white/50 outline-none transition focus:border-[#e7c77e]"
           />
         </div>
 
         <button
           type="button"
           onClick={resetMemory}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-[#004d27] transition hover:bg-white/90"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-[#0f5a3d] transition hover:bg-white/90"
         >
           <span className="text-lg leading-none">+</span>
           Obrolan baru
@@ -168,7 +168,7 @@ export default function Sidebar({
                     key={conversation.id}
                     className={
                       isActive
-                        ? "group relative rounded-lg border-l-4 border-[#fdc003] bg-black/20"
+                        ? "group relative rounded-lg border-l-4 border-[#e7c77e] bg-black/20"
                         : "group relative rounded-lg transition hover:bg-white/5"
                     }
                   >
@@ -190,7 +190,7 @@ export default function Sidebar({
                         />
                         <button
                           type="submit"
-                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-[#006837]"
+                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-[#0a3d2a]"
                           aria-label="Simpan nama"
                           title="Simpan nama"
                         >
@@ -261,7 +261,7 @@ export default function Sidebar({
                     )}
 
                     {openKebabId === conversation.id && !isRenaming && (
-                      <div className="absolute right-2 top-full z-30 mt-1 w-56 overflow-hidden rounded-xl bg-white p-1 text-sm text-[#191c1d] shadow-2xl ring-1 ring-[#bec9be]">
+                      <div className="absolute right-2 top-full z-30 mt-1 w-56 overflow-hidden rounded-xl bg-white p-1 text-sm text-[#16211c] shadow-2xl ring-1 ring-[#0b3d2a]/10">
                         <button
                           type="button"
                           onClick={() => {
@@ -269,9 +269,9 @@ export default function Sidebar({
                             setRenameValue(conversation.title);
                             setOpenKebabId(null);
                           }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f3f4f5]"
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f0eee6]"
                         >
-                          <Icon name="edit" className="h-4 w-4 text-[#004d27]" />
+                          <Icon name="edit" className="h-4 w-4 text-[#0f5a3d]" />
                           Rename
                         </button>
                         <button
@@ -280,28 +280,28 @@ export default function Sidebar({
                             toggleConversationPin(conversation);
                             setOpenKebabId(null);
                           }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f3f4f5]"
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f0eee6]"
                         >
-                          <Icon name="pin" className="h-4 w-4 text-[#004d27]" />
+                          <Icon name="pin" className="h-4 w-4 text-[#0f5a3d]" />
                           {conversation.isPinned ? "Lepas pin" : "Pin"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setMoveSubmenuOpen((open) => !open)}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f3f4f5]"
+                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f0eee6]"
                           aria-expanded={moveSubmenuOpen}
                         >
                           <span className="flex items-center gap-3">
                             <Icon
                               name="book"
-                              className="h-4 w-4 text-[#004d27]"
+                              className="h-4 w-4 text-[#0f5a3d]"
                             />
                             Pindah ke workspace
                           </span>
-                          <span className="text-xs text-[#6f7a70]">⌄</span>
+                          <span className="text-xs text-[#8a9089]">⌄</span>
                         </button>
                         {moveSubmenuOpen && (
-                          <div className="mb-1 mt-1 max-h-44 overflow-auto border-t border-[#bec9be] pt-1">
+                          <div className="mb-1 mt-1 max-h-44 overflow-auto border-t border-[#0b3d2a]/10 pt-1">
                             {workspaceOptions.map((option) => {
                               const isCurrent =
                                 (conversation.workspaceId ?? "") === option.id;
@@ -318,13 +318,13 @@ export default function Sidebar({
                                     setOpenKebabId(null);
                                     setMoveSubmenuOpen(false);
                                   }}
-                                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[#f3f4f5]"
+                                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[#f0eee6]"
                                 >
                                   <span className="truncate">{option.name}</span>
                                   {isCurrent && (
                                     <Icon
                                       name="check"
-                                      className="h-3.5 w-3.5 shrink-0 text-[#004d27]"
+                                      className="h-3.5 w-3.5 shrink-0 text-[#0f5a3d]"
                                     />
                                   )}
                                 </button>
@@ -332,7 +332,7 @@ export default function Sidebar({
                             })}
                           </div>
                         )}
-                        <div className="my-1 border-t border-[#bec9be]" />
+                        <div className="my-1 border-t border-[#0b3d2a]/10" />
                         <button
                           type="button"
                           onClick={() => {
@@ -378,7 +378,7 @@ export default function Sidebar({
         href="/hub"
         className="mt-auto flex items-center gap-2 border-t border-white/10 bg-black/10 p-4 transition hover:bg-black/20"
       >
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fdc003] text-[#6c5000]">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#e7c77e] text-[#8a6a1f]">
           <Icon name="star" className="h-3.5 w-3.5" />
         </span>
         <span className="text-[10px] font-bold uppercase tracking-widest text-white">

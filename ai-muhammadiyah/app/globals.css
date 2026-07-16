@@ -1,21 +1,61 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7fbf8;
-  --foreground: #04140b;
+  /* Design v2 — warm cream base + Muhammadiyah green. Applied app-wide as the
+     new visual foundation; individual screens can adopt the brand tokens below
+     incrementally. Kept the original variable NAMES so existing references stay
+     valid — only the values shift to the new palette. */
+  --background: #f5f3ec;
+  --foreground: #16211c;
+
+  /* Brand palette (mirrors Workspace.dc.html) */
+  --brand: #0f5a3d;
+  --brand-deep: #0b3d2a;
+  --brand-hover: #0a3d2a;
+  --brand-soft: rgba(15, 90, 61, 0.1);
+  --surface: #fbfaf6;
+  --surface-alt: #f0eee6;
+  --gold: #e7c77e;
+  --gold-ink: #b08833;
+  --gold-accent: #c7a560;
+  --ink: #16211c;
+  --ink-soft: #25302a;
+  --muted: #7c857f;
+  --hairline: rgba(20, 40, 30, 0.1);
+
+  /* Font stacks fed by next/head <link> in app/layout.tsx */
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--brand);
+  color: var(--background);
+}
+
+/* Slim brand scrollbar for opt-in containers */
+.scroll::-webkit-scrollbar {
+  width: 9px;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(20, 40, 30, 0.16);
+  border-radius: 6px;
 }
 
 html[data-theme="dark"] body {
@@ -23,12 +63,32 @@ html[data-theme="dark"] body {
 }
 
 html[data-theme="light"] body {
-  background: #f7fbf8;
+  background: var(--background);
 }
 
 html,
 body {
   height: 100%;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes messageIn {

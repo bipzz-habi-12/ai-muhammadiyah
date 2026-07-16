@@ -41,8 +41,8 @@ export default function IconRail({
   const router = useRouter();
 
   return (
-    <aside className="relative hidden w-[60px] shrink-0 flex-col items-center border-r border-black/20 bg-[#004d27] py-4 md:flex">
-      <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/20 text-white">
+    <aside className="relative hidden w-[66px] shrink-0 flex-col items-center bg-[#0b3d2a] py-4 md:flex">
+      <div className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#e7c77e] text-[#0b3d2a]">
         <SparkIcon className="h-6 w-6" />
       </div>
 
@@ -85,31 +85,31 @@ export default function IconRail({
           onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
           aria-label="Menu akun"
           aria-expanded={isAccountMenuOpen}
-          className="grid h-8 w-8 place-items-center rounded-full bg-[#fdc003] text-xs font-bold text-[#6c5000] transition hover:bg-[#fabd00]"
+          className="grid h-8 w-8 place-items-center rounded-full bg-[#e7c77e] text-xs font-bold text-[#8a6a1f] transition hover:bg-[#e0bd6a]"
         >
           {userInitials}
         </button>
       </div>
 
       {isAccountMenuOpen && (
-        <div className="absolute bottom-4 left-[68px] z-50 w-[260px] overflow-hidden rounded-[22px] bg-white p-2 text-sm text-[#191c1d] shadow-2xl ring-1 ring-[#bec9be]">
+        <div className="absolute bottom-4 left-[68px] z-50 w-[260px] overflow-hidden rounded-[22px] bg-white p-2 text-sm text-[#16211c] shadow-2xl ring-1 ring-[#0b3d2a]/10">
           <button
             type="button"
             onClick={() => {
               setIsAccountMenuOpen(false);
               router.push("/plans");
             }}
-            className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
+            className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
           >
             <span>
-              <span className="block font-bold text-[#191c1d]">
+              <span className="block font-bold text-[#16211c]">
                 Upgrade plan
               </span>
-              <span className="text-xs font-semibold text-[#3f4940]">
+              <span className="text-xs font-semibold text-[#5d6862]">
                 {currentTierLabel}
               </span>
             </span>
-            <span className="rounded-full bg-[#004d27]/10 px-2 py-1 text-xs font-bold text-[#004d27]">
+            <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-1 text-xs font-bold text-[#0f5a3d]">
               {usageSnapshot
                 ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
                 : "--"}
@@ -121,14 +121,14 @@ export default function IconRail({
               setIsAccountMenuOpen(false);
               openLearningProfile();
             }}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
           >
-            <Icon name="user" className="h-5 w-5 text-[#004d27]" />
+            <Icon name="user" className="h-5 w-5 text-[#0f5a3d]" />
             <span>
-              <span className="block font-bold text-[#191c1d]">
+              <span className="block font-bold text-[#16211c]">
                 Learning Profile
               </span>
-              <span className="text-xs font-semibold text-[#3f4940]">
+              <span className="text-xs font-semibold text-[#5d6862]">
                 {profileLabel}
               </span>
             </span>
@@ -139,10 +139,10 @@ export default function IconRail({
               setIsAccountMenuOpen(false);
               openSettings("subscription");
             }}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
           >
-            <Icon name="book" className="h-5 w-5 text-[#004d27]" />
-            <span className="font-bold text-[#191c1d]">Usage / quota</span>
+            <Icon name="book" className="h-5 w-5 text-[#0f5a3d]" />
+            <span className="font-bold text-[#16211c]">Usage / quota</span>
           </button>
           <button
             type="button"
@@ -150,14 +150,14 @@ export default function IconRail({
               setIsAccountMenuOpen(false);
               openSettings("general");
             }}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f3f4f5]"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
           >
-            <Icon name="settings" className="h-5 w-5 text-[#004d27]" />
-            <span className="font-bold text-[#191c1d]">Settings</span>
+            <Icon name="settings" className="h-5 w-5 text-[#0f5a3d]" />
+            <span className="font-bold text-[#16211c]">Settings</span>
           </button>
-          <div className="my-1 border-t border-[#bec9be]" />
+          <div className="my-1 border-t border-[#0b3d2a]/10" />
           <div className="px-3 py-2">
-            <p className="truncate text-xs font-semibold text-[#3f4940]">
+            <p className="truncate text-xs font-semibold text-[#5d6862]">
               {userEmail || "Memuat akun..."}
             </p>
           </div>

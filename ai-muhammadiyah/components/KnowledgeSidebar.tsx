@@ -24,26 +24,26 @@ export default function KnowledgeSidebar({
   openSettings,
 }: KnowledgeSidebarProps) {
   return (
-    <aside className="hidden w-[240px] shrink-0 flex-col border-l border-[#bec9be] bg-[#f3f4f5] lg:flex">
-      <div className="flex items-center justify-between border-b border-[#bec9be] px-4 py-3">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-[#3f4940]">
+    <aside className="hidden w-[240px] shrink-0 flex-col border-l border-[#0b3d2a]/10 bg-[#f0eee6] lg:flex">
+      <div className="flex items-center justify-between border-b border-[#0b3d2a]/10 px-4 py-3">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-[#5d6862]">
           Knowledge
         </h2>
-        <Icon name="info" className="h-4 w-4 text-[#3f4940]" />
+        <Icon name="info" className="h-4 w-4 text-[#5d6862]" />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <section>
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#3f4940]">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#5d6862]">
             Sumber Aktif
           </h3>
 
           {isLoadingKnowledge && (
-            <p className="text-xs font-semibold text-[#6f7a70]">Memuat...</p>
+            <p className="text-xs font-semibold text-[#8a9089]">Memuat...</p>
           )}
 
           {!isLoadingKnowledge && knowledgeSources.length === 0 && (
-            <p className="text-xs leading-relaxed text-[#6f7a70]">
+            <p className="text-xs leading-relaxed text-[#8a9089]">
               Belum ada knowledge source aktif.
             </p>
           )}
@@ -52,17 +52,17 @@ export default function KnowledgeSidebar({
             {knowledgeSources.map((source) => (
               <div
                 key={source.id}
-                className="flex items-start gap-2 rounded-lg border border-[#bec9be] bg-white p-2"
+                className="flex items-start gap-2 rounded-lg border border-[#0b3d2a]/10 bg-white p-2"
               >
                 <Icon
                   name={source.originalFileName ? "book" : "link"}
-                  className="mt-0.5 h-4 w-4 shrink-0 text-[#004d27]"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[#0f5a3d]"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-medium leading-tight text-[#191c1d]">
+                  <p className="truncate text-[11px] font-medium leading-tight text-[#16211c]">
                     {source.title}
                   </p>
-                  <p className="text-[9px] text-[#6f7a70]">
+                  <p className="text-[9px] text-[#8a9089]">
                     {source.fileType.toUpperCase()} •{" "}
                     {source.status === "active" ? "Terindeks" : source.status}
                   </p>
@@ -73,7 +73,7 @@ export default function KnowledgeSidebar({
         </section>
 
         <section className="mt-6">
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#3f4940]">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#5d6862]">
             Dari Muhammadiyah Hub
           </h3>
           <ul className="space-y-2">
@@ -83,7 +83,7 @@ export default function KnowledgeSidebar({
                   href={link.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1 text-[11px] font-medium text-[#004d27] hover:underline"
+                  className="flex items-center gap-1 text-[11px] font-medium text-[#0f5a3d] hover:underline"
                 >
                   <span>{link.label}</span>
                   <Icon name="external" className="h-3 w-3 shrink-0" />
@@ -96,27 +96,27 @@ export default function KnowledgeSidebar({
         <button
           type="button"
           onClick={() => openSettings("knowledge")}
-          className="group mt-6 flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#bec9be] py-2 transition hover:border-[#004d27] hover:bg-[#004d27]/5"
+          className="group mt-6 flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#0b3d2a]/10 py-2 transition hover:border-[#0f5a3d] hover:bg-[#0f5a3d]/5"
         >
-          <span className="text-lg leading-none text-[#3f4940] group-hover:text-[#004d27]">
+          <span className="text-lg leading-none text-[#5d6862] group-hover:text-[#0f5a3d]">
             +
           </span>
-          <span className="text-[10px] font-bold text-[#3f4940] group-hover:text-[#004d27]">
+          <span className="text-[10px] font-bold text-[#5d6862] group-hover:text-[#0f5a3d]">
             Tambah sumber
           </span>
         </button>
       </div>
 
       {/* Model Context — static visual only (no real computation), per decision */}
-      <div className="border-t border-[#bec9be] bg-[#e1e3e4] p-4">
+      <div className="border-t border-[#0b3d2a]/10 bg-[#ece9df] p-4">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-[#191c1d]">
+          <span className="text-[10px] font-bold text-[#16211c]">
             Model Context
           </span>
-          <span className="text-[10px] font-bold text-[#004d27]">12%</span>
+          <span className="text-[10px] font-bold text-[#0f5a3d]">12%</span>
         </div>
-        <div className="h-1 w-full overflow-hidden rounded-full bg-[#bec9be]">
-          <div className="h-full w-[12%] bg-[#004d27]" />
+        <div className="h-1 w-full overflow-hidden rounded-full bg-[#0b3d2a]/10">
+          <div className="h-full w-[12%] bg-[#0f5a3d]" />
         </div>
       </div>
     </aside>
