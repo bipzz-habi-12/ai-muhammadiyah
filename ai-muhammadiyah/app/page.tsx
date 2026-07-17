@@ -303,6 +303,7 @@ export default function Home() {
   //  - ?conversationId= opens that chat (from a workspace chat card)
   //  - ?workspaceId= preselects the workspace so the next new chat is created
   //    inside it (from the workspace page's "New chat" button)
+  //  - ?ask= prefills the composer with a question (from the Research page)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const uuidRegex =
@@ -318,10 +319,15 @@ export default function Home() {
       setSelectedWorkspaceId(workspaceId);
     }
 
+    const ask = params.get("ask");
+    if (ask) {
+      setInput(ask.slice(0, 2000));
+    }
+
     if (window.location.search) {
       window.history.replaceState(null, "", window.location.pathname);
     }
-  }, [setSelectedWorkspaceId]);
+  }, [setSelectedWorkspaceId, setInput]);
 
   // Resolve the deep link after the initial conversation load. If the target is
   // outside the 40-item list, fetch it directly and MERGE it into the list first —
