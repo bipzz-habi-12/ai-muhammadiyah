@@ -120,9 +120,10 @@ export default function ChatArea({
               Assalamu&apos;alaikum, ada yang bisa AI-mu bantu?
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-[#5d6862] sm:text-xl">
-              Asisten cerdas Muhammadiyah, ditenagai{" "}
-              <strong className="text-[#16211c]">ChatGPT 5.5</strong> &{" "}
-              <strong className="text-[#16211c]">Gemini 3.1 Pro.</strong>
+              Belajar, meneliti, dan berkarya dalam satu ruang cerdas —
+              berpijak pada{" "}
+              <strong className="text-[#16211c]">Muhammadiyah Knowledge Base</strong>{" "}
+              dan nilai <strong className="text-[#16211c]">Islam berkemajuan</strong>.
             </p>
           </section>
 

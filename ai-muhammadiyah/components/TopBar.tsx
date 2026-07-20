@@ -10,16 +10,6 @@ import type {
 } from "@/lib/mappers/types";
 import type { Skill } from "@/lib/skills";
 
-// Header tool cluster — maps to the existing activeTool switching (Chat is the
-// default view; clicking a tool opens it, clicking it again returns to Chat).
-const toolIcons: { id: Exclude<ActiveTool, "chat">; icon: string; label: string }[] =
-  [
-    { id: "docs", icon: "book", label: "Docs" },
-    { id: "tasks", icon: "tasks", label: "Tasks" },
-    { id: "sheets", icon: "sheets", label: "Sheets" },
-    { id: "canvas", icon: "canvas", label: "Canvas" },
-  ];
-
 interface TopBarProps {
   // tool tab switching
   activeTool: ActiveTool;
@@ -93,25 +83,6 @@ export default function TopBar({
       </div>
 
       <div className="relative flex shrink-0 items-center gap-1">
-        {toolIcons.map((tool) => (
-          <button
-            key={tool.id}
-            type="button"
-            onClick={() =>
-              setActiveTool(activeTool === tool.id ? "chat" : tool.id)
-            }
-            aria-label={tool.label}
-            title={tool.label}
-            className={
-              activeTool === tool.id
-                ? "grid h-9 w-9 place-items-center rounded-lg bg-[#0f5a3d]/10 text-[#0f5a3d]"
-                : "grid h-9 w-9 place-items-center rounded-lg text-[#5d6862] transition hover:bg-[#ece9df]"
-            }
-          >
-            <Icon name={tool.icon} className="h-5 w-5" />
-          </button>
-        ))}
-
         {artifactCount > 0 && activeTool === "chat" && (
           <button
             type="button"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Icon } from "@/components/icons";
 import type { KnowledgeSource } from "@/lib/knowledge";
 import type { SettingsTab } from "@/lib/mappers/types";
@@ -23,13 +24,52 @@ export default function KnowledgeSidebar({
   isLoadingKnowledge,
   openSettings,
 }: KnowledgeSidebarProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Collapsed rail — only the essentials remain (expand, add source).
+  if (collapsed) {
+    return (
+      <aside className="hidden w-[52px] shrink-0 flex-col items-center border-l border-[#0b3d2a]/10 bg-[#f0eee6] py-4 lg:flex">
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          title="Lebarkan Knowledge"
+          aria-label="Lebarkan Knowledge"
+          className="grid h-8 w-8 place-items-center rounded-lg border border-[#0b3d2a]/10 bg-[#fbfaf6] text-base leading-none text-[#5d6862] transition hover:border-[#0f5a3d]"
+        >
+          ‹
+        </button>
+        <span className="mt-4 text-[#0f5a3d]">
+          <Icon name="book" className="h-5 w-5" />
+        </span>
+        <button
+          type="button"
+          onClick={() => openSettings("knowledge")}
+          title="Tambah sumber"
+          aria-label="Tambah sumber"
+          className="mt-3 grid h-8 w-8 place-items-center rounded-lg border border-dashed border-[#0b3d2a]/20 text-lg leading-none text-[#5d6862] transition hover:border-[#0f5a3d] hover:text-[#0f5a3d]"
+        >
+          +
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside className="hidden w-[240px] shrink-0 flex-col border-l border-[#0b3d2a]/10 bg-[#f0eee6] lg:flex">
       <div className="flex items-center justify-between border-b border-[#0b3d2a]/10 px-4 py-3">
         <h2 className="text-xs font-bold uppercase tracking-widest text-[#5d6862]">
           Knowledge
         </h2>
-        <Icon name="info" className="h-4 w-4 text-[#5d6862]" />
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          title="Ciutkan Knowledge"
+          aria-label="Ciutkan Knowledge"
+          className="grid h-6 w-6 place-items-center rounded-md text-base leading-none text-[#5d6862] transition hover:bg-[#0b3d2a]/[0.07]"
+        >
+          ›
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">

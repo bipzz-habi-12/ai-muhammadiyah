@@ -70,6 +70,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [openKebabId, setOpenKebabId] = useState<string | null>(null);
   const [moveSubmenuOpen, setMoveSubmenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const workspaceOptions: { id: string; name: string }[] = [
     { id: "", name: "General" },
@@ -86,9 +87,68 @@ export default function Sidebar({
     setMoveSubmenuOpen(false);
   }
 
+  // Collapsed rail — only the essentials remain (expand, new chat, Hub).
+  if (collapsed) {
+    return (
+      <aside className="hidden w-[56px] shrink-0 flex-col items-center border-r border-[#0f5a3d]/10 bg-[#0a3d2a] py-4 text-white md:flex">
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          title="Lebarkan sidebar"
+          aria-label="Lebarkan sidebar"
+          className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-lg leading-none text-white transition hover:bg-white/15"
+        >
+          ›
+        </button>
+        <button
+          type="button"
+          onClick={resetMemory}
+          title="Obrolan baru"
+          aria-label="Obrolan baru"
+          className="mt-4 grid h-9 w-9 place-items-center rounded-lg bg-white text-xl leading-none text-[#0f5a3d] transition hover:bg-white/90"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={onOpenWorkspaceModal}
+          title="Workspace baru"
+          aria-label="Workspace baru"
+          className="mt-3 grid h-9 w-9 place-items-center rounded-lg border border-white/20 bg-white/10 text-white/80 transition hover:bg-white/15"
+        >
+          <Icon name="book" className="h-5 w-5" />
+        </button>
+        <div className="flex-1" />
+        <Link
+          href="/hub"
+          title="Muhammadiyah Hub"
+          aria-label="Muhammadiyah Hub"
+          className="grid h-9 w-9 place-items-center rounded-full bg-[#e7c77e] text-[#8a6a1f] transition hover:bg-[#e0bd6a]"
+        >
+          <Icon name="star" className="h-4 w-4" />
+        </Link>
+      </aside>
+    );
+  }
+
   return (
     <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[#0f5a3d]/10 bg-[#0a3d2a] text-white md:flex">
       <div className="flex flex-col gap-3 p-4">
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+            Obrolan
+          </span>
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Ciutkan sidebar"
+            aria-label="Ciutkan sidebar"
+            className="grid h-7 w-7 place-items-center rounded-lg text-base leading-none text-white/70 transition hover:bg-white/10"
+          >
+            ‹
+          </button>
+        </div>
+
         <div className="relative">
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-white/70">
             <svg
