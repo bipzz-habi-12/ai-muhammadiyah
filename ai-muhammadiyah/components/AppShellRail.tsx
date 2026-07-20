@@ -61,7 +61,7 @@ function HistoryGlyph() {
 }
 
 const items: { key: RailKey; href: string; title: string; glyph: React.ReactNode }[] = [
-  { key: "workspaces", href: "/", title: "Workspaces", glyph: <WorkspaceGlyph /> },
+  { key: "workspaces", href: "/workspace", title: "Workspaces", glyph: <WorkspaceGlyph /> },
   { key: "chat", href: "/", title: "Chat", glyph: <ChatGlyph /> },
   { key: "research", href: "/research", title: "Research", glyph: <ResearchGlyph /> },
   { key: "library", href: "/library", title: "Library", glyph: <LibraryGlyph /> },

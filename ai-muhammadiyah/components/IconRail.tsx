@@ -48,6 +48,25 @@ export default function IconRail({
 
       <nav className="mt-6 flex flex-col items-center gap-4">
         <Link
+          href="/workspace"
+          title="Workspaces"
+          className="grid h-9 w-9 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="6.5" rx="1.6" />
+            <rect x="3" y="13.5" width="18" height="6.5" rx="1.6" />
+          </svg>
+        </Link>
+        <Link
           href="/research"
           title="Research"
           className="grid h-9 w-9 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
