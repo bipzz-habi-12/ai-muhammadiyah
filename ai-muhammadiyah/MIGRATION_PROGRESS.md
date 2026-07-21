@@ -338,8 +338,56 @@ Port UI baru berkualitas lebih tinggi dari project Claude Design (id `f0bd0f43-e
 
 ### Backlog / belum dikerjakan (bukan bagian port, untuk sesi berikutnya)
 - **Mini-app artifact (iframe sandbox)** tetap ditunda (butuh sesi keamanan sandboxing — lihat Langkah 26 & CLAUDE.md §C).
-- **Hub terindeks** (searchable + attach-to-chat) & **backend sintesis Research** belum ada — halaman sekarang adalah versi jujur (direktori portal / entry ke chat). Kalau backend dibangun, ganti konten mock jujur itu dengan data nyata.
+- **Hub terindeks** (searchable + attach-to-chat) belum ada — halaman sekarang adalah versi jujur (direktori portal). Kalau backend dibangun, ganti konten mock jujur itu dengan data nyata. (**Backend sintesis Research → SELESAI di Langkah 30.**)
 - **Discoverability:** `/settings/personalization` belum ada link dari menu akun (baru via URL/rail-nya sendiri). Menu "Learning Profile" di IconRail masih buka modal Settings, bukan route baru — bisa disatukan nanti.
 - **`WorkspaceView.tsx` punya icon rail inline sendiri** (dibuat sebelum `AppShellRail`) — bisa di-dedupe ke `AppShellRail`.
 - **File untracked yang sengaja TIDAK di-commit:** `backup_sebelum_migrasi.sql` (0 byte, pre-existing) & folder `.claude/` (config dev). Hapus/commit sesuai kebutuhan.
 - **Halaman auth-gated belum di-drive interaktif** (Workspace, Chat, Library, Hub, Pricing, Settings-modal, Research, Personalization) — hanya lolos build + typecheck. Smoke-test manual di Preview login user disarankan.
+
+---
+
+## Langkah 28: Polish UI dari "Premium UI Desain" zip (commit `9b6348a`, langsung di `main`) — SELESAI
+
+User memberi file `Premium UI Desain 10 Halaman-handoff.zip` (keluarga `*.dc.html` yang sama dengan Langkah 27) dan meminta 3 perubahan. Semua presentational, backend tak disentuh.
+
+- **`ChatArea.tsx`** — tagline welcome dashboard **"Asisten cerdas Muhammadiyah, ditenagai ChatGPT 5.5 & Gemini 3.1 Pro."** diganti jadi model-agnostic: *"Belajar, meneliti, dan berkarya dalam satu ruang cerdas — berpijak pada **Muhammadiyah Knowledge Base** dan nilai **Islam berkemajuan**."* (user eksplisit tak mau menyebut nama model.)
+- **`Sidebar.tsx` (kiri, daftar obrolan) + `KnowledgeSidebar.tsx` (kanan)** — bisa **diciutkan jadi strip ikon-only** (pola collapse chevron `‹`/`›` dari `Chat.dc.html`). Local `useState` per komponen (tidak menyentuh `page.tsx`). Kiri collapsed 56px: expand + Obrolan baru + Workspace baru + Hub. Kanan collapsed 52px: expand + Tambah sumber.
+- **`TopBar.tsx`** — hapus tab **Docs/Tasks/Sheets/Canvas** (referensi zip tak punya tab tools; v2 pakai panel Artifact, bukan tab manual). `activeTool`/`ToolPlaceholder` **dibiarkan** (kini `activeTool` selalu `"chat"` → cabang `ToolPlaceholder` jadi dead code tak berbahaya; dicatat untuk cleanup terpisah).
+
+**Verifikasi:** `tsc`/`eslint` bersih. Collapse 2 sidebar diuji interaktif via scratch harness (mock props, dihapus sebelum commit) — ciutkan↔lebarkan round-trip, nol console error. Teks & penghapusan tab lolos source+build (halaman chat auth-gated).
+
+## Langkah 29: Workspaces jadi destinasi nyata (commit `6a23170`, langsung di `main`) — SELESAI
+
+Halaman `/workspace/[id]` (Langkah 27 Tahap 1) **sudah** match desain zip, tapi **tak terjangkau**: satu-satunya jalan lewat link terkubur di `WorkspaceModal`; `AppShellRail` item "Workspaces" salah arah ke `/`; `IconRail` chat tak punya item Workspaces sama sekali. Jadi user mengira strukturnya belum ada.
+
+- **Route baru `app/workspace/page.tsx` (index)** — server component: pilih workspace paling relevan (workspace dari conversation yang paling terakhir `updated_at`, else workspace pertama by `created_at`), lalu `redirect('/workspace/[id]')` (sidebar-nya lalu bisa switch). Empty state jujur untuk user tanpa workspace (link balik ke chat).
+- **`IconRail.tsx` (chat)** — tambah item pertama "Workspaces" (glyph 2-kotak) → `/workspace`.
+- **`AppShellRail.tsx`** — item Workspaces diarahkan `/` → `/workspace`.
+
+**Verifikasi:** `WorkspaceView` di-render via scratch harness dengan data contoh desain — match `Workspace.dc.html` (list workspace + count, kartu System + slide-over editor terbuka, kartu chat deep-link `/?conversationId=`, "Chat baru" → `/?workspaceId=`). Route `/workspace` redirect 307→login saat unauth. `tsc`/`eslint` bersih. Catatan: `app/workspace/page.tsx` sempat muncul untracked pra-sesi di snapshot awal; kini berisi route index ini (Write membuatnya sebagai file baru).
+
+## Langkah 30: Research backend — sintesis literatur + sumber editable (commit `31881f1`, langsung di `main`) — SELESAI
+
+Menuntaskan backlog Langkah 27 (*"backend sintesis Research belum ada"*). Sourcing dipilih user lewat AskUserQuestion: **web literature search**. Diimplementasi via **OpenAlex** (katalog ilmiah terbuka, **gratis, tanpa API key**) alih-alih API berbayar — supaya **jujur**: sintesis hanya boleh mengutip paper nyata yang benar-benar diambil, tidak mengarang sitasi (konsisten prinsip kejujuran data proyek).
+
+**Backend:**
+- **`lib/research/openalex.ts`** — `searchLiterature()` (fetch OpenAlex, filter `has_abstract:true`, sort relevance, rekonstruksi abstrak dari `abstract_inverted_index`, mailto polite-pool, timeout 15s, degrade ke `[]` saat gagal) + `coerceResearchSources()` (validasi array sumber dari request body, re-number 1..N, cap abstrak; dipakai bersama oleh route sintesis & save).
+- **`lib/research/synthesis.ts`** — `RESEARCH_SYNTHESIS_SYSTEM_PROMPT` (cite HANYA sumber bernomor yang diberikan, jujur saat bukti tipis, output JSON ketat), `buildResearchUserPrompt()`, `parseResearchSynthesis()` (tahan `​```json` fence + ekstrak `{...}`), `formatReferenceList()`.
+- **`POST /api/research`** — auth + kuota (`check_usage_limits`/`increment_usage`, **1 kuota pesan per inkuiri**) → sumber = OpenAlex (fresh) ATAU set curated yang dikirim client → `generateChatReply()` (reuse `lib/ai/chat.ts`) → parse → return `{question, synthesis, keyFindings, sources}`. `note:"no_sources"` bila kosong.
+- **`POST /api/research/save`** — bikin `conversation` + 2 `messages` (user question + assistant synthesis) + `artifact` (type `document`, isi sintesis + `## Referensi`) via `insertArtifacts` — masuk **Library** + bisa dibuka di chat via `/?conversationId=`. RLS-scoped, mirror kolom insert `useChatSession`.
+
+**Frontend:**
+- **`app/research/ResearchWorkbench.tsx`** (BARU, mengganti `ResearchAskBar.tsx` yang **dihapus**) — ask → findings (sintesis markdown via `MarkdownMessage` + "Temuan utama" cards dgn signal up/mixed/caution) + panel Sumber. User bisa: **tambah sumber sendiri** (judul + penulis + tahun + kutipan/abstrak yang dibaca AI, badge "Milikmu"), **hapus** sumber, **"Simpulkan ulang"** (re-POST dgn set curated → AI menyimpulkan ulang), **"Edit sintesis"** (textarea inline), **Simpan sebagai artifact**, **Export sitasi** (unduh .txt).
+- **`app/research/page.tsx`** — pakai `ResearchWorkbench`, copy header diperbarui (OpenAlex, bukan lagi "/riset di chat").
+
+**Verifikasi:**
+- **Pipeline penuh diuji nyata** via dev-test route sementara (dihapus): OpenAlex kembalikan **6 paper asli** (judul/penulis/jurnal/tahun/DOI, abstrak ~1100–1400 char), AI (gemini-2.5-flash) susun sintesis Indonesia bersitasi, parser sukses (`parsedOk:true`), jujur menandai saat sumber tak menjawab langsung.
+- **Tambah-sumber → Simpulkan ulang → Edit** diuji end-to-end di browser (scratch harness mock fetch, dihapus): "4 sumber · 1 ditambahkan olehmu", dirty-bar, re-synthesis atas set curated, edit inline persist. Nol console error.
+- **Fallback `no_sources` dilihat LIVE** (sesi authenticated user): query bahasa Indonesia → 0 auto-source → UI jujur mengajak tambah sumber sendiri.
+- Route auth-gated (401 `/api/research*`, 307 `/research`). `tsc`/`eslint` bersih.
+
+**Gap/catatan:**
+- **OpenAlex paling kaya untuk istilah Inggris.** Query bahasa Indonesia sering mengembalikan **0 auto-source** (terbukti live) — jalur "tambah sumber sendiri" jadi andalan. Auto-source Indonesia yang kuat (mis. integrasi Garuda/Scholar) = proyek terpisah.
+- **Kuota:** tiap inkuiri & tiap "Simpulkan ulang" = 1 kuota pesan harian (AI call nyata).
+- **"Simpan sebagai artifact" ke DB asli belum diuji live** (dihindari agar tak bikin data permanen di akun user tanpa perlu) — verified via mock + mirror pola insert yang sudah terbukti. Perlu 1× cek user.
+- Handler `?ask=` di `app/page.tsx` kini **tak terpakai** (`ResearchAskBar` dihapus) — harmless dead code.
