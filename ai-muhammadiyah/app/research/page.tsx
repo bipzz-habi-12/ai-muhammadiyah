@@ -5,7 +5,7 @@ import { artifactTypeLabels, type ArtifactType } from "@/lib/artifacts";
 import { formatRelativeTime } from "@/lib/formatting/text";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
-import ResearchAskBar from "./ResearchAskBar";
+import ResearchWorkbench from "./ResearchWorkbench";
 
 // Research v2 (Research.dc.html port) — HONEST version. The app has no research
 // synthesis backend, so the design's synthesized findings + numbered journal
@@ -53,15 +53,15 @@ export default async function ResearchPage() {
             <h1 className="font-serif text-[38px] font-normal leading-tight tracking-[-0.015em] text-[#12211b]">
               Bukti, disintesis dan bisa ditelusuri.
             </h1>
-            <p className="mt-3 max-w-[560px] text-base leading-relaxed text-[#5d6862]">
-              Mulai sebuah pertanyaan riset di sini — sintesis dan sitasi
-              dikerjakan langsung di chat dengan skill{" "}
-              <span className="font-semibold text-[#0f5a3d]">/riset</span>, lalu
-              bisa kamu simpan sebagai artifact.
+            <p className="mt-3 max-w-[600px] text-base leading-relaxed text-[#5d6862]">
+              Ajukan pertanyaan riset — sistem menarik literatur nyata dari
+              katalog terbuka{" "}
+              <span className="font-semibold text-[#0f5a3d]">OpenAlex</span> lalu
+              menyusun sintesis bersitasi yang bisa kamu simpan sebagai artifact.
             </p>
           </header>
 
-          <ResearchAskBar />
+          <ResearchWorkbench />
 
           <div className="mb-4 flex items-center justify-between">
             <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
@@ -74,10 +74,9 @@ export default async function ResearchPage() {
 
           {artifacts.length === 0 ? (
             <div className="rounded-[13px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-10 text-center text-sm leading-relaxed text-[#6b746e]">
-              Belum ada riset tersimpan. Ajukan pertanyaan di atas, kerjakan
-              dengan <span className="font-semibold text-[#0f5a3d]">/riset</span>{" "}
-              di chat, lalu simpan hasilnya sebagai artifact — akan muncul di
-              sini dan di Library.
+              Belum ada riset tersimpan. Ajukan pertanyaan di atas, lalu simpan
+              hasil sintesisnya sebagai artifact — akan muncul di sini dan di
+              Library.
             </div>
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2">
