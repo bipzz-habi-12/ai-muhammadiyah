@@ -3,6 +3,7 @@ import { generateChatReply } from "@/lib/ai/chat";
 import { coerceResearchSources, searchLiterature } from "@/lib/research/openalex";
 import {
   RESEARCH_SYNTHESIS_SYSTEM_PROMPT,
+  type ResearchSynthesis,
   buildResearchUserPrompt,
   parseResearchSynthesis,
 } from "@/lib/research/synthesis";
@@ -83,36 +84,29 @@ export async function POST(request: Request) {
       ? curatedSources
       : await searchLiterature(question, SOURCE_LIMIT);
 
-  if (sources.length === 0) {
-    return NextResponse.json({
-      question,
-      sources: [],
-      synthesis: "",
-      keyFindings: [],
-      note: "no_sources",
-    });
-  }
-
-  // 2) Grounded synthesis.
+  // 2) Synthesis. Runs even with zero sources — the AI still contributes an
+  //    uncited "aiContext" from its own knowledge (clearly separated below).
   const userPrompt = buildResearchUserPrompt(question, sources);
-  let reply: string;
-  try {
-    const result = await generateChatReply(
-      [{ role: "user", text: userPrompt }],
-      "",
-      undefined,
-      RESEARCH_SYNTHESIS_SYSTEM_PROMPT,
-    );
-    reply = result.reply;
-  } catch (error) {
-    console.error("Research synthesis failed:", error);
-    return NextResponse.json(
-      { error: "Sintesis riset gagal. Coba lagi." },
-      { status: 502 },
-    );
-  }
 
-  const parsed = parseResearchSynthesis(reply);
+  // LLM JSON output is occasionally truncated mid-response (provider hiccup),
+  // which fails the parse. Retry once before giving up — still one user action,
+  // one quota. Both attempts share the same prompt.
+  let parsed: ResearchSynthesis | null = null;
+  let lastReply = "";
+  for (let attempt = 0; attempt < 3 && !parsed; attempt += 1) {
+    try {
+      const result = await generateChatReply(
+        [{ role: "user", text: userPrompt }],
+        "",
+        undefined,
+        RESEARCH_SYNTHESIS_SYSTEM_PROMPT,
+      );
+      lastReply = result.reply;
+      parsed = parseResearchSynthesis(result.reply);
+    } catch (error) {
+      console.error(`Research synthesis attempt ${attempt + 1} failed:`, error);
+    }
+  }
 
   if (!parsed) {
     return NextResponse.json(
@@ -126,7 +120,7 @@ export async function POST(request: Request) {
     p_action: "message",
     p_model_used: "auto",
     p_document_count: 0,
-    p_estimated_tokens: estimateTokenUsage(userPrompt, reply),
+    p_estimated_tokens: estimateTokenUsage(userPrompt, lastReply),
     p_metadata: { feature: "research", source_count: sources.length },
   });
 
@@ -138,6 +132,8 @@ export async function POST(request: Request) {
     question,
     sources,
     synthesis: parsed.synthesis,
+    aiContext: parsed.aiContext,
     keyFindings: parsed.keyFindings,
+    note: sources.length === 0 ? "no_sources" : undefined,
   });
 }

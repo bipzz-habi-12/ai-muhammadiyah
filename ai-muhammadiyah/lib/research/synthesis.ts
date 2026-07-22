@@ -2,8 +2,14 @@ import type { ResearchSource } from "@/lib/research/openalex";
 
 // Synthesis layer. The model is handed a numbered list of REAL papers (from
 // OpenAlex) and asked to write an evidence-based synthesis that cites ONLY those
-// papers by their number. It never sees a request to invent references — the
-// citations map 1:1 to the sources panel the user also sees.
+// papers by number, PLUS an uncited "AI context" section from its own knowledge.
+//
+// Output uses plain line delimiters (===SINTESIS=== etc.) rather than JSON — the
+// same reasoning as the artifact sentinels in lib/artifacts.ts: LLM JSON with
+// long free-text fields truncates often, and one cut byte breaks the whole
+// parse. Delimited sections degrade gracefully — a truncated reply still yields
+// whatever sections finished, and quotes/newlines/brackets in the prose can't
+// corrupt the parse.
 
 export type FindingSignal = "up" | "mixed" | "caution";
 
@@ -13,25 +19,36 @@ export type KeyFinding = {
 };
 
 export type ResearchSynthesis = {
-  synthesis: string; // markdown, with inline [n] citations
+  synthesis: string; // markdown, grounded in the sources, with inline [n] citations
+  aiContext: string; // the model's OWN general knowledge, uncited (may be empty)
   keyFindings: KeyFinding[];
 };
+
+const SEC_SYNTHESIS = "===SINTESIS===";
+const SEC_AI_CONTEXT = "===KONTEKS_AI===";
+const SEC_FINDINGS = "===TEMUAN===";
 
 export const RESEARCH_SYNTHESIS_SYSTEM_PROMPT = [
   "Anda adalah asisten riset akademik untuk platform AI Muhammadiyah.",
   "Anda menerima sebuah pertanyaan riset dan daftar SUMBER NYATA bernomor (judul + metadata + abstrak).",
   "",
-  "Aturan keras:",
-  "- Sintesis HANYA boleh berdasarkan sumber yang diberikan. Jangan mengarang temuan, angka, atau referensi.",
-  "- Sitasi memakai nomor sumber dalam kurung siku, mis. [1] atau [2, 4]. Hanya boleh mengutip nomor yang ada di daftar.",
-  "- Jika bukti tipis, saling bertentangan, atau tidak menjawab pertanyaan, katakan itu secara eksplisit — jangan memaksakan kesimpulan.",
-  "- Tulis dalam bahasa yang sama dengan pertanyaan (default Bahasa Indonesia). Nada akademik, ringkas, evidence-based.",
+  "Tulis jawaban dalam TIGA bagian, dipisahkan penanda baris persis seperti di bawah (penanda ada di barisnya sendiri):",
   "",
-  "Keluarkan HANYA JSON valid (tanpa teks lain, tanpa code fence) dengan bentuk:",
-  '{"synthesis":"<markdown 2-4 paragraf dengan sitasi [n] inline>","keyFindings":[{"signal":"up|mixed|caution","text":"<temuan singkat dengan sitasi [n] bila relevan>"}]}',
+  SEC_SYNTHESIS,
+  "Sintesis bersitasi (2-4 paragraf markdown). HANYA berdasarkan sumber yang diberikan; jangan mengarang temuan/angka/referensi.",
+  "Sitasi memakai nomor sumber dalam kurung siku, mis. [1] atau [2, 4] — hanya nomor yang ada di daftar.",
+  "Jika bukti tipis/bertentangan/tak menjawab, katakan eksplisit. Jika TIDAK ADA sumber, kosongkan bagian ini.",
   "",
-  "Makna signal: 'up' = temuan positif/mendukung, 'mixed' = tidak konklusif/campuran, 'caution' = peringatan/risiko/temuan negatif.",
-  "Sertakan 2-4 keyFindings.",
+  SEC_AI_CONTEXT,
+  "Konteks/pengetahuan umum Anda sendiri tentang topik ini yang membantu pembaca, DI LUAR sumber (1-2 paragraf markdown).",
+  "JANGAN pakai sitasi [n] di sini (ini bukan dari sumber). Ini pengetahuan model yang belum tentu akurat/terkini — tulis wajar, jangan berpura-pura sebagai bukti terverifikasi. Boleh kosong.",
+  "",
+  SEC_FINDINGS,
+  "Temuan utama, satu per baris, format: signal | teks. signal salah satu: up (positif/mendukung), mixed (tidak konklusif), caution (peringatan/risiko).",
+  "Contoh baris: up | Pendampingan menaikkan ketahanan usaha [1].",
+  "Isi 2-4 baris bila ada sumber; kosongkan bila tak ada sumber.",
+  "",
+  "Tulis dalam bahasa yang sama dengan pertanyaan (default Bahasa Indonesia). Nada akademik, ringkas. Jangan tambahkan teks di luar tiga bagian ini.",
 ].join("\n");
 
 export function buildResearchUserPrompt(
@@ -56,68 +73,94 @@ export function buildResearchUserPrompt(
   return [
     `PERTANYAAN RISET:\n${question.trim()}`,
     "",
-    `SUMBER (${sources.length}):`,
-    sourceBlock,
+    sources.length > 0
+      ? `SUMBER (${sources.length}):\n${sourceBlock}`
+      : "SUMBER: (tidak ada literatur ditemukan) — kosongkan SINTESIS/TEMUAN, isi KONTEKS_AI dari pengetahuan umum Anda.",
     "",
-    "Susun sintesis sesuai aturan sistem dan keluarkan JSON-nya.",
+    "Susun jawaban sesuai tiga penanda bagian pada instruksi sistem.",
   ].join("\n");
 }
 
-function coerceSignal(value: unknown): FindingSignal {
-  if (value === "up" || value === "mixed" || value === "caution") {
-    return value;
+function coerceSignal(value: string): FindingSignal {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "up" || normalized === "mixed" || normalized === "caution") {
+    return normalized;
   }
   return "mixed";
 }
 
-// Robust JSON extraction: try direct parse, then strip a ```json fence, then
-// grab the first {...} block. Returns null only when nothing parseable is found.
-export function parseResearchSynthesis(raw: string): ResearchSynthesis | null {
-  const attempts: string[] = [];
-  const trimmed = raw.trim();
-  attempts.push(trimmed);
+// Slice the reply into its delimited sections. Each present marker's content
+// runs from after the marker to the next present marker (or end of text), so
+// missing or truncated sections don't break the others.
+function sliceSections(text: string): {
+  synthesis: string;
+  aiContext: string;
+  findings: string;
+} {
+  const cleaned = text.replace(/```/g, "");
+  const markers = [
+    { key: "synthesis" as const, tag: SEC_SYNTHESIS },
+    { key: "aiContext" as const, tag: SEC_AI_CONTEXT },
+    { key: "findings" as const, tag: SEC_FINDINGS },
+  ];
 
-  const fenceMatch = trimmed.match(/```(?:json)?\s*\r?\n([\s\S]*?)\r?\n?```/i);
-  if (fenceMatch) {
-    attempts.push(fenceMatch[1].trim());
+  const found = markers
+    .map((marker) => ({ ...marker, idx: cleaned.indexOf(marker.tag) }))
+    .filter((marker) => marker.idx !== -1)
+    .sort((a, b) => a.idx - b.idx);
+
+  const result = { synthesis: "", aiContext: "", findings: "" };
+  for (let i = 0; i < found.length; i += 1) {
+    const start = found[i].idx + found[i].tag.length;
+    const end = i + 1 < found.length ? found[i + 1].idx : cleaned.length;
+    result[found[i].key] = cleaned.slice(start, end).trim();
   }
+  return result;
+}
 
-  const braceStart = trimmed.indexOf("{");
-  const braceEnd = trimmed.lastIndexOf("}");
-  if (braceStart !== -1 && braceEnd > braceStart) {
-    attempts.push(trimmed.slice(braceStart, braceEnd + 1));
+function parseFindings(block: string): KeyFinding[] {
+  if (!block) {
+    return [];
   }
-
-  for (const candidate of attempts) {
-    try {
-      const parsed = JSON.parse(candidate) as {
-        synthesis?: unknown;
-        keyFindings?: unknown;
-      };
-
-      const synthesis =
-        typeof parsed.synthesis === "string" ? parsed.synthesis.trim() : "";
-      if (!synthesis) {
-        continue;
+  return block
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*\s]+/, "").trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^(up|mixed|caution)\s*[|:–-]\s*(.+)$/i);
+      if (match) {
+        return { signal: coerceSignal(match[1]), text: match[2].trim() };
       }
+      // No signal prefix — keep the text, default the signal.
+      return { signal: "mixed" as FindingSignal, text: line };
+    })
+    .filter((finding) => finding.text.length > 0)
+    .slice(0, 6);
+}
 
-      const keyFindings = Array.isArray(parsed.keyFindings)
-        ? parsed.keyFindings
-            .map((item) => {
-              const record = (item ?? {}) as { signal?: unknown; text?: unknown };
-              const text = typeof record.text === "string" ? record.text.trim() : "";
-              return text ? { signal: coerceSignal(record.signal), text } : null;
-            })
-            .filter((item): item is KeyFinding => item !== null)
-        : [];
+// Returns null only when neither prose section came back (nothing usable).
+export function parseResearchSynthesis(raw: string): ResearchSynthesis | null {
+  const sections = sliceSections(raw);
 
-      return { synthesis, keyFindings };
-    } catch {
-      // try next candidate
+  // Fallback: if the model ignored the markers entirely but produced prose,
+  // treat the whole reply as the synthesis rather than dropping everything.
+  if (!sections.synthesis && !sections.aiContext && !sections.findings) {
+    const body = raw.replace(/```/g, "").trim();
+    if (body.length > 0 && !body.includes("===")) {
+      return { synthesis: body, aiContext: "", keyFindings: [] };
     }
+    return null;
   }
 
-  return null;
+  if (!sections.synthesis && !sections.aiContext) {
+    return null;
+  }
+
+  return {
+    synthesis: sections.synthesis,
+    aiContext: sections.aiContext,
+    keyFindings: parseFindings(sections.findings),
+  };
 }
 
 // Plain-text reference list appended to a saved artifact (also used by the

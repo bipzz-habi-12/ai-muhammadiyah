@@ -13,6 +13,7 @@ import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 type SavePayload = {
   question?: unknown;
   synthesis?: unknown;
+  aiContext?: unknown;
   sources?: unknown;
 };
 
@@ -37,9 +38,11 @@ export async function POST(request: Request) {
     typeof body.question === "string" ? body.question.trim().slice(0, 2000) : "";
   const synthesis =
     typeof body.synthesis === "string" ? body.synthesis.trim() : "";
+  const aiContext =
+    typeof body.aiContext === "string" ? body.aiContext.trim() : "";
   const sources = coerceResearchSources(body.sources);
 
-  if (!question || !synthesis) {
+  if (!question || (!synthesis && !aiContext)) {
     return NextResponse.json(
       { error: "Data riset tidak lengkap." },
       { status: 400 },
@@ -47,9 +50,15 @@ export async function POST(request: Request) {
   }
 
   const references = formatReferenceList(sources);
-  const artifactText = references
-    ? `${synthesis}\n\n## Referensi\n\n${references}`
-    : synthesis;
+  const artifactText = [
+    synthesis,
+    aiContext
+      ? `## Konteks dari pengetahuan AI (tanpa sitasi — verifikasi mandiri)\n\n${aiContext}`
+      : "",
+    references ? `## Referensi\n\n${references}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const title = createConversationTitle(question);
 
   // 1) Conversation shell (mirrors the columns useChatSession writes).

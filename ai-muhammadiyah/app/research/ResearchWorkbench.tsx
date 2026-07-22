@@ -5,10 +5,11 @@ import { useState } from "react";
 import MarkdownMessage from "@/components/MarkdownMessage";
 
 // Research workbench. Flow: ask -> OpenAlex literature + grounded synthesis.
-// The user can then CURATE the evidence base — add their own sources, remove
-// ones they don't want — and re-run the synthesis ("Simpulkan ulang"), and can
-// EDIT the synthesis prose directly before saving it as an artifact. Citations
-// always map to the numbered sources shown; nothing is fabricated.
+// The user can CURATE the evidence base (add/remove sources), re-run the
+// synthesis, and EDIT the synthesis before saving as an artifact. Alongside the
+// source-grounded synthesis, the model also contributes an "aiContext" section
+// from its OWN knowledge — clearly separated and UNCITED, so the reader knows
+// which part is grounded in real sources and which is model knowledge to verify.
 
 type FindingSignal = "up" | "mixed" | "caution";
 type KeyFinding = { signal: FindingSignal; text: string };
@@ -28,6 +29,7 @@ type ResearchSource = {
 type ResearchResponse = {
   question: string;
   synthesis: string;
+  aiContext: string;
   keyFindings: KeyFinding[];
   sources: ResearchSource[];
   note?: "no_sources";
@@ -57,6 +59,7 @@ export default function ResearchWorkbench() {
   const [inquiryQuestion, setInquiryQuestion] = useState("");
   const [sources, setSources] = useState<ResearchSource[]>([]);
   const [synthesis, setSynthesis] = useState("");
+  const [aiContext, setAiContext] = useState("");
   const [keyFindings, setKeyFindings] = useState<KeyFinding[]>([]);
   const [sourcesDirty, setSourcesDirty] = useState(false);
   const [resynthesizing, setResynthesizing] = useState(false);
@@ -78,15 +81,18 @@ export default function ResearchWorkbench() {
     setInquiryQuestion(data.question);
     setSources(data.sources ?? []);
     setSynthesis(data.synthesis ?? "");
+    setAiContext(data.aiContext ?? "");
     setKeyFindings(data.keyFindings ?? []);
+    setNoSources(data.note === "no_sources");
     setSourcesDirty(false);
     setEditing(false);
     setSavedId(null);
   }
 
-  async function callSynthesis(
-    payload: { question: string; sources?: ResearchSource[] },
-  ): Promise<ResearchResponse | null> {
+  async function callSynthesis(payload: {
+    question: string;
+    sources?: ResearchSource[];
+  }): Promise<ResearchResponse | null> {
     const response = await fetch("/api/research", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,21 +113,11 @@ export default function ResearchWorkbench() {
     }
     setStatus("loading");
     setError("");
-    setNoSources(false);
 
     try {
       const data = await callSynthesis({ question: text });
       if (!data) {
         setStatus("error");
-        return;
-      }
-      if (data.note === "no_sources") {
-        setNoSources(true);
-        setInquiryQuestion(text);
-        setSources([]);
-        setSynthesis("");
-        setKeyFindings([]);
-        setStatus("ready");
         return;
       }
       applyResult(data);
@@ -139,11 +135,8 @@ export default function ResearchWorkbench() {
     setResynthesizing(true);
     setError("");
     try {
-      const data = await callSynthesis({
-        question: inquiryQuestion,
-        sources,
-      });
-      if (data && data.note !== "no_sources") {
+      const data = await callSynthesis({ question: inquiryQuestion, sources });
+      if (data) {
         applyResult(data);
       }
     } catch {
@@ -195,7 +188,7 @@ export default function ResearchWorkbench() {
   }
 
   async function saveArtifact() {
-    if (saving || sources.length === 0 || !synthesis.trim()) {
+    if (saving || (!synthesis.trim() && !aiContext.trim())) {
       return;
     }
     setSaving(true);
@@ -203,7 +196,12 @@ export default function ResearchWorkbench() {
       const response = await fetch("/api/research/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: inquiryQuestion, synthesis, sources }),
+        body: JSON.stringify({
+          question: inquiryQuestion,
+          synthesis,
+          aiContext,
+          sources,
+        }),
       });
       const data = await response.json();
       if (response.ok && data.conversationId) {
@@ -237,7 +235,9 @@ export default function ResearchWorkbench() {
   }
 
   const userAddedCount = sources.filter((source) => source.userAdded).length;
-  const hasResult = status === "ready" && sources.length > 0;
+  const hasResult =
+    status === "ready" &&
+    (synthesis.trim() !== "" || aiContext.trim() !== "" || sources.length > 0);
 
   return (
     <div>
@@ -291,138 +291,151 @@ export default function ResearchWorkbench() {
         </p>
       )}
 
-      {status === "ready" && noSources && (
-        <div className="mb-6 rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-8 text-center text-sm leading-relaxed text-[#6b746e]">
-          Tidak ada literatur otomatis yang cocok. Kamu masih bisa menambah
-          sumbermu sendiri di bawah, lalu tekan{" "}
-          <span className="font-semibold text-[#0f5a3d]">Simpulkan ulang</span>.
-        </div>
-      )}
-
-      {(hasResult || (status === "ready" && noSources)) && (
+      {hasResult && (
         <div className="grid gap-7 lg:grid-cols-[1.55fr_1fr]">
           {/* FINDINGS */}
           <div>
-            {hasResult ? (
-              <>
-                <div className="mb-4 flex flex-wrap items-center gap-2.5">
-                  <span className="rounded-full bg-[#0f5a3d]/[0.09] px-[11px] py-1 text-xs font-semibold text-[#0f5a3d]">
-                    Disintesis
+            <div className="mb-4 flex flex-wrap items-center gap-2.5">
+              <span className="rounded-full bg-[#0f5a3d]/[0.09] px-[11px] py-1 text-xs font-semibold text-[#0f5a3d]">
+                Disintesis
+              </span>
+              <span className="text-[12.5px] text-[#8a9089]">
+                {sources.length > 0
+                  ? `${sources.length} sumber${
+                      userAddedCount > 0
+                        ? ` · ${userAddedCount} ditambahkan olehmu`
+                        : ""
+                    }`
+                  : "Tanpa literatur — hanya pengetahuan AI di bawah"}
+              </span>
+            </div>
+            <h2 className="mb-5 font-serif text-[24px] font-medium leading-snug tracking-[-0.01em] text-[#12211b] sm:text-[26px]">
+              {inquiryQuestion}
+            </h2>
+
+            {/* Grounded, cited synthesis */}
+            {editing ? (
+              <div className="mb-6">
+                <textarea
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  className="h-64 w-full resize-y rounded-[12px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-4 py-3 text-[15px] leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
+                />
+                <div className="mt-2.5 flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={saveEdit}
+                    className="h-9 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                  >
+                    Simpan edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    className="h-9 rounded-[10px] border border-[#0b3d2a]/16 px-4 text-[13.5px] font-semibold text-[#25302a]"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              synthesis.trim() !== "" && (
+                <div className="text-[15.5px] leading-relaxed text-[#2a342e] [&_a]:text-[#0f5a3d] [&_strong]:font-semibold">
+                  <MarkdownMessage text={synthesis} />
+                </div>
+              )
+            )}
+
+            {/* Key findings (grounded) */}
+            {keyFindings.length > 0 && !editing && (
+              <div className="mt-7">
+                <div className="mb-3.5 text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+                  Temuan utama
+                </div>
+                <div className="flex flex-col gap-3">
+                  {keyFindings.map((finding, index) => (
+                    <div
+                      key={index}
+                      className="flex gap-3 rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3.5"
+                    >
+                      <span
+                        className="shrink-0 font-bold"
+                        style={{ color: signalStyles[finding.signal].color }}
+                        aria-hidden="true"
+                      >
+                        {signalStyles[finding.signal].glyph}
+                      </span>
+                      <div className="text-[14.5px] leading-relaxed text-[#2a342e]">
+                        {finding.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI knowledge — clearly separated, uncited */}
+            {aiContext.trim() !== "" && !editing && (
+              <div className="mt-7 rounded-[14px] border border-[#b08833]/25 bg-[#e7c77e]/[0.09] px-5 py-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-[15px]" aria-hidden="true">
+                    ✦
                   </span>
-                  <span className="text-[12.5px] text-[#8a9089]">
-                    {sources.length} sumber
-                    {userAddedCount > 0
-                      ? ` · ${userAddedCount} ditambahkan olehmu`
-                      : " nyata dari OpenAlex"}
+                  <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#8a6a1f]">
+                    Konteks dari pengetahuan AI
                   </span>
                 </div>
-                <h2 className="mb-5 font-serif text-[24px] font-medium leading-snug tracking-[-0.01em] text-[#12211b] sm:text-[26px]">
-                  {inquiryQuestion}
-                </h2>
+                <div className="text-[14.5px] leading-relaxed text-[#3a342a] [&_strong]:font-semibold">
+                  <MarkdownMessage text={aiContext} />
+                </div>
+                <p className="mt-2.5 text-[11.5px] leading-relaxed text-[#9a8250]">
+                  Bukan dari sumber terindeks — pengetahuan model yang perlu kamu
+                  verifikasi sendiri.
+                </p>
+              </div>
+            )}
 
-                {editing ? (
-                  <div>
-                    <textarea
-                      value={draft}
-                      onChange={(event) => setDraft(event.target.value)}
-                      className="h-64 w-full resize-y rounded-[12px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-4 py-3 text-[15px] leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
-                    />
-                    <div className="mt-2.5 flex gap-2.5">
-                      <button
-                        type="button"
-                        onClick={saveEdit}
-                        className="h-9 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
-                      >
-                        Simpan edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditing(false)}
-                        className="h-9 rounded-[10px] border border-[#0b3d2a]/16 px-4 text-[13.5px] font-semibold text-[#25302a]"
-                      >
-                        Batal
-                      </button>
-                    </div>
-                  </div>
+            {!editing && (
+              <div className="mt-6 flex flex-wrap items-center gap-2.5">
+                {savedId ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/?conversationId=${savedId}`)}
+                    className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                  >
+                    Buka di chat →
+                  </button>
                 ) : (
-                  <div className="text-[15.5px] leading-relaxed text-[#2a342e] [&_a]:text-[#0f5a3d] [&_strong]:font-semibold">
-                    <MarkdownMessage text={synthesis} />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={saveArtifact}
+                    disabled={saving}
+                    className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    ◧ {saving ? "Menyimpan…" : "Simpan sebagai artifact"}
+                  </button>
                 )}
-
-                {keyFindings.length > 0 && !editing && (
-                  <div className="mt-7">
-                    <div className="mb-3.5 text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
-                      Temuan utama
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {keyFindings.map((finding, index) => (
-                        <div
-                          key={index}
-                          className="flex gap-3 rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3.5"
-                        >
-                          <span
-                            className="shrink-0 font-bold"
-                            style={{ color: signalStyles[finding.signal].color }}
-                            aria-hidden="true"
-                          >
-                            {signalStyles[finding.signal].glyph}
-                          </span>
-                          <div className="text-[14.5px] leading-relaxed text-[#2a342e]">
-                            {finding.text}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d]"
+                >
+                  Edit sintesis
+                </button>
+                <button
+                  type="button"
+                  onClick={exportCitations}
+                  disabled={sources.length === 0}
+                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Export sitasi
+                </button>
+                {savedId && (
+                  <span className="text-[13px] font-medium text-[#0f5a3d]">
+                    Tersimpan ke Library.
+                  </span>
                 )}
-
-                {!editing && (
-                  <div className="mt-6 flex flex-wrap items-center gap-2.5">
-                    {savedId ? (
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/?conversationId=${savedId}`)}
-                        className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
-                      >
-                        Buka di chat →
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={saveArtifact}
-                        disabled={saving}
-                        className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        ◧ {saving ? "Menyimpan…" : "Simpan sebagai artifact"}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={startEdit}
-                      className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d]"
-                    >
-                      Edit sintesis
-                    </button>
-                    <button
-                      type="button"
-                      onClick={exportCitations}
-                      className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d]"
-                    >
-                      Export sitasi
-                    </button>
-                    {savedId && (
-                      <span className="text-[13px] font-medium text-[#0f5a3d]">
-                        Tersimpan ke Library.
-                      </span>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <h2 className="mb-5 font-serif text-[24px] font-medium leading-snug tracking-[-0.01em] text-[#12211b]">
-                {inquiryQuestion}
-              </h2>
+              </div>
             )}
           </div>
 
@@ -441,7 +454,15 @@ export default function ResearchWorkbench() {
               </button>
             </div>
 
-            {sourcesDirty && (
+            {noSources && sources.length === 0 && (
+              <div className="mb-3 rounded-[11px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-3.5 py-3 text-[12.5px] leading-relaxed text-[#6b746e]">
+                Tidak ada literatur otomatis yang cocok (OpenAlex paling kaya
+                untuk istilah Inggris). Tambahkan sumbermu sendiri lalu tekan
+                Simpulkan ulang.
+              </div>
+            )}
+
+            {sourcesDirty && sources.length > 0 && (
               <div className="mb-3 flex items-center justify-between gap-2 rounded-[11px] border border-[#b08833]/30 bg-[#e7c77e]/15 px-3.5 py-2.5">
                 <span className="text-[12.5px] font-medium text-[#8a6a1f]">
                   Sumber berubah — simpulkan ulang agar sintesis akurat.
@@ -559,7 +580,7 @@ export default function ResearchWorkbench() {
                   </div>
                 );
               })}
-              {sources.length === 0 && (
+              {sources.length === 0 && !noSources && (
                 <p className="rounded-[12px] border border-dashed border-[#0b3d2a]/15 px-4 py-6 text-center text-[13px] text-[#8a9089]">
                   Belum ada sumber. Tambahkan sumbermu lalu simpulkan ulang.
                 </p>
