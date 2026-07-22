@@ -391,3 +391,17 @@ Menuntaskan backlog Langkah 27 (*"backend sintesis Research belum ada"*). Sourci
 - **Kuota:** tiap inkuiri & tiap "Simpulkan ulang" = 1 kuota pesan harian (AI call nyata).
 - **"Simpan sebagai artifact" ke DB asli belum diuji live** (dihindari agar tak bikin data permanen di akun user tanpa perlu) — verified via mock + mirror pola insert yang sudah terbukti. Perlu 1× cek user.
 - Handler `?ask=` di `app/page.tsx` kini **tak terpakai** (`ResearchAskBar` dihapus) — harmless dead code.
+
+## Langkah 31: Research — bagian "pengetahuan AI" (tanpa sitasi) + format output tahan-potong (commit `0abfae2`, langsung di `main`) — SELESAI
+
+Atas permintaan user (*"di research coba tambahkan pengetahuan ai juga"*), sintesis Research kini menambah pengetahuan model sendiri **di samping** sintesis bersitasi — dipisah tegas supaya kejujuran tetap terjaga (pembaca tahu mana yang berbasis literatur vs. pengetahuan model).
+
+- **`lib/research/synthesis.ts`** — tipe `ResearchSynthesis` dapat field `aiContext`. Prompt minta 3 bagian: `synthesis` (bersitasi [n], HANYA dari sumber), `aiContext` (pengetahuan umum model, **TANPA sitasi**, boleh kosong), `keyFindings`.
+- **Perbaikan reliabilitas (root cause nyata):** output **JSON** sering gagal di-parse (~1/3, terbukti via harness: respons LLM kadang terpotong di 337 char, satu byte putus merusak seluruh JSON — retry 2× pun kadang gagal dua-duanya). **Diganti ke format penanda baris** `===SINTESIS===` / `===KONTEKS_AI===` / `===TEMUAN===` — alasan sama seperti sentinel artifact di `lib/artifacts.ts` ("penanda polos tahan streaming/potong, tidak seperti JSON"). Parser mengiris antar-penanda (bagian yang hilang/terpotong tak merusak yang lain) + fallback "anggap seluruh teks sebagai sintesis" bila model abaikan penanda. Route retry dinaikkan ke **3×**. Hasil uji: **4/4 parse sukses**, respons terpotong pun memulihkan bagian yang selesai (bukan error total).
+- **`app/api/research/route.ts`** — **selalu** panggil model (termasuk 0 sumber, supaya `aiContext` tetap terisi) + loop retry 3×; response bawa `aiContext` + `note:"no_sources"` bila kosong.
+- **`app/api/research/save/route.ts`** — artifact menyertakan section `## Konteks dari pengetahuan AI (tanpa sitasi — verifikasi mandiri)`; boleh simpan meski hanya ada `aiContext`.
+- **`app/research/ResearchWorkbench.tsx`** — blok **"✦ Konteks dari pengetahuan AI"** (kartu emas, disclaimer "bukan dari sumber terindeks"), state/save/hasResult diperluas; kasus **0 sumber** kini menampilkan pengetahuan AI + ajakan tambah sumber (bukan buntu) — memperbaiki gap query Bahasa Indonesia dari Langkah 30.
+
+**Verifikasi:** pipeline diuji nyata berkali-kali (Gemini) — `aiContext` terisi ~650–930 char baik dengan/tanpa sumber, parse stabil 4/4; UI dikonfirmasi di browser (harness mock) — blok AI-knowledge terpisah dari sintesis bersitasi, kasus no-source menampilkan pengetahuan AI + hint. `tsc`/`eslint` bersih, nol console error.
+
+**Gap/catatan:** kuota tetap 1 per inkuiri (retry berbagi kuota yang sama). "Simpan artifact" ke DB asli tetap belum diuji live (sama seperti Langkah 30).
