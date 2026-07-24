@@ -475,3 +475,29 @@ User minta mode tanya di Hub (bukan cuma cari link): user bertanya → jawaban p
 **Verifikasi:** `tsc`/`eslint`/`next build` bersih (`/api/hub/ask` teregister). UI diuji end-to-end di browser via scratch harness (`app/dev-hub-ask-scratch/`, mock `/api/hub/ask`, **dihapus sebelum commit**): tanya → loading → panel muncul dengan badge grounded, jawaban + sitasi `[1]`, kartu konteks-AI terpisah, **2 rujukan deep-link ke URL tarjih.or.id asli** (bernomor), disclaimer. Catatan proses: sempat kena **stale Turbopack cache** ("scoreHubResource defined multiple times") setelah refactor pindah fungsi — `next build` + tsc + grep membuktikan disk bersih (satu definisi), diselesaikan `rm -rf .next` + restart (pola yang memang dicatat di "Pola Kerja"). **Belum diuji end-to-end nyata** (butuh login + AI + fetch tarjih.or.id dari server) — logika/parse/fallback terbukti via mock; kuota & pemanggilan AI mirror Research yang sudah terbukti.
 
 **Gap:** fetch tarjih.or.id dari server produksi belum diuji live (kadang 500/rate-limit — fallback menangani); belum ada "simpan jawaban jadi artifact" (Research punya; bisa ditambah). Kotak dwifungsi cari+tanya: mengetik pertanyaan panjang otomatis menyaring direktori ke 0 (wajar — hasil ada di panel jawaban, bukan daftar).
+
+## Langkah 33: Research jadi alat penelitian mendalam — corong 3 tahap (250–320 sumber) + thread multi-tahap (commit `5c525d2`, di `main`) — SELESAI
+
+Permintaan user: *"jadikan alat untuk penelitian bukan sekali jawaban, bisa bertanya berkali-kali dan pencarian secara mendalam… minimal 250–300 sumber"*. Pilihan pendekatan dikonfirmasi lewat AskUserQuestion: **agentic multi-search** (bukan background job, supaya muat dalam satu request).
+
+**Kenapa corong, bukan "kirim 300 abstrak ke AI":** 300 abstrak ≈ 90k token — tak muat satu prompt. Jadi dipakai pola alat deep-research sungguhan, 3 tahap:
+1. **PLAN** — model menurunkan ~6 sub-kueri **berbahasa Inggris** yang saling melengkapi (konsep inti, mekanisme, populasi, outcome, bukti tandingan, meta-analisis).
+2. **SWEEP** — 7 kueri (asli + sub) jalan **paralel** ke OpenAlex, `per_page 60`, di-dedupe by DOI → **250–320 karya unik nyata**.
+3. **SCREEN** — peringkat **lokal** (tanpa biaya LLM): overlap istilah judul×3/abstrak×1, dikali coverage, dinaikkan sedikit oleh `cited_by_count` + kebaruan → **30 teratas dibaca mendalam** → sintesis bersitasi ke persis 30 itu. Sumber **milik user selalu lolos** screening.
+
+Angka corong ditampilkan jujur di UI: *"Ditelusuri 295 sumber · dibaca mendalam 30"*.
+
+**File:** `lib/research/planner.ts` (BARU — prompt sub-kueri + `parseSubQueries`, output baris polos), `lib/research/screening.ts` (BARU — `screenSources`, stopword ID+EN), `lib/research/openalex.ts` (`searchLiteratureMulti` paralel + `dedupeSources`; `searchLiterature` single-query dihapus karena jadi dead code), `app/api/research/route.ts` (orkestrasi corong, `mode: "deep" | "resynthesize"`, `export const maxDuration = 60`), `app/research/ResearchWorkbench.tsx` (UI **thread**).
+
+**Multi-tahap (bertanya berkali-kali):** tiap pertanyaan lanjutan **menambah tahap** ke thread, membawa working source set maju (di-merge + dedupe ke sapuan baru). Tiap tahap punya sitasi bernomornya sendiri (panel = tahap terakhir). "Simpan riset (N tahap)" menyimpan **seluruh thread** jadi satu artifact. Tombol "Riset baru" mereset.
+
+**Menutup gap Langkah 30/31 — query Bahasa Indonesia.** Dulu pertanyaan Indonesia sering dapat **0 auto-source** (OpenAlex condong Inggris). Karena planner kini menulis sub-kueri Inggris, pertanyaan Indonesia yang sama menghasilkan **314–322 sumber**. Gap itu **teratasi**.
+
+**Verifikasi (data nyata, bukan mock):** 3 sapuan live → **313 / 314 / 322 sumber unik**, `deepRead` 30, parse sukses. Timing total **15–20 detik** (plan ~3s · sweep ~8s · screen ~0.02s · sintesis ~9s) — aman di bawah `maxDuration` 60s. Peringkat teratas relevan (meta-analisis PBL, efektivitas PBL sains). UI thread di-drive di browser (harness mock, dihapus sebelum commit): 2 tahap (295 + 310), kumulatif *"605 sumber ditelusuri di 2 tahap"*, tombol jadi "Simpan riset (2 tahap)"; **tambah sumber → "Simpulkan ulang" memperbarui tahap terakhir tanpa membuat tahap palsu** (tetap 2 tahap, 7 sumber, sintesis ikut sumber "Milikmu"). `next build` bersih (semua route teregister), `tsc`/`eslint` bersih, route asli 401 (deep & resynthesize & save) + `/research` 307, nol console error.
+
+**Gap/catatan:**
+- **`maxDuration = 60`** dipilih karena itu plafon yang aman di **semua** plan Vercel; menaikkan ke 300 (untuk sapuan lebih besar) butuh **Vercel Pro**.
+- **Kuota tetap 1 per pertanyaan** walau deep memakai 2 panggilan AI (plan + sintesis) — sengaja tidak didobel.
+- Jumlah "Temuan utama" bervariasi 1–3 butir (kepatuhan model), parser tahan — bukan error.
+- Yang dibaca mendalam tetap **abstrak**, bukan teks penuh (dinyatakan di UI).
+- **End-to-end ber-login belum diuji** (OTP tak bisa dijalankan agent): pipeline & UI terbukti terpisah, tapi route asli + UI bersama masih perlu 1× cek user.
