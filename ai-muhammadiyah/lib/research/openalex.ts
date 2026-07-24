@@ -118,20 +118,19 @@ function cleanDoiUrl(doi: string | null | undefined, openAlexId: string | null |
 }
 
 /**
- * Search OpenAlex for peer-reviewed-ish works matching the question. Only works
- * that actually have an abstract are requested, so the synthesis has something
- * real to read. Returns [] on any failure (the caller degrades gracefully).
+ * Fetch one page of OpenAlex works for a query. Sources come back UNNUMBERED
+ * (n = 0) — numbering happens after dedupe/ranking. Returns [] on any failure so
+ * one bad sub-query never sinks a whole sweep.
  */
-export async function searchLiterature(
+async function fetchWorksPage(
   query: string,
-  limit = 8,
+  perPage: number,
 ): Promise<ResearchSource[]> {
   const trimmed = query.trim();
   if (!trimmed) {
     return [];
   }
 
-  const perPage = Math.max(1, Math.min(limit, 25));
   const params = new URLSearchParams({
     search: trimmed,
     per_page: String(perPage),
@@ -160,8 +159,8 @@ export async function searchLiterature(
     const works = payload.results ?? [];
 
     return works
-      .map((work, index): ResearchSource => ({
-        n: index + 1,
+      .map((work): ResearchSource => ({
+        n: 0,
         title: work.title?.trim() || "Tanpa judul",
         authors: formatAuthors(work.authorships),
         venue: work.primary_location?.source?.display_name?.trim() ?? "",
@@ -178,4 +177,49 @@ export async function searchLiterature(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// Stable identity for dedupe across sub-queries: DOI/OpenAlex URL when present,
+// else a normalised title.
+function sourceKey(source: ResearchSource): string {
+  if (source.url) {
+    return source.url.toLowerCase();
+  }
+  return source.title.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function dedupeSources(sources: ResearchSource[]): ResearchSource[] {
+  const seen = new Set<string>();
+  const unique: ResearchSource[] = [];
+  for (const source of sources) {
+    const key = sourceKey(source);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      unique.push(source);
+    }
+  }
+  return unique;
+}
+
+/**
+ * Broad sweep: run every query in parallel and union the results. This is what
+ * makes "deep" research deep — several angles on the question, a few hundred
+ * unique works, deduped. Results stay UNNUMBERED; the caller ranks then numbers.
+ */
+export async function searchLiteratureMulti(
+  queries: string[],
+  perQuery = 60,
+): Promise<ResearchSource[]> {
+  const cleaned = [...new Set(queries.map((q) => q.trim()).filter(Boolean))];
+  if (cleaned.length === 0) {
+    return [];
+  }
+
+  const pages = await Promise.all(
+    cleaned.map((query) =>
+      fetchWorksPage(query, Math.max(1, Math.min(perQuery, 200))),
+    ),
+  );
+
+  return dedupeSources(pages.flat());
 }

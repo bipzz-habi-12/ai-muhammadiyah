@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import MarkdownMessage from "@/components/MarkdownMessage";
 
-// Research workbench. Flow: ask -> OpenAlex literature + grounded synthesis.
-// The user can CURATE the evidence base (add/remove sources), re-run the
-// synthesis, and EDIT the synthesis before saving as an artifact. Alongside the
-// source-grounded synthesis, the model also contributes an "aiContext" section
-// from its OWN knowledge — clearly separated and UNCITED, so the reader knows
-// which part is grounded in real sources and which is model knowledge to verify.
+// Deep-research workbench. Not a one-shot Q&A: each question runs a 3-stage
+// funnel server-side (plan sub-queries -> sweep a few hundred real works ->
+// screen down to the abstracts actually read), and answers accumulate into a
+// research THREAD. Follow-up questions sweep again and carry the working source
+// set forward, so the bibliography grows. The user can add/remove sources and
+// re-synthesise, and edit the prose. Citations always map to the numbered
+// sources of that turn; the AI's own uncited knowledge is a separate block.
 
 type FindingSignal = "up" | "mixed" | "caution";
 type KeyFinding = { signal: FindingSignal; text: string };
@@ -32,8 +33,23 @@ type ResearchResponse = {
   aiContext: string;
   keyFindings: KeyFinding[];
   sources: ResearchSource[];
+  searchedCount: number;
+  readCount: number;
+  subQueries: string[];
   note?: "no_sources";
   error?: string;
+};
+
+type Turn = {
+  id: string;
+  question: string;
+  synthesis: string;
+  aiContext: string;
+  keyFindings: KeyFinding[];
+  sources: ResearchSource[];
+  searchedCount: number;
+  readCount: number;
+  subQueries: string[];
 };
 
 const signalStyles: Record<FindingSignal, { glyph: string; color: string }> = {
@@ -46,21 +62,27 @@ function renumber(sources: ResearchSource[]): ResearchSource[] {
   return sources.map((source, index) => ({ ...source, n: index + 1 }));
 }
 
+function sourceKey(source: ResearchSource): string {
+  return (source.url || source.title).toLowerCase().trim();
+}
+
+function citationLine(source: ResearchSource): string {
+  const meta = [source.venue, source.year].filter(Boolean).join(", ");
+  return `[${source.n}] ${source.authors}. ${source.title}.${
+    meta ? ` ${meta}.` : ""
+  }${source.url ? ` ${source.url}` : ""}`;
+}
+
 export default function ResearchWorkbench() {
   const router = useRouter();
 
   const [question, setQuestion] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error" | "ready">(
-    "idle",
-  );
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
-  const [noSources, setNoSources] = useState(false);
 
-  const [inquiryQuestion, setInquiryQuestion] = useState("");
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [sources, setSources] = useState<ResearchSource[]>([]);
-  const [synthesis, setSynthesis] = useState("");
-  const [aiContext, setAiContext] = useState("");
-  const [keyFindings, setKeyFindings] = useState<KeyFinding[]>([]);
+  const [seenKeys, setSeenKeys] = useState<string[]>([]);
   const [sourcesDirty, setSourcesDirty] = useState(false);
   const [resynthesizing, setResynthesizing] = useState(false);
 
@@ -70,28 +92,25 @@ export default function ResearchWorkbench() {
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
 
-  // add-source form
   const [addOpen, setAddOpen] = useState(false);
   const [aTitle, setATitle] = useState("");
   const [aAuthors, setAAuthors] = useState("");
   const [aYear, setAYear] = useState("");
   const [aContent, setAContent] = useState("");
 
-  function applyResult(data: ResearchResponse) {
-    setInquiryQuestion(data.question);
-    setSources(data.sources ?? []);
-    setSynthesis(data.synthesis ?? "");
-    setAiContext(data.aiContext ?? "");
-    setKeyFindings(data.keyFindings ?? []);
-    setNoSources(data.note === "no_sources");
-    setSourcesDirty(false);
-    setEditing(false);
-    setSavedId(null);
+  const latest = turns.at(-1) ?? null;
+  const hasThread = turns.length > 0;
+
+  function mergeSeen(next: ResearchSource[]) {
+    setSeenKeys((prev) => [
+      ...new Set([...prev, ...next.map((source) => sourceKey(source))]),
+    ]);
   }
 
-  async function callSynthesis(payload: {
+  async function callResearch(payload: {
     question: string;
     sources?: ResearchSource[];
+    mode: "deep" | "resynthesize";
   }): Promise<ResearchResponse | null> {
     const response = await fetch("/api/research", {
       method: "POST",
@@ -106,7 +125,7 @@ export default function ResearchWorkbench() {
     return data;
   }
 
-  async function runInquiry() {
+  async function ask() {
     const text = question.trim();
     if (text.length < 8 || status === "loading") {
       return;
@@ -115,13 +134,36 @@ export default function ResearchWorkbench() {
     setError("");
 
     try {
-      const data = await callSynthesis({ question: text });
+      const data = await callResearch({
+        question: text,
+        sources, // carry the working set forward
+        mode: "deep",
+      });
       if (!data) {
         setStatus("error");
         return;
       }
-      applyResult(data);
-      setStatus("ready");
+      setTurns((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}`,
+          question: data.question,
+          synthesis: data.synthesis ?? "",
+          aiContext: data.aiContext ?? "",
+          keyFindings: data.keyFindings ?? [],
+          sources: data.sources ?? [],
+          searchedCount: data.searchedCount ?? 0,
+          readCount: data.readCount ?? 0,
+          subQueries: data.subQueries ?? [],
+        },
+      ]);
+      setSources(data.sources ?? []);
+      mergeSeen(data.sources ?? []);
+      setQuestion("");
+      setSourcesDirty(false);
+      setEditing(false);
+      setSavedId(null);
+      setStatus("idle");
     } catch {
       setError("Jaringan bermasalah. Coba lagi.");
       setStatus("error");
@@ -129,15 +171,36 @@ export default function ResearchWorkbench() {
   }
 
   async function resynthesize() {
-    if (resynthesizing || sources.length === 0) {
+    if (!latest || resynthesizing || sources.length === 0) {
       return;
     }
     setResynthesizing(true);
     setError("");
     try {
-      const data = await callSynthesis({ question: inquiryQuestion, sources });
+      const data = await callResearch({
+        question: latest.question,
+        sources,
+        mode: "resynthesize",
+      });
       if (data) {
-        applyResult(data);
+        setTurns((prev) =>
+          prev.map((turn, index) =>
+            index === prev.length - 1
+              ? {
+                  ...turn,
+                  synthesis: data.synthesis ?? "",
+                  aiContext: data.aiContext ?? "",
+                  keyFindings: data.keyFindings ?? [],
+                  sources: data.sources ?? [],
+                  readCount: data.readCount ?? 0,
+                }
+              : turn,
+          ),
+        );
+        setSources(data.sources ?? []);
+        mergeSeen(data.sources ?? []);
+        setSourcesDirty(false);
+        setSavedId(null);
       }
     } catch {
       setError("Gagal menyusun ulang. Coba lagi.");
@@ -152,18 +215,22 @@ export default function ResearchWorkbench() {
       return;
     }
     const yearNum = Number.parseInt(aYear.trim(), 10);
-    const next: ResearchSource = {
-      n: sources.length + 1,
-      title,
-      authors: aAuthors.trim(),
-      venue: "",
-      year: Number.isFinite(yearNum) ? yearNum : null,
-      url: "",
-      citedByCount: 0,
-      abstract: aContent.trim(),
-      userAdded: true,
-    };
-    setSources((prev) => renumber([...prev, next]));
+    setSources((prev) =>
+      renumber([
+        ...prev,
+        {
+          n: prev.length + 1,
+          title,
+          authors: aAuthors.trim(),
+          venue: "",
+          year: Number.isFinite(yearNum) ? yearNum : null,
+          url: "",
+          citedByCount: 0,
+          abstract: aContent.trim(),
+          userAdded: true,
+        },
+      ]),
+    );
     setSourcesDirty(true);
     setATitle("");
     setAAuthors("");
@@ -178,17 +245,43 @@ export default function ResearchWorkbench() {
   }
 
   function startEdit() {
-    setDraft(synthesis);
+    setDraft(latest?.synthesis ?? "");
     setEditing(true);
   }
 
   function saveEdit() {
-    setSynthesis(draft);
+    setTurns((prev) =>
+      prev.map((turn, index) =>
+        index === prev.length - 1 ? { ...turn, synthesis: draft } : turn,
+      ),
+    );
     setEditing(false);
   }
 
+  // The saved artifact is the WHOLE thread, not just the last answer.
+  function buildReport(): string {
+    return turns
+      .map((turn, index) => {
+        const parts = [
+          `## ${index + 1}. ${turn.question}`,
+          `*Ditelusuri ${turn.searchedCount} sumber · dibaca mendalam ${turn.readCount}.*`,
+          turn.synthesis,
+          turn.keyFindings.length
+            ? `**Temuan utama**\n${turn.keyFindings
+                .map((finding) => `- ${finding.text}`)
+                .join("\n")}`
+            : "",
+          turn.aiContext
+            ? `**Konteks dari pengetahuan AI (tanpa sitasi)**\n\n${turn.aiContext}`
+            : "",
+        ];
+        return parts.filter(Boolean).join("\n\n");
+      })
+      .join("\n\n---\n\n");
+  }
+
   async function saveArtifact() {
-    if (saving || (!synthesis.trim() && !aiContext.trim())) {
+    if (!latest || saving) {
       return;
     }
     setSaving(true);
@@ -197,9 +290,9 @@ export default function ResearchWorkbench() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: inquiryQuestion,
-          synthesis,
-          aiContext,
+          question: turns[0]?.question ?? latest.question,
+          synthesis: buildReport(),
+          aiContext: "",
           sources,
         }),
       });
@@ -217,15 +310,14 @@ export default function ResearchWorkbench() {
   }
 
   function exportCitations() {
-    const lines = sources.map((source) => {
-      const meta = [source.venue, source.year].filter(Boolean).join(", ");
-      return `[${source.n}] ${source.authors}. ${source.title}.${
-        meta ? ` ${meta}.` : ""
-      }${source.url ? ` ${source.url}` : ""}`;
-    });
-    const blob = new Blob([`# ${inquiryQuestion}\n\n${lines.join("\n")}\n`], {
-      type: "text/plain;charset=utf-8",
-    });
+    const blob = new Blob(
+      [
+        `# ${turns[0]?.question ?? ""}\n\n${sources
+          .map(citationLine)
+          .join("\n")}\n`,
+      ],
+      { type: "text/plain;charset=utf-8" },
+    );
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -234,20 +326,29 @@ export default function ResearchWorkbench() {
     URL.revokeObjectURL(url);
   }
 
+  function resetThread() {
+    setTurns([]);
+    setSources([]);
+    setSeenKeys([]);
+    setQuestion("");
+    setError("");
+    setStatus("idle");
+    setSavedId(null);
+    setEditing(false);
+  }
+
+  const totalSearched = turns.reduce((sum, turn) => sum + turn.searchedCount, 0);
   const userAddedCount = sources.filter((source) => source.userAdded).length;
-  const hasResult =
-    status === "ready" &&
-    (synthesis.trim() !== "" || aiContext.trim() !== "" || sources.length > 0);
 
   return (
     <div>
-      {/* ASK BAR */}
+      {/* ASK BAR — first question, then follow-ups */}
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void runInquiry();
+          void ask();
         }}
-        className="mb-8 flex items-center gap-3.5 rounded-[16px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-4 py-3.5 shadow-[0_10px_30px_-26px_rgba(11,61,42,0.6)] transition focus-within:border-[#0f5a3d]"
+        className="mb-6 flex items-center gap-3.5 rounded-[16px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-4 py-3.5 shadow-[0_10px_30px_-26px_rgba(11,61,42,0.6)] transition focus-within:border-[#0f5a3d]"
       >
         <span className="flex text-[#0f5a3d]" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -258,16 +359,26 @@ export default function ResearchWorkbench() {
         <input
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ajukan pertanyaan riset — sintesis kembali dengan sitasi bernomor…"
+          placeholder={
+            hasThread
+              ? "Pertanyaan lanjutan — menelusuri lagi & menambah sumber…"
+              : "Ajukan pertanyaan riset — ditelusuri ratusan sumber…"
+          }
           className="min-w-0 flex-1 bg-transparent text-[15.5px] text-[#16211c] outline-none placeholder:text-[#9aa099]"
         />
-        <span className="hidden shrink-0 rounded-full bg-[#0f5a3d]/[0.08] px-[11px] py-1.5 text-xs font-semibold text-[#0f5a3d] [font-family:ui-monospace,monospace] sm:inline">
-          OpenAlex
-        </span>
+        {hasThread && (
+          <button
+            type="button"
+            onClick={resetThread}
+            className="hidden shrink-0 rounded-lg border border-[#0b3d2a]/14 px-2.5 py-1 text-[12px] font-semibold text-[#5d6862] transition hover:border-[#0f5a3d] sm:inline"
+          >
+            Riset baru
+          </button>
+        )}
         <button
           type="submit"
           disabled={question.trim().length < 8 || status === "loading"}
-          aria-label="Mulai riset"
+          aria-label={hasThread ? "Tanya lanjutan" : "Mulai riset"}
           className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[10px] bg-[#0f5a3d] text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {status === "loading" ? "…" : "↑"}
@@ -275,125 +386,148 @@ export default function ResearchWorkbench() {
       </form>
 
       {status === "loading" && (
-        <div className="mb-8 flex items-center gap-3 rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-5 py-4 text-sm text-[#5d6862]">
+        <div className="mb-6 flex items-center gap-3 rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-5 py-4 text-sm text-[#5d6862]">
           <span className="inline-flex gap-1" aria-hidden="true">
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:-0.3s]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:-0.15s]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#0f5a3d]" />
           </span>
-          Mencari literatur nyata &amp; menyusun sintesis…
+          Merencanakan sub-kueri, menyapu ratusan sumber, lalu membaca yang
+          paling relevan… (butuh waktu)
         </div>
       )}
 
       {status === "error" && (
-        <p className="mb-8 rounded-[14px] bg-[#ffdad6] px-5 py-4 text-sm font-semibold text-[#93000a]">
+        <p className="mb-6 rounded-[14px] bg-[#ffdad6] px-5 py-4 text-sm font-semibold text-[#93000a]">
           {error}
         </p>
       )}
 
-      {hasResult && (
+      {hasThread && (
         <div className="grid gap-7 lg:grid-cols-[1.55fr_1fr]">
-          {/* FINDINGS */}
+          {/* RESEARCH THREAD */}
           <div>
-            <div className="mb-4 flex flex-wrap items-center gap-2.5">
-              <span className="rounded-full bg-[#0f5a3d]/[0.09] px-[11px] py-1 text-xs font-semibold text-[#0f5a3d]">
-                Disintesis
-              </span>
-              <span className="text-[12.5px] text-[#8a9089]">
-                {sources.length > 0
-                  ? `${sources.length} sumber${
-                      userAddedCount > 0
-                        ? ` · ${userAddedCount} ditambahkan olehmu`
-                        : ""
-                    }`
-                  : "Tanpa literatur — hanya pengetahuan AI di bawah"}
-              </span>
-            </div>
-            <h2 className="mb-5 font-serif text-[24px] font-medium leading-snug tracking-[-0.01em] text-[#12211b] sm:text-[26px]">
-              {inquiryQuestion}
-            </h2>
+            {turns.map((turn, index) => {
+              const isLatest = index === turns.length - 1;
+              return (
+                <article
+                  key={turn.id}
+                  className={
+                    isLatest
+                      ? ""
+                      : "mb-8 border-b border-[#0b3d2a]/10 pb-8 opacity-90"
+                  }
+                >
+                  <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
+                    <span className="rounded-full bg-[#0f5a3d]/[0.09] px-[11px] py-1 text-xs font-semibold text-[#0f5a3d]">
+                      {index + 1}
+                    </span>
+                    <span className="text-[12.5px] text-[#8a9089]">
+                      Ditelusuri <strong className="font-semibold text-[#5d6862]">{turn.searchedCount}</strong> sumber · dibaca mendalam{" "}
+                      <strong className="font-semibold text-[#5d6862]">{turn.readCount}</strong>
+                    </span>
+                  </div>
+                  <h2 className="mb-4 font-serif text-[22px] font-medium leading-snug tracking-[-0.01em] text-[#12211b] sm:text-[25px]">
+                    {turn.question}
+                  </h2>
 
-            {/* Grounded, cited synthesis */}
-            {editing ? (
-              <div className="mb-6">
-                <textarea
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  className="h-64 w-full resize-y rounded-[12px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-4 py-3 text-[15px] leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
-                />
-                <div className="mt-2.5 flex gap-2.5">
-                  <button
-                    type="button"
-                    onClick={saveEdit}
-                    className="h-9 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
-                  >
-                    Simpan edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="h-9 rounded-[10px] border border-[#0b3d2a]/16 px-4 text-[13.5px] font-semibold text-[#25302a]"
-                  >
-                    Batal
-                  </button>
-                </div>
-              </div>
-            ) : (
-              synthesis.trim() !== "" && (
-                <div className="text-[15.5px] leading-relaxed text-[#2a342e] [&_a]:text-[#0f5a3d] [&_strong]:font-semibold">
-                  <MarkdownMessage text={synthesis} />
-                </div>
-              )
-            )}
+                  {turn.subQueries.length > 0 && (
+                    <details className="mb-4 rounded-[10px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-3.5 py-2">
+                      <summary className="cursor-pointer text-[12px] font-semibold text-[#5d6862]">
+                        Sudut pencarian yang dipakai ({turn.subQueries.length})
+                      </summary>
+                      <ul className="mt-2 flex flex-col gap-1">
+                        {turn.subQueries.map((sub) => (
+                          <li
+                            key={sub}
+                            className="text-[12px] text-[#7c857f] [font-family:ui-monospace,monospace]"
+                          >
+                            › {sub}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
 
-            {/* Key findings (grounded) */}
-            {keyFindings.length > 0 && !editing && (
-              <div className="mt-7">
-                <div className="mb-3.5 text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
-                  Temuan utama
-                </div>
-                <div className="flex flex-col gap-3">
-                  {keyFindings.map((finding, index) => (
-                    <div
-                      key={index}
-                      className="flex gap-3 rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3.5"
-                    >
-                      <span
-                        className="shrink-0 font-bold"
-                        style={{ color: signalStyles[finding.signal].color }}
-                        aria-hidden="true"
-                      >
-                        {signalStyles[finding.signal].glyph}
-                      </span>
-                      <div className="text-[14.5px] leading-relaxed text-[#2a342e]">
-                        {finding.text}
+                  {isLatest && editing ? (
+                    <div className="mb-5">
+                      <textarea
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        className="h-64 w-full resize-y rounded-[12px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-4 py-3 text-[15px] leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
+                      />
+                      <div className="mt-2.5 flex gap-2.5">
+                        <button
+                          type="button"
+                          onClick={saveEdit}
+                          className="h-9 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                        >
+                          Simpan edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(false)}
+                          className="h-9 rounded-[10px] border border-[#0b3d2a]/16 px-4 text-[13.5px] font-semibold text-[#25302a]"
+                        >
+                          Batal
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  ) : (
+                    turn.synthesis.trim() !== "" && (
+                      <div className="text-[15.5px] leading-relaxed text-[#2a342e] [&_a]:text-[#0f5a3d] [&_strong]:font-semibold">
+                        <MarkdownMessage text={turn.synthesis} />
+                      </div>
+                    )
+                  )}
 
-            {/* AI knowledge — clearly separated, uncited */}
-            {aiContext.trim() !== "" && !editing && (
-              <div className="mt-7 rounded-[14px] border border-[#b08833]/25 bg-[#e7c77e]/[0.09] px-5 py-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-[15px]" aria-hidden="true">
-                    ✦
-                  </span>
-                  <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#8a6a1f]">
-                    Konteks dari pengetahuan AI
-                  </span>
-                </div>
-                <div className="text-[14.5px] leading-relaxed text-[#3a342a] [&_strong]:font-semibold">
-                  <MarkdownMessage text={aiContext} />
-                </div>
-                <p className="mt-2.5 text-[11.5px] leading-relaxed text-[#9a8250]">
-                  Bukan dari sumber terindeks — pengetahuan model yang perlu kamu
-                  verifikasi sendiri.
-                </p>
-              </div>
-            )}
+                  {turn.keyFindings.length > 0 && !(isLatest && editing) && (
+                    <div className="mt-6">
+                      <div className="mb-3 text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+                        Temuan utama
+                      </div>
+                      <div className="flex flex-col gap-2.5">
+                        {turn.keyFindings.map((finding, findingIndex) => (
+                          <div
+                            key={findingIndex}
+                            className="flex gap-3 rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3"
+                          >
+                            <span
+                              className="shrink-0 font-bold"
+                              style={{ color: signalStyles[finding.signal].color }}
+                              aria-hidden="true"
+                            >
+                              {signalStyles[finding.signal].glyph}
+                            </span>
+                            <div className="text-[14.5px] leading-relaxed text-[#2a342e]">
+                              {finding.text}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {turn.aiContext.trim() !== "" && !(isLatest && editing) && (
+                    <div className="mt-6 rounded-[14px] border border-[#b08833]/25 bg-[#e7c77e]/[0.09] px-5 py-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-[15px]" aria-hidden="true">✦</span>
+                        <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#8a6a1f]">
+                          Konteks dari pengetahuan AI
+                        </span>
+                      </div>
+                      <div className="text-[14.5px] leading-relaxed text-[#3a342a] [&_strong]:font-semibold">
+                        <MarkdownMessage text={turn.aiContext} />
+                      </div>
+                      <p className="mt-2.5 text-[11.5px] leading-relaxed text-[#9a8250]">
+                        Bukan dari sumber terindeks — pengetahuan model yang perlu
+                        kamu verifikasi sendiri.
+                      </p>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
 
             {!editing && (
               <div className="mt-6 flex flex-wrap items-center gap-2.5">
@@ -412,7 +546,7 @@ export default function ResearchWorkbench() {
                     disabled={saving}
                     className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    ◧ {saving ? "Menyimpan…" : "Simpan sebagai artifact"}
+                    ◧ {saving ? "Menyimpan…" : `Simpan riset (${turns.length} tahap)`}
                   </button>
                 )}
                 <button
@@ -426,7 +560,7 @@ export default function ResearchWorkbench() {
                   type="button"
                   onClick={exportCitations}
                   disabled={sources.length === 0}
-                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d] disabled:opacity-50"
                 >
                   Export sitasi
                 </button>
@@ -439,11 +573,11 @@ export default function ResearchWorkbench() {
             )}
           </div>
 
-          {/* SOURCES */}
+          {/* WORKING SOURCE SET */}
           <div>
-            <div className="mb-3.5 flex items-center justify-between">
+            <div className="mb-1.5 flex items-center justify-between">
               <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
-                Sumber · {sources.length}
+                Sumber dibaca · {sources.length}
               </span>
               <button
                 type="button"
@@ -453,19 +587,16 @@ export default function ResearchWorkbench() {
                 + Tambah sumber
               </button>
             </div>
-
-            {noSources && sources.length === 0 && (
-              <div className="mb-3 rounded-[11px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-3.5 py-3 text-[12.5px] leading-relaxed text-[#6b746e]">
-                Tidak ada literatur otomatis yang cocok (OpenAlex paling kaya
-                untuk istilah Inggris). Tambahkan sumbermu sendiri lalu tekan
-                Simpulkan ulang.
-              </div>
-            )}
+            <p className="mb-3.5 text-[11.5px] text-[#9aa099]">
+              {totalSearched} sumber ditelusuri di {turns.length} tahap ·{" "}
+              {seenKeys.length} unik terkumpul
+              {userAddedCount > 0 ? ` · ${userAddedCount} milikmu` : ""}
+            </p>
 
             {sourcesDirty && sources.length > 0 && (
               <div className="mb-3 flex items-center justify-between gap-2 rounded-[11px] border border-[#b08833]/30 bg-[#e7c77e]/15 px-3.5 py-2.5">
                 <span className="text-[12.5px] font-medium text-[#8a6a1f]">
-                  Sumber berubah — simpulkan ulang agar sintesis akurat.
+                  Sumber berubah — simpulkan ulang.
                 </span>
                 <button
                   type="button"
@@ -527,15 +658,15 @@ export default function ResearchWorkbench() {
               </div>
             )}
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex max-h-[70vh] flex-col gap-2.5 overflow-y-auto pr-1">
               {sources.map((source) => {
                 const meta = [source.authors, source.venue, source.year]
                   .filter(Boolean)
                   .join(" · ");
                 return (
                   <div
-                    key={source.n}
-                    className="group relative rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3.5"
+                    key={`${source.n}-${sourceKey(source)}`}
+                    className="group relative rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3"
                   >
                     <div className="flex gap-2.5">
                       <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-md bg-[#0f5a3d]/10 text-[11px] font-bold text-[#0f5a3d]">
@@ -548,12 +679,12 @@ export default function ResearchWorkbench() {
                               href={source.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[13.5px] font-semibold leading-snug text-[#25302a] hover:text-[#0f5a3d]"
+                              className="text-[13px] font-semibold leading-snug text-[#25302a] hover:text-[#0f5a3d]"
                             >
                               {source.title}
                             </a>
                           ) : (
-                            <span className="text-[13.5px] font-semibold leading-snug text-[#25302a]">
+                            <span className="text-[13px] font-semibold leading-snug text-[#25302a]">
                               {source.title}
                             </span>
                           )}
@@ -564,7 +695,7 @@ export default function ResearchWorkbench() {
                           )}
                         </div>
                         {meta && (
-                          <div className="text-[12px] text-[#8a9089]">{meta}</div>
+                          <div className="text-[11.5px] text-[#8a9089]">{meta}</div>
                         )}
                       </div>
                       <button
@@ -580,19 +711,13 @@ export default function ResearchWorkbench() {
                   </div>
                 );
               })}
-              {sources.length === 0 && !noSources && (
+              {sources.length === 0 && (
                 <p className="rounded-[12px] border border-dashed border-[#0b3d2a]/15 px-4 py-6 text-center text-[13px] text-[#8a9089]">
-                  Belum ada sumber. Tambahkan sumbermu lalu simpulkan ulang.
+                  Belum ada sumber dibaca. Tambahkan sumbermu lalu simpulkan
+                  ulang.
                 </p>
               )}
             </div>
-
-            {sources.length > 0 && (
-              <p className="mt-3 px-1 text-[11.5px] leading-relaxed text-[#9aa099]">
-                Sintesis mengutip abstrak/kutipan sumber di atas — verifikasi teks
-                penuh sebelum dikutip resmi.
-              </p>
-            )}
           </div>
         </div>
       )}
