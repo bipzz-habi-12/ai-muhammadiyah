@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { Icon } from "@/components/icons";
 import {
   skillNameToLegacyStudyMode,
@@ -10,7 +10,11 @@ import {
 import type { SettingsTab } from "@/lib/mappers/types";
 import { type UserMemory } from "@/lib/memory/user-memory";
 import type { KnowledgeSource } from "@/lib/knowledge";
-import { getSkillBadge, type Skill } from "@/lib/skills";
+import {
+  FREE_CUSTOM_SKILL_LIMIT,
+  getSkillBadge,
+  type Skill,
+} from "@/lib/skills";
 import {
   modelCatalog,
   type PlanModelId,
@@ -21,12 +25,20 @@ import type { UsageSnapshot } from "@/lib/usage/limits";
 const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "personalization", label: "Personalization" },
+  { id: "skills", label: "Skill saya" },
   { id: "subscription", label: "Subscription" },
   { id: "data", label: "Data Controls" },
   { id: "security", label: "Security" },
   { id: "documents", label: "Documents" },
   { id: "knowledge", label: "Knowledge Base" },
 ];
+
+const emptySkillForm = {
+  name: "",
+  slashCommand: "",
+  category: "",
+  systemPrompt: "",
+};
 
 const languageOptions = [
   { label: "Auto", value: "" },
@@ -49,6 +61,18 @@ interface SettingsModalProps {
   modelOptions: PlanModelId[];
   skills: Skill[];
   usageSnapshot: UsageSnapshot | null;
+
+  // Skills ("Skill saya") tab
+  userId: string | null;
+  createCustomSkill: (payload: Record<string, unknown>) => Promise<boolean>;
+  updateCustomSkill: (
+    id: string,
+    payload: Record<string, unknown>,
+  ) => Promise<boolean>;
+  deleteCustomSkill: (id: string) => Promise<boolean>;
+  isMutatingSkill: boolean;
+  skillMutationError: string;
+  setSkillMutationError: Dispatch<SetStateAction<string>>;
 
   // Personalization tab
   favoriteSubjectsDraft: string;
@@ -100,6 +124,13 @@ export default function SettingsModal({
   modelOptions,
   skills,
   usageSnapshot,
+  userId,
+  createCustomSkill,
+  updateCustomSkill,
+  deleteCustomSkill,
+  isMutatingSkill,
+  skillMutationError,
+  setSkillMutationError,
   favoriteSubjectsDraft,
   setFavoriteSubjectsDraft,
   currentPlan,
@@ -129,6 +160,70 @@ export default function SettingsModal({
   isSavingProfile,
 }: SettingsModalProps) {
   const router = useRouter();
+
+  // "Skill saya" tab: local form + edit/delete state. Kept here (not threaded
+  // through page.tsx) because it is only used inside this modal.
+  const [skillForm, setSkillForm] = useState(emptySkillForm);
+  const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
+  const [confirmDeleteSkillId, setConfirmDeleteSkillId] = useState<
+    string | null
+  >(null);
+
+  const ownSkills = skills.filter(
+    (skill) => skill.isCustom && skill.ownerId === userId,
+  );
+  const platformSkills = skills.filter((skill) => skill.ownerId === null);
+  const isFreeTier = (usageSnapshot?.tier ?? "free") === "free";
+  const isCustomLimitReached =
+    isFreeTier && ownSkills.length >= FREE_CUSTOM_SKILL_LIMIT;
+  const canSubmitSkill =
+    Boolean(skillForm.name.trim()) &&
+    Boolean(skillForm.systemPrompt.trim()) &&
+    !isMutatingSkill &&
+    (Boolean(editingSkillId) || !isCustomLimitReached);
+
+  function resetSkillForm() {
+    setSkillForm(emptySkillForm);
+    setEditingSkillId(null);
+    setSkillMutationError("");
+  }
+
+  function startEditSkill(skill: Skill) {
+    setEditingSkillId(skill.id);
+    setSkillForm({
+      name: skill.name,
+      slashCommand: skill.slashCommand ?? "",
+      category: skill.category ?? "",
+      systemPrompt: skill.systemPrompt,
+    });
+    setConfirmDeleteSkillId(null);
+    setSkillMutationError("");
+  }
+
+  async function submitSkill() {
+    const payload = {
+      name: skillForm.name,
+      slashCommand: skillForm.slashCommand,
+      category: skillForm.category,
+      systemPrompt: skillForm.systemPrompt,
+    };
+    const ok = editingSkillId
+      ? await updateCustomSkill(editingSkillId, payload)
+      : await createCustomSkill(payload);
+    if (ok) {
+      resetSkillForm();
+    }
+  }
+
+  async function removeSkill(id: string) {
+    const ok = await deleteCustomSkill(id);
+    if (ok) {
+      setConfirmDeleteSkillId(null);
+      if (editingSkillId === id) {
+        resetSkillForm();
+      }
+    }
+  }
 
   if (!isSettingsOpen) {
     return null;
@@ -359,6 +454,265 @@ export default function SettingsModal({
                     placeholder="Ingin lebih paham matematika dan latihan menjawab soal."
                   />
                 </label>
+              </div>
+            )}
+
+            {activeSettingsTab === "skills" && (
+              <div className="space-y-5">
+                <div className="rounded-[24px] bg-[#fbfaf6] p-4 text-sm leading-relaxed text-[#5d6862] ring-1 ring-[#0b3d2a]/10">
+                  Skill adalah instruksi fokus yang bisa kamu aktifkan per pesan
+                  lewat perintah{" "}
+                  <span className="font-mono text-[#0f5a3d]">/</span> di kolom
+                  chat. Buat skill sendiri untuk gaya jawaban atau bidang yang
+                  sering kamu pakai.
+                </div>
+
+                {/* Create / edit form */}
+                <div className="rounded-[24px] bg-[#fbfaf6] p-4 ring-1 ring-[#0b3d2a]/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-[#16211c]">
+                      {editingSkillId ? "Edit skill" : "Buat skill baru"}
+                    </p>
+                    {isFreeTier && (
+                      <span
+                        className={
+                          isCustomLimitReached && !editingSkillId
+                            ? "rounded-full bg-[#e7c77e] px-3 py-1 text-xs font-bold text-[#8a6a1f]"
+                            : "rounded-full bg-[#0f5a3d]/10 px-3 py-1 text-xs font-bold text-[#0f5a3d]"
+                        }
+                      >
+                        {ownSkills.length}/{FREE_CUSTOM_SKILL_LIMIT} skill custom
+                      </span>
+                    )}
+                  </div>
+
+                  {isCustomLimitReached && !editingSkillId ? (
+                    <div className="mt-3 rounded-2xl bg-[#e7c77e]/25 p-3 text-sm font-semibold text-[#8a6a1f]">
+                      Paket Free dibatasi {FREE_CUSTOM_SKILL_LIMIT} skill custom.
+                      Hapus salah satu, atau{" "}
+                      <button
+                        type="button"
+                        onClick={() => router.push("/plans")}
+                        className="underline underline-offset-2"
+                      >
+                        upgrade paket
+                      </button>{" "}
+                      untuk membuat lebih banyak.
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-sm font-bold text-[#16211c]">
+                          Nama skill
+                        </span>
+                        <input
+                          value={skillForm.name}
+                          onChange={(event) =>
+                            setSkillForm((form) => ({
+                              ...form,
+                              name: event.target.value,
+                            }))
+                          }
+                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10 focus:ring-[#0f5a3d]"
+                          placeholder="Analis Fiqih"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-sm font-bold text-[#16211c]">
+                          Perintah slash{" "}
+                          <span className="font-normal text-[#8a9089]">
+                            (opsional)
+                          </span>
+                        </span>
+                        <input
+                          value={skillForm.slashCommand}
+                          onChange={(event) =>
+                            setSkillForm((form) => ({
+                              ...form,
+                              slashCommand: event.target.value,
+                            }))
+                          }
+                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 font-mono text-sm text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10 focus:ring-[#0f5a3d]"
+                          placeholder="/fiqih"
+                        />
+                      </label>
+                      <label className="block sm:col-span-2">
+                        <span className="text-sm font-bold text-[#16211c]">
+                          Kategori{" "}
+                          <span className="font-normal text-[#8a9089]">
+                            (opsional)
+                          </span>
+                        </span>
+                        <input
+                          value={skillForm.category}
+                          onChange={(event) =>
+                            setSkillForm((form) => ({
+                              ...form,
+                              category: event.target.value,
+                            }))
+                          }
+                          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-sm text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10 focus:ring-[#0f5a3d]"
+                          placeholder="Islamic Studies"
+                        />
+                      </label>
+                      <label className="block sm:col-span-2">
+                        <span className="text-sm font-bold text-[#16211c]">
+                          Instruksi skill
+                        </span>
+                        <textarea
+                          value={skillForm.systemPrompt}
+                          onChange={(event) =>
+                            setSkillForm((form) => ({
+                              ...form,
+                              systemPrompt: event.target.value,
+                            }))
+                          }
+                          className="mt-2 min-h-32 w-full resize-y rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10 focus:ring-[#0f5a3d]"
+                          placeholder="Jawab sebagai analis fiqih: jelaskan dalil, sebutkan pandangan Majelis Tarjih bila relevan, dan bedakan mana yang ijtihad."
+                        />
+                      </label>
+
+                      {skillMutationError && (
+                        <p className="rounded-2xl bg-[#ffdad6] p-3 text-sm font-semibold text-[#93000a] sm:col-span-2">
+                          {skillMutationError}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap gap-3 sm:col-span-2">
+                        <button
+                          type="button"
+                          onClick={submitSkill}
+                          disabled={!canSubmitSkill}
+                          className="h-11 rounded-full bg-[#0f5a3d] px-6 text-sm font-bold text-white transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:bg-[#0f5a3d]/40"
+                        >
+                          {isMutatingSkill
+                            ? "Menyimpan..."
+                            : editingSkillId
+                              ? "Simpan perubahan"
+                              : "Buat skill"}
+                        </button>
+                        {editingSkillId && (
+                          <button
+                            type="button"
+                            onClick={resetSkillForm}
+                            disabled={isMutatingSkill}
+                            className="h-11 rounded-full bg-white px-6 text-sm font-bold text-[#16211c] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#ece9df] disabled:opacity-60"
+                          >
+                            Batal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* User's own custom skills */}
+                <div className="space-y-3">
+                  <p className="text-sm font-bold text-[#16211c]">
+                    Skill custom-mu ({ownSkills.length})
+                  </p>
+                  {ownSkills.length === 0 ? (
+                    <div className="rounded-[22px] bg-[#fbfaf6] p-4 text-sm leading-relaxed text-[#5d6862] ring-1 ring-[#0b3d2a]/10">
+                      Belum ada skill custom. Buat satu di atas untuk mulai.
+                    </div>
+                  ) : (
+                    ownSkills.map((skill) => (
+                      <div
+                        key={skill.id}
+                        className="rounded-[22px] bg-[#fbfaf6] p-4 ring-1 ring-[#0b3d2a]/10"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#16211c]">
+                              {skill.name}
+                              {skill.slashCommand && (
+                                <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 font-mono text-xs font-bold text-[#0f5a3d]">
+                                  {skill.slashCommand}
+                                </span>
+                              )}
+                            </p>
+                            {skill.category && (
+                              <p className="mt-1 text-xs font-semibold text-[#8a9089]">
+                                {skill.category}
+                              </p>
+                            )}
+                            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[#5d6862]">
+                              {skill.systemPrompt}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEditSkill(skill)}
+                              className="rounded-full bg-white px-4 py-2 text-xs font-bold text-[#0f5a3d] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#ece9df]"
+                            >
+                              Edit
+                            </button>
+                            {confirmDeleteSkillId === skill.id ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => removeSkill(skill.id)}
+                                  disabled={isMutatingSkill}
+                                  className="rounded-full bg-[#ba1a1a] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#93000a] disabled:opacity-60"
+                                >
+                                  Ya, hapus
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteSkillId(null)}
+                                  className="rounded-full bg-white px-4 py-2 text-xs font-bold text-[#16211c] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#ece9df]"
+                                >
+                                  Batal
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteSkillId(skill.id)}
+                                className="rounded-full bg-white px-4 py-2 text-xs font-bold text-[#ba1a1a] ring-1 ring-[#ffdad6] transition hover:bg-[#ffdad6]"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Platform-provided skills (read-only reference) */}
+                <div className="space-y-3">
+                  <p className="text-sm font-bold text-[#16211c]">
+                    Skill bawaan platform
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {platformSkills.map((skill) => (
+                      <div
+                        key={skill.id}
+                        className="rounded-[18px] bg-[#fbfaf6] p-3 ring-1 ring-[#0b3d2a]/10"
+                      >
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#16211c]">
+                          {skill.name}
+                          {skill.slashCommand && (
+                            <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 font-mono text-xs font-bold text-[#0f5a3d]">
+                              {skill.slashCommand}
+                            </span>
+                          )}
+                          <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 text-[11px] font-bold text-[#0f5a3d]">
+                            {getSkillBadge(skill, usageSnapshot?.tier)}
+                          </span>
+                        </p>
+                        {skill.category && (
+                          <p className="mt-1 text-xs font-semibold text-[#8a9089]">
+                            {skill.category}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

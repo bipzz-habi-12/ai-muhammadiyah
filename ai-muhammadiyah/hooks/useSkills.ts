@@ -35,10 +35,16 @@ export function useSkills(
     string | null
   >(null);
   const skillsRef = useRef<Skill[]>([]);
+  // The user whose skills are loaded, captured so the CRUD handlers can refetch
+  // after a mutation without threading userId through every call site.
+  const userIdRef = useRef<string | null>(null);
+  const [isMutatingSkill, setIsMutatingSkill] = useState(false);
+  const [skillMutationError, setSkillMutationError] = useState("");
 
   const loadSkills = useCallback(
     async (currentUserId: string): Promise<Skill[]> => {
       setSkillsLoading(true);
+      userIdRef.current = currentUserId;
 
       try {
         const supabase = createSupabaseBrowserClient();
@@ -53,6 +59,65 @@ export function useSkills(
       }
     },
     [],
+  );
+
+  // Shared write path for POST /api/skills and PATCH/DELETE /api/skills/[id].
+  // On success it refetches the full list (RLS-scoped) so the UI, slash picker,
+  // and skill dropdown all reflect the change. Returns true on success.
+  const runSkillMutation = useCallback(
+    async (
+      path: string,
+      method: "POST" | "PATCH" | "DELETE",
+      payload?: Record<string, unknown>,
+    ): Promise<boolean> => {
+      setIsMutatingSkill(true);
+      setSkillMutationError("");
+
+      try {
+        const response = await fetch(path, {
+          method,
+          headers: payload ? { "Content-Type": "application/json" } : undefined,
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+
+        if (!response.ok) {
+          const data = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          setSkillMutationError(data?.error ?? "Skill belum bisa disimpan.");
+          return false;
+        }
+
+        if (userIdRef.current) {
+          await loadSkills(userIdRef.current);
+        }
+        return true;
+      } catch (error) {
+        console.error(error);
+        setSkillMutationError("Koneksi bermasalah. Coba lagi.");
+        return false;
+      } finally {
+        setIsMutatingSkill(false);
+      }
+    },
+    [loadSkills],
+  );
+
+  const createCustomSkill = useCallback(
+    (payload: Record<string, unknown>) =>
+      runSkillMutation("/api/skills", "POST", payload),
+    [runSkillMutation],
+  );
+
+  const updateCustomSkill = useCallback(
+    (id: string, payload: Record<string, unknown>) =>
+      runSkillMutation(`/api/skills/${id}`, "PATCH", payload),
+    [runSkillMutation],
+  );
+
+  const deleteCustomSkill = useCallback(
+    (id: string) => runSkillMutation(`/api/skills/${id}`, "DELETE"),
+    [runSkillMutation],
   );
 
   function selectSkill(skillId: string) {
@@ -105,5 +170,11 @@ export function useSkills(
     selectedSkillBadge,
     messageSkillOverrideId,
     setMessageSkillOverrideId,
+    createCustomSkill,
+    updateCustomSkill,
+    deleteCustomSkill,
+    isMutatingSkill,
+    skillMutationError,
+    setSkillMutationError,
   };
 }

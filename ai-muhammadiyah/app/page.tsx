@@ -108,6 +108,12 @@ export default function Home() {
     selectedSkillBadge,
     messageSkillOverrideId,
     setMessageSkillOverrideId,
+    createCustomSkill,
+    updateCustomSkill,
+    deleteCustomSkill,
+    isMutatingSkill,
+    skillMutationError,
+    setSkillMutationError,
   } = useSkills(usageSnapshot?.tier, setIsStudyModeMenuOpen);
   const {
     selectedModel,
@@ -801,6 +807,13 @@ export default function Home() {
         modelOptions={modelOptions}
         skills={skills}
         usageSnapshot={usageSnapshot}
+        userId={userId}
+        createCustomSkill={createCustomSkill}
+        updateCustomSkill={updateCustomSkill}
+        deleteCustomSkill={deleteCustomSkill}
+        isMutatingSkill={isMutatingSkill}
+        skillMutationError={skillMutationError}
+        setSkillMutationError={setSkillMutationError}
         favoriteSubjectsDraft={favoriteSubjectsDraft}
         setFavoriteSubjectsDraft={setFavoriteSubjectsDraft}
         currentPlan={currentPlan}

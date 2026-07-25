@@ -95,7 +95,8 @@ export type SettingsTab =
   | "data"
   | "security"
   | "documents"
-  | "knowledge";
+  | "knowledge"
+  | "skills";
 
 export type ActiveTool = "chat" | "docs" | "tasks" | "sheets" | "canvas";
 
