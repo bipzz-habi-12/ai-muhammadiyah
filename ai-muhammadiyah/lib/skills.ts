@@ -136,6 +136,24 @@ export function resolveAllowedSkill(
   return findDefaultSkill(skills);
 }
 
+// Shared "deep expert" scaffold prepended to every CUSTOM skill's prompt at
+// compose time. Custom skills are user-authored and often short, so this lifts
+// any of them to specialist-level behavior — while deferring to the user's own
+// instruction and enforcing honesty guardrails. Built-in skills already carry
+// their own deep-expert prompts (see the platform seed migrations) and are
+// returned untouched.
+export const CUSTOM_SKILL_EXPERT_SCAFFOLD = [
+  "EXPERT MODE — Anda menjalankan skill khusus yang dibuat pengguna (didefinisikan di bawah, setelah 'DEFINISI SKILL').",
+  "Perlakukan definisi skill itu sebagai fokus dan persona utama, dan terapkan dengan setia. Ketika tugas menuntut kedalaman, hadirkan keahlian tingkat pakar:",
+  "- Klarifikasi ruang lingkup atau detail penting lebih dulu bila jawaban akan panjang dan ada ambiguitas.",
+  "- Gunakan metode dan penalaran terstruktur, langkah demi langkah, sesuai domain skill.",
+  "- Susun keluaran dengan rapi (bagian, poin, atau tabel sesuai kebutuhan).",
+  "- Nyatakan asumsi, batasan, dan tingkat keyakinan; bedakan fakta, bukti, dan opini.",
+  "- JANGAN mengarang fakta, angka, data, dalil, atau sitasi; sarankan verifikasi bila sumber tidak pasti.",
+  "- Tetap di dalam cakupan skill ini dan jaga identitas serta adab AI Muhammadiyah.",
+  "DEFINISI SKILL:",
+].join("\n");
+
 export function getSkillSystemPrompt(
   skill: Skill,
   tier?: SubscriptionTier | null,
@@ -143,11 +161,16 @@ export function getSkillSystemPrompt(
   const hasPremiumPrompt = Boolean(skill.systemPromptPremium?.trim());
   const isAboveFree = Boolean(tier && tier !== "free");
 
-  if (hasPremiumPrompt && isAboveFree && canAccessTier(tier, skill.minTier)) {
-    return skill.systemPromptPremium as string;
+  const chosen =
+    hasPremiumPrompt && isAboveFree && canAccessTier(tier, skill.minTier)
+      ? (skill.systemPromptPremium as string)
+      : skill.systemPrompt;
+
+  if (skill.isCustom) {
+    return `${CUSTOM_SKILL_EXPERT_SCAFFOLD}\n${chosen}`;
   }
 
-  return skill.systemPrompt;
+  return chosen;
 }
 
 export function getSkillBadge(skill: Skill, tier?: SubscriptionTier | null) {

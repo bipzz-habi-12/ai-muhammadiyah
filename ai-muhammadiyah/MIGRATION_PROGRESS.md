@@ -537,3 +537,22 @@ User: *"ganti skill bawaan agar lebih bervariasi, dan test skill custom, setelah
 - **Uji CRUD skill custom ke DB nyata** (round-trip service-role, bersih tanpa residu): create (owner_id = user asli, `is_custom=true`) OK · slash duplikat ditolak `23505` (unique global) OK · read-back OK · delete OK · konfirmasi row hilang OK.
 
 **Belum:** preview interaktif ber-login oleh user (picker `/` berisi 14 skill, buat skill custom lewat tab "Skill saya"), lalu commit. **Belum di-commit** (menunggu preview user).
+
+> Catatan: 34 & 34b akhirnya **di-commit `c421842` + push ke `main`** (Vercel deploy), setelah user preview + minta commit.
+
+### Addendum Langkah 34c: skill jadi "pakar mendalam" — prompt bawaan diperdalam + scaffold pakar untuk skill custom — SELESAI (preview user menunggu)
+
+User: *"jadikan pakar mendalam, jangan hanya skill bawaan tapi juga skill custom"*. Sebelumnya prompt skill terbukti (uji A/B live) **mengarahkan** tapi dangkal — cuma 1 dari ~7 lapis system prompt (`createGeminiSystemInstruction`/`createOpenAiInstructions` di `lib/ai/chat.ts`: identitas + prioritas konteks + penyelesaian + gaya + artifact + **skill** + memori), ~40–60 kata di atas basis ~1000 kata. Dinaikkan lewat dua jalur:
+
+- **Skill bawaan (7 domain baru) — migrasi `20260725020000_deepen_platform_skills.sql`:** `update system_prompt` in-place (owner null, by name) dari 4-bullet ringan → **prompt deep-expert** (peran pakar senior + metode langkah-demi-langkah + struktur keluaran + rambu domain + penanganan asumsi/ketidakpastian). Panjang naik ~250 → **887–1182 char**/skill. 7 skill teaching lama **sengaja dibiarkan** (mode belajar ringan, bukan pakar domain). Idempoten (target teks tetap), mensupersede prompt dangkal `010000`. **Di-apply langsung ke DB produksi** via skrip service-role (baca prompt langsung dari file migrasi biar identik) supaya user bisa preview.
+- **Skill custom — kode `lib/skills.ts`:** konstanta `CUSTOM_SKILL_EXPERT_SCAFFOLD` di-prepend ke prompt tiap skill custom di `getSkillSystemPrompt` (hanya `skill.isCustom`; skill bawaan sudah deep sendiri, dikembalikan apa adanya). Scaffold **menghormati instruksi user** ("perlakukan sebagai fokus & persona utama, terapkan dengan setia") lalu menambah rigor (metode terstruktur, nyatakan asumsi/keyakinan, bedakan fakta/opini) + **rambu kejujuran** ("JANGAN mengarang fakta/data/dalil/sitasi; sarankan verifikasi"). Jadi skill custom sependek 1 kalimat pun jalan sebagai pakar. Hanya dipanggil `/api/chat` (server) → tak bocor ke UI, tak double-wrap. `SettingsModal` dapat 1 baris helper: *"Setiap skill custom otomatis dijalankan dalam mode pakar mendalam."*
+
+**Verifikasi (data nyata):** 7 prompt bawaan terkonfirmasi terupdate di DB (char count + baris pertama "SKILL: … — pakar …"). **A/B scaffold custom (Gemini, thinking off, output penuh):** skill custom **1 kalimat** ("konsultan hukum keluarga Islam") ditanya wali menikahkan anak tanpa persetujuan → **tanpa scaffold** = jawaban benar tapi ringkas; **dengan scaffold** = pembedaan **mazhab per mazhab** (nuansa *wali mujbir* Maliki), bagian "Pengecualian sangat terbatas & kontroversial", framing Jawaban Singkat→Penjelasan Mendalam, "Catatan Penting" rujuk hukum setempat. `tsc`/`eslint`/`next build` bersih.
+
+**Gap/catatan:**
+- **"Jangan mengarang dalil" = guardrail lunak, bukan jaminan keras.** Model masih bisa mengutip hadis/ayat dengan percaya diri (di uji, HR. Bukhari/Muslim yang dikutip kebetulan sahih & masyhur) — tetap perlu verifikasi manusia. Ditegaskan di scaffold, tapi bukan penjamin.
+- **Scaffold custom = perubahan KODE** → baru aktif di app setelah **deploy (commit+push)**; sementara skill bawaan deep sudah live via DB. Sampai commit, efek custom hanya terbukti via A/B.
+- 7 skill teaching lama belum diperdalam (by design) — bisa menyusul bila diminta.
+- Custom masih belum pakai `system_prompt_premium` (scaffold sudah mengangkat kedalamannya; tier-depth bisa ditambah nanti).
+
+**Belum di-commit** (menunggu preview user, sesuai pola "preview baru commit").

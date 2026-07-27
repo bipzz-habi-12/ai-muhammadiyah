@@ -464,7 +464,13 @@ export default function SettingsModal({
                   lewat perintah{" "}
                   <span className="font-mono text-[#0f5a3d]">/</span> di kolom
                   chat. Buat skill sendiri untuk gaya jawaban atau bidang yang
-                  sering kamu pakai.
+                  sering kamu pakai.{" "}
+                  <span className="font-semibold text-[#16211c]">
+                    Setiap skill custom otomatis dijalankan dalam mode pakar
+                    mendalam
+                  </span>{" "}
+                  — cukup tulis fokusnya, AI akan menambah metode, struktur, dan
+                  kehati-hatian.
                 </div>
 
                 {/* Create / edit form */}
