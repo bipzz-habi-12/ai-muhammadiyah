@@ -502,7 +502,7 @@ Angka corong ditampilkan jujur di UI: *"Ditelusuri 295 sumber · dibaca mendalam
 - Yang dibaca mendalam tetap **abstrak**, bukan teks penuh (dinyatakan di UI).
 - **End-to-end ber-login belum diuji** (OTP tak bisa dijalankan agent): pipeline & UI terbukti terpisah, tapi route asli + UI bersama masih perlu 1× cek user.
 
-## Langkah 34: Sistem Skill jadi hidup — backfill slash command bawaan + CRUD skill custom (commit belum di-push) — SELESAI (verifikasi live menunggu login user)
+## Langkah 34: Sistem Skill jadi hidup — backfill slash command bawaan + CRUD skill custom (commit `c421842`, di `main`) — SELESAI (verifikasi live menunggu login user)
 
 Permintaan user: *"di web belum tersedia skill … buatkan sistem dari skill ini (backend)"*. Diagnosis akar masalah: tabel `skills` + RLS + konsumsi skill di `/api/chat` **sudah ada** (dari Langkah 24/seed Langkah `20260704010000`), tapi (1) **7 skill bawaan tak punya `slash_command`** — kolomnya ditambah di migrasi `20260711010000` tapi tak pernah di-backfill → picker `/` di `Composer.tsx` (`slashMatches` filter `slashCommand.startsWith(input)`) **selalu kosong**, dan (2) **tak ada API skill sama sekali** → user tak bisa bikin skill sendiri. Dua-duanya ditutup di sini.
 
@@ -528,7 +528,7 @@ Permintaan user: *"di web belum tersedia skill … buatkan sistem dari skill ini
 - Skill custom tanpa slash command **tetap bisa dipilih** lewat dropdown skill di Composer (`renderSkillMenu` list semua skill) — cuma tak muncul di quick-picker `/`.
 - Skill custom belum bisa punya `system_prompt_premium` lewat form (kolom ada, tapi tak diekspos — custom = satu prompt saja). Kategori bebas teks.
 
-### Addendum Langkah 34b: 7 skill bawaan domain baru + uji CRUD custom ke DB nyata — SELESAI (preview user menunggu)
+### Addendum Langkah 34b: 7 skill bawaan domain baru + uji CRUD custom ke DB nyata — SELESAI (commit `c421842`, di `main`)
 
 User: *"ganti skill bawaan agar lebih bervariasi, dan test skill custom, setelah saya preview baru commit"*. 7 skill inti **tidak dihapus** (ada kopling legacy `study_mode` untuk riwayat lama via `lib/mappers/legacy-study-mode.ts`) — variasi **ditambah**, bukan diganti.
 
@@ -536,11 +536,9 @@ User: *"ganti skill bawaan agar lebih bervariasi, dan test skill custom, setelah
 - **Di-apply LANGSUNG ke DB produksi** (project ref `denfszrwmemqbylrilkg`) via skrip service-role (bukan tunggu apply manual) supaya user bisa preview — konten produk asli, idempoten, reversibel. Total skill bawaan **7 → 14**, semua ber-slash (diverifikasi query ulang). File migrasi tetap ditulis untuk paritas repo/produksi.
 - **Uji CRUD skill custom ke DB nyata** (round-trip service-role, bersih tanpa residu): create (owner_id = user asli, `is_custom=true`) OK · slash duplikat ditolak `23505` (unique global) OK · read-back OK · delete OK · konfirmasi row hilang OK.
 
-**Belum:** preview interaktif ber-login oleh user (picker `/` berisi 14 skill, buat skill custom lewat tab "Skill saya"), lalu commit. **Belum di-commit** (menunggu preview user).
+**Status:** di-commit `c421842` + push ke `main` (Vercel deploy) setelah user preview + minta commit. Sisa yang belum: preview interaktif ber-login penuh (picker `/` berisi 14 skill, buat skill custom lewat tab "Skill saya") — hanya perlu 1× cek user.
 
-> Catatan: 34 & 34b akhirnya **di-commit `c421842` + push ke `main`** (Vercel deploy), setelah user preview + minta commit.
-
-### Addendum Langkah 34c: skill jadi "pakar mendalam" — prompt bawaan diperdalam + scaffold pakar untuk skill custom — SELESAI (preview user menunggu)
+### Addendum Langkah 34c: skill jadi "pakar mendalam" — prompt bawaan diperdalam + scaffold pakar untuk skill custom — SELESAI (commit `77bff9a`, di `main`)
 
 User: *"jadikan pakar mendalam, jangan hanya skill bawaan tapi juga skill custom"*. Sebelumnya prompt skill terbukti (uji A/B live) **mengarahkan** tapi dangkal — cuma 1 dari ~7 lapis system prompt (`createGeminiSystemInstruction`/`createOpenAiInstructions` di `lib/ai/chat.ts`: identitas + prioritas konteks + penyelesaian + gaya + artifact + **skill** + memori), ~40–60 kata di atas basis ~1000 kata. Dinaikkan lewat dua jalur:
 
@@ -555,4 +553,4 @@ User: *"jadikan pakar mendalam, jangan hanya skill bawaan tapi juga skill custom
 - 7 skill teaching lama belum diperdalam (by design) — bisa menyusul bila diminta.
 - Custom masih belum pakai `system_prompt_premium` (scaffold sudah mengangkat kedalamannya; tier-depth bisa ditambah nanti).
 
-**Belum di-commit** (menunggu preview user, sesuai pola "preview baru commit").
+**Status:** di-commit `77bff9a` + push ke `main` (Vercel deploy) setelah user preview built-in deep + minta commit. Scaffold custom (kode) aktif di app setelah deploy Vercel selesai.
