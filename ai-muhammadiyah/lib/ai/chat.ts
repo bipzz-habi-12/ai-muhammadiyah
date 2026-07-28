@@ -142,7 +142,7 @@ const geminiFlashModel =
   process.env.GEMINI_MODEL ??
   "gemini-2.5-flash";
 const geminiProModel = process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro";
-const openAiDefaultModel = process.env.OPENAI_MODEL ?? "gpt-5-mini";
+const openAiDefaultModel = process.env.OPENAI_MODEL ?? "gpt-5.6-terra";
 const gptTestMode = process.env.GPT_TEST_MODE === "true";
 const verboseAiLogs = process.env.AI_MU_VERBOSE_LOGS === "true";
 
@@ -208,10 +208,6 @@ function resolveOpenRouterModel(route: AiRoute) {
   return aiRouteConfig[route]?.fallbackOpenRouterModel ?? openRouterDefaultModel;
 }
 
-function hasPremiumSmartAccess(tier: SubscriptionTier) {
-  return tier !== "free";
-}
-
 function hasGeminiProAccess(tier: SubscriptionTier) {
   return (
     tier === "muallim_pro" ||
@@ -224,8 +220,17 @@ function resolveOpenAiModel() {
   return openAiDefaultModel;
 }
 
-function isGpt5MiniModel(model: string) {
-  return model.toLowerCase() === "gpt-5-mini";
+// Semua model keluarga GPT-5 (gpt-5-mini, gpt-5.5, gpt-5.6-terra, ...) menolak
+// parameter `temperature` di Responses API — jadi dicek per-keluarga,
+// bukan per-nama-model persis.
+function isGpt5FamilyModel(model: string) {
+  return model.toLowerCase().startsWith("gpt-5");
+}
+
+// OpenAI dicoba lebih dulu untuk SEMUA rute dan SEMUA tier (Gemini &
+// OpenRouter tetap jadi fallback). Satu-satunya syarat: API key tersedia.
+function shouldTryOpenAiFirst() {
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
 
 function createOpenAiResponsesPayload({
@@ -267,7 +272,7 @@ function createOpenAiResponsesPayload({
     payload.stream = true;
   }
 
-  if (!isGpt5MiniModel(model)) {
+  if (!isGpt5FamilyModel(model)) {
     payload.temperature = 0.4;
   }
 
@@ -992,7 +997,7 @@ function logOpenAiRequestEvent(
 
 function createOpenAiFailureReply(error?: OpenAiErrorDetails) {
   const details = [
-    "OpenAI GPT-5 mini test mode failed.",
+    `OpenAI ${openAiDefaultModel} test mode failed.`,
     "",
     `Status: ${error?.status ?? "unknown"}`,
     "",
@@ -1880,8 +1885,9 @@ async function generateProviderReply(
   options?: ChatContextOptions,
 ): Promise<GenerateChatReplyResult> {
   const routeConfig = aiRouteConfig[route];
+  const triedOpenAi = shouldTryOpenAiFirst();
 
-  if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
+  if (triedOpenAi) {
     const openAiResult = await generateOpenAiGptReply(
       messages,
       pdfContext,
@@ -1957,9 +1963,7 @@ async function generateProviderReply(
         model: geminiResult.model,
         fallbackEvent:
           geminiResult.fallbackEvent ??
-          (route === "smart" && hasPremiumSmartAccess(access.tier)
-            ? "openai_to_gemini"
-            : undefined),
+          (triedOpenAi ? "openai_to_gemini" : undefined),
       };
     }
 
@@ -2135,8 +2139,9 @@ export async function streamChatReply(
   }
 
   const routeConfig = aiRouteConfig[route];
+  const triedOpenAi = shouldTryOpenAiFirst();
 
-  if (route === "smart" && hasPremiumSmartAccess(access.tier)) {
+  if (triedOpenAi) {
     const openAiResult = await streamOpenAiGptReply(
       recentMessages,
       pdfContext,
@@ -2231,9 +2236,7 @@ export async function streamChatReply(
         model: geminiResult.model,
         fallbackEvent:
           geminiResult.fallbackEvent ??
-          (route === "smart" && hasPremiumSmartAccess(access.tier)
-            ? "openai_to_gemini"
-            : undefined),
+          (triedOpenAi ? "openai_to_gemini" : undefined),
         finishReason: geminiResult.finishReason,
         needsContinuation: finalResult.needsContinuation,
       };

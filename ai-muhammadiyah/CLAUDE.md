@@ -12,7 +12,7 @@ Target pengguna: Pelajar, Mahasiswa, Guru, Dosen, Peneliti, Developer, Organisas
 ## Stack Teknis
 - **Frontend:** Next.js + Tailwind, deploy ke Vercel
 - **Database:** Supabase (Auth, Chat history, Knowledge Base, Workspaces, Subscription, Memory)
-- **AI Providers:** OpenAI GPT-5 mini, Gemini 2.5, OpenRouter (fallback). **Urutan routing sekarang: GPT dulu → Gemini → OpenRouter, untuk semua tier** (lihat `lib/ai/chat.ts`). Streaming, auto-fallback, vision, multimodal.
+- **AI Providers:** OpenAI **GPT-5.6 Terra** (model utama, `OPENAI_MODEL`), Gemini 2.5, OpenRouter (fallback). **Urutan routing: GPT-5.6 Terra dulu → Gemini → OpenRouter, untuk SEMUA rute (`fast`/`smart`/`document`) dan SEMUA tier termasuk Free** (lihat `lib/ai/chat.ts`, Langkah 35 di `MIGRATION_PROGRESS.md`). Streaming, auto-fallback, vision, multimodal.
 - **Auth:** Email/Password + OTP email
 
 ## Fitur yang Sudah Ada (jangan dirusak saat refactor)

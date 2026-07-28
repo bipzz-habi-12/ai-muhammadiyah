@@ -36,7 +36,7 @@ const tierLimitFallbacks: Record<
   free: {
     dailyMessageLimit: 20,
     dailyUploadLimit: 3,
-    allowedModels: ["auto", "fast"],
+    allowedModels: ["auto", "fast", "smart"],
   },
   kader_pintar: {
     dailyMessageLimit: 100,

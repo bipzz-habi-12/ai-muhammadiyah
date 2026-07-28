@@ -64,20 +64,22 @@ AI routing is implemented in `lib/ai/chat.ts`.
 | Route | Purpose | Provider Strategy | Access |
 | --- | --- | --- | --- |
 | `auto` | Selects the best available route based on message context | Routes to `fast`, `smart`, or `document` when allowed | Free+ |
-| `fast` | Fast daily learning chat | Gemini Flash, then OpenRouter fallback | Free+ |
-| `smart` | Reasoning, analysis, strategy, complex study tasks | OpenAI GPT for premium users, then Gemini, then OpenRouter | Kader Pintar+ |
-| `document` | Long-context document and image/document analysis | Gemini Pro for eligible tiers, Gemini Flash fallback, OpenRouter fallback | Muallim Pro+ |
+| `fast` | Fast daily learning chat | OpenAI GPT-5.6 Terra, then Gemini Flash, then OpenRouter | Free+ |
+| `smart` | Reasoning, analysis, strategy, complex study tasks | OpenAI GPT-5.6 Terra, then Gemini, then OpenRouter | Free+ |
+| `document` | Long-context document and image/document analysis | OpenAI GPT-5.6 Terra, then Gemini Pro for eligible tiers, Gemini Flash fallback, OpenRouter fallback | Muallim Pro+ |
+
+**Since Langkah 35, OpenAI is tried first on every route for every tier** (including Free) whenever `OPENAI_API_KEY` is set — tier only affects the model picker and the Gemini fallback quality (Pro vs Flash), not whether GPT answers.
 
 ### Provider Defaults
 
-- OpenAI model: `OPENAI_MODEL`, default `gpt-5-mini`
+- OpenAI model: `OPENAI_MODEL`, default `gpt-5.6-terra`
 - Gemini Flash model: `GEMINI_FLASH_MODEL` or `GEMINI_MODEL`, default `gemini-2.5-flash`
 - Gemini Pro model: `GEMINI_PRO_MODEL`, default `gemini-2.5-pro`
 - OpenRouter default model: `OPENROUTER_MODEL`, default `openrouter/free`
 
 ### Fallback Behavior
 
-- If Smart route OpenAI fails, the system falls back to Gemini unless `GPT_TEST_MODE=true`.
+- If OpenAI fails on any route, the system falls back to Gemini unless `GPT_TEST_MODE=true`.
 - If Gemini Pro fails, the system falls back to Gemini Flash.
 - If Gemini is unavailable, the system falls back to OpenRouter when configured.
 - If no AI provider keys are configured, the app returns a local mock response for development.
@@ -215,7 +217,7 @@ Create `.env.local` from `.env.example` and fill production values.
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL=openrouter/free
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5-mini
+OPENAI_MODEL=gpt-5.6-terra
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_FLASH_MODEL=gemini-2.5-flash

@@ -222,7 +222,7 @@ export default function Landing() {
             Dibangun di atas model yang sudah dipercaya
           </span>
           <div className="flex flex-wrap items-center gap-x-9 gap-y-3 text-[15px] font-semibold text-[#9aa099]">
-            <span>GPT-5</span>
+            <span>GPT-5.6 Terra</span>
             <span>Gemini 2.5</span>
             <span>OpenRouter</span>
             <span>Supabase</span>

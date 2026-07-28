@@ -193,12 +193,12 @@ export default function Composer({
                   {model === "smart" && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
                       <SparkIcon className="h-3 w-3" />
-                      GPT-5 mini
+                      GPT-5.6 Terra
                     </span>
                   )}
                   {model === "document" && (
                     <span className="rounded-full bg-[#e0e0ff] px-2 py-0.5 text-[11px] font-bold text-[#343d96]">
-                      Gemini Pro
+                      Konteks panjang
                     </span>
                   )}
                   {!isAllowed && (
