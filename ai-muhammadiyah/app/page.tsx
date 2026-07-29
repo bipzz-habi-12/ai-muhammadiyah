@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { measureContextUsage } from "@/lib/ai/context-window";
 import { Icon } from "@/components/icons";
 import ArtifactPanel from "@/components/ArtifactPanel";
 import ChatArea from "@/components/ChatArea";
@@ -219,7 +220,6 @@ export default function Home() {
     setSharePreview,
     messagesEndRef,
     sendMessage,
-    continueAnswer,
     loadConversation,
     resetChatSessionState,
     exportActiveChatMarkdown,
@@ -277,6 +277,19 @@ export default function Home() {
   const conversationGroups = useMemo(
     () => groupConversationsByWorkspace(visibleConversations, workspaces),
     [visibleConversations, workspaces],
+  );
+  // Pemakaian context window dihitung di client dari state yang sudah ada —
+  // tidak perlu round-trip ke server untuk indikatornya.
+  const contextUsage = useMemo(
+    () =>
+      measureContextUsage({
+        history: messages.map((message) => ({
+          role: message.role,
+          text: message.text,
+        })),
+        documentText,
+      }),
+    [messages, documentText],
   );
 
   useEffect(() => {
@@ -690,7 +703,6 @@ export default function Home() {
               isSending={isSending}
               isAwaitingFirstChunk={isAwaitingFirstChunk}
               hasMessageQuota={hasMessageQuota}
-              continueAnswer={continueAnswer}
               messagesEndRef={messagesEndRef}
               setIsAttachMenuOpen={setIsAttachMenuOpen}
               renderAttachMenu={renderAttachMenu}
@@ -742,6 +754,7 @@ export default function Home() {
                 selectedSkillId={selectedSkillId}
                 selectSkill={selectSkill}
                 setSelectedSkillId={setSelectedSkillId}
+                contextUsage={contextUsage}
                 usageSnapshot={usageSnapshot}
                 isStudyModeMenuOpen={isStudyModeMenuOpen}
                 messageSkillOverrideId={messageSkillOverrideId}

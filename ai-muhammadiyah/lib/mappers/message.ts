@@ -1,10 +1,12 @@
+import {
+  maxSingleMessageTokens,
+  trimHistoryToTokenBudget,
+  truncateToTokens,
+} from "@/lib/ai/context-window";
 import type { Skill } from "@/lib/skills";
 import { normalizeSelectedModel } from "./conversation";
 import { resolveSkillIdFromLegacyValue } from "./legacy-study-mode";
 import type { Message, MessageRow } from "./types";
-
-const maxRecentChatMessages = 10;
-const maxMessageTextLength = 2000;
 
 export function mapMessageRow(row: MessageRow, skills: Skill[]): Message {
   return {
@@ -19,22 +21,13 @@ export function mapMessageRow(row: MessageRow, skills: Skill[]): Message {
 }
 
 export function truncateMessageText(text: string) {
-  const trimmedText = text.trim();
-
-  if (trimmedText.length <= maxMessageTextLength) {
-    return trimmedText;
-  }
-
-  return `${trimmedText.slice(0, maxMessageTextLength)}\n[Pesan dipotong agar memori chat tetap ringan.]`;
+  return truncateToTokens(text, maxSingleMessageTokens);
 }
 
 export function getRecentChatHistory(messages: Message[]) {
-  // Keep only recent, useful messages so the browser state and API prompt stay small.
-  return messages
-    .filter((message) => message.text.trim())
-    .slice(-maxRecentChatMessages)
-    .map((message) => ({
-      role: message.role,
-      text: truncateMessageText(message.text),
-    }));
+  // Kirim riwayat sebanyak yang muat di anggaran context window, bukan N pesan
+  // terakhir — percakapan panjang tidak lagi kehilangan awalnya.
+  return trimHistoryToTokenBudget(
+    messages.map((message) => ({ role: message.role, text: message.text })),
+  );
 }

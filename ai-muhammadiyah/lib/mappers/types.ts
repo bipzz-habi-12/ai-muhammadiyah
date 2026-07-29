@@ -50,7 +50,6 @@ export type Message = {
   model?: PlanModelId;
   skillId?: string | null;
   documentMetadata?: DocumentMetadata | null;
-  continuationSuggested?: boolean;
 };
 
 export type Conversation = {

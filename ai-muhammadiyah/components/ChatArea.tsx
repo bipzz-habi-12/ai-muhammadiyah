@@ -46,7 +46,6 @@ interface ChatAreaProps {
   isSending: boolean;
   isAwaitingFirstChunk: boolean;
   hasMessageQuota: boolean;
-  continueAnswer: () => void;
   messagesEndRef: MutableRefObject<HTMLDivElement | null>;
   setIsAttachMenuOpen: Dispatch<SetStateAction<boolean>>;
   renderAttachMenu: () => ReactNode;
@@ -82,7 +81,6 @@ export default function ChatArea({
   isSending,
   isAwaitingFirstChunk,
   hasMessageQuota,
-  continueAnswer,
   messagesEndRef,
   setIsAttachMenuOpen,
   renderAttachMenu,
@@ -189,8 +187,16 @@ export default function ChatArea({
 
       {messages.length > 1 && (
         <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end space-y-4">
-          {messages.map((message, index) =>
-            message.role === "ai" && !message.text ? null : message.role ===
+          {messages.map((message, index) => {
+            // Pesan AI yang sedang di-stream: spark di header berdenyut dan
+            // tiap blok teks baru fade-in (gaya Claude, tanpa caret).
+            const isStreamingMessage =
+              isSending &&
+              !isAwaitingFirstChunk &&
+              message.role === "ai" &&
+              index === messages.length - 1;
+
+            return message.role === "ai" && !message.text ? null : message.role ===
               "user" ? (
               <div
                 key={index}
@@ -207,50 +213,52 @@ export default function ChatArea({
               >
                 <div className="mb-3 flex items-center gap-2.5">
                   <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[#0f5a3d] text-[#f5f3ec]">
-                    <SparkIcon className="h-4 w-4" />
+                    <SparkIcon
+                      className={
+                        isStreamingMessage
+                          ? "h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]"
+                          : "h-4 w-4"
+                      }
+                    />
                   </span>
                   <span className="text-[13px] font-semibold text-[#3a453e]">
                     AI Muhammadiyah
                   </span>
                 </div>
-                <div className="min-w-0 space-y-4 text-[15px] leading-[1.72] text-[#242e28] sm:text-[15.5px]">
+                <div
+                  className={`min-w-0 space-y-4 text-[15px] leading-[1.72] text-[#242e28] sm:text-[15.5px]${
+                    isStreamingMessage ? " ai-stream-in" : ""
+                  }`}
+                >
                   {/* Rows store raw artifact markers; collapse them to a panel
                       reference at render time (works mid-stream too). */}
                   <MarkdownMessage
                     text={formatArtifactTextForDisplay(message.text)}
                   />
-                  {message.continuationSuggested && !isSending && (
-                    <button
-                      type="button"
-                      onClick={continueAnswer}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#0f5a3d]/10 px-4 py-2 text-sm font-bold text-[#0f5a3d] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#0f5a3d]/15"
-                    >
-                      Lanjutkan jawaban
-                    </button>
-                  )}
                 </div>
               </div>
-            ),
-          )}
+            );
+          })}
 
           {isSending && isAwaitingFirstChunk && (
             <div className="animate-[messageIn_0.25s_ease-out]">
               <div className="mb-3 flex items-center gap-2.5">
                 <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[#0f5a3d] text-[#f5f3ec]">
-                  <SparkIcon className="h-4 w-4" />
+                  <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
                 </span>
                 <span className="text-[13px] font-semibold text-[#3a453e]">
                   AI Muhammadiyah
                 </span>
               </div>
-              <div className="inline-flex items-center gap-3 rounded-[13px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3 text-[13.5px] text-[#5d6862]">
-                <span className="flex items-center gap-1">
-                  <span className="h-[7px] w-[7px] animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:0ms]" />
-                  <span className="h-[7px] w-[7px] animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:150ms]" />
-                  <span className="h-[7px] w-[7px] animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:300ms]" />
-                </span>
+              {/* Spark berdenyut di area jawaban (gaya Claude), tanpa kotak
+                  "Sedang menjawab…" — label tetap ada untuk screen reader. */}
+              <SparkIcon
+                aria-hidden
+                className="h-6 w-6 text-[#0f5a3d] animate-[sparkPulse_1.4s_ease-in-out_infinite]"
+              />
+              <span className="sr-only" role="status">
                 Sedang menjawab…
-              </div>
+              </span>
             </div>
           )}
           <div ref={messagesEndRef} />

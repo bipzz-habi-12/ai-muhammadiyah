@@ -20,7 +20,11 @@ import {
   type PlanModelId,
   type SubscriptionPlan,
 } from "@/lib/subscriptions/plans";
-import type { UsageSnapshot } from "@/lib/usage/limits";
+import { formatTokenCount } from "@/lib/ai/context-window";
+import {
+  formatResetCountdown,
+  type UsageSnapshot,
+} from "@/lib/usage/limits";
 
 const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
@@ -736,33 +740,49 @@ export default function SettingsModal({
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[22px] bg-[#fbfaf6] p-4 ring-1 ring-[#0b3d2a]/10">
-                    <p className="text-sm font-bold text-[#16211c]">
-                      Usage quota
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-[#0f5a3d]">
-                      {usageSnapshot
-                        ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
-                        : "--"}
-                    </p>
-                    <p className="text-sm text-[#5d6862]">
-                      pesan tersisa hari ini
-                    </p>
-                  </div>
-                  <div className="rounded-[22px] bg-[#fbfaf6] p-4 ring-1 ring-[#0b3d2a]/10">
-                    <p className="text-sm font-bold text-[#16211c]">
-                      Document quota
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-[#0f5a3d]">
-                      {usageSnapshot
-                        ? `${usageSnapshot.remainingUploadsToday}/${usageSnapshot.dailyUploadLimit}`
-                        : "--"}
-                    </p>
-                    <p className="text-sm text-[#5d6862]">
-                      upload tersisa hari ini
-                    </p>
-                  </div>
+                  {(
+                    [
+                      { label: "Token · 5 jam", window: usageSnapshot?.tokens.session },
+                      { label: "Token · mingguan", window: usageSnapshot?.tokens.weekly },
+                    ] as const
+                  ).map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-[22px] bg-[#fbfaf6] p-4 ring-1 ring-[#0b3d2a]/10"
+                    >
+                      <p className="text-sm font-bold text-[#16211c]">
+                        {item.label}
+                      </p>
+                      <p className="mt-2 text-2xl font-bold text-[#0f5a3d]">
+                        {item.window ? `${item.window.percentRemaining}%` : "--"}
+                      </p>
+                      <p className="text-sm text-[#5d6862]">tersisa</p>
+                      <div
+                        className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#0f5a3d]/10"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={item.window?.percentRemaining ?? 0}
+                        aria-label={`Kuota tersisa ${item.label}`}
+                      >
+                        <div
+                          className="h-full rounded-full bg-[#0f5a3d] transition-[width] duration-500"
+                          style={{ width: `${item.window?.percentRemaining ?? 0}%` }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-[#7c857f]">
+                        {item.window
+                          ? `${formatTokenCount(item.window.used)}/${formatTokenCount(item.window.limit)} token · reset ${formatResetCountdown(item.window.resetsAt)}`
+                          : "Memuat…"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
+                <p className="text-xs leading-relaxed text-[#7c857f]">
+                  Satu kuota untuk semuanya, dihitung dalam token apa adanya:
+                  makin besar konteks yang dibawa percakapan (riwayat panjang,
+                  dokumen), makin banyak token yang terpakai per pesan.
+                </p>
                 <button
                   type="button"
                   onClick={() => router.push("/plans")}
@@ -860,10 +880,11 @@ export default function SettingsModal({
                     Upload limits
                   </p>
                   <p className="mt-2 text-sm leading-relaxed text-[#5d6862]">
-                    Maksimal 25 MB per file. Kuota harian mengikuti paket:{" "}
+                    Maksimal 25 MB per file. Upload memakai kuota token yang
+                    sama dengan pesan
                     {usageSnapshot
-                      ? `${usageSnapshot.dailyUploadLimit} upload/hari`
-                      : "memuat kuota"}
+                      ? ` (sisa ${usageSnapshot.tokens.session.percentRemaining}% di jendela 5 jam ini)`
+                      : ""}
                     .
                   </p>
                 </div>

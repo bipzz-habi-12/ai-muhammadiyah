@@ -105,3 +105,47 @@ body {
     transform: translateY(0);
   }
 }
+
+/* Animasi jawaban ala Claude: spark berdenyut selagi AI bekerja, dan tiap
+   blok teks baru muncul dengan fade halus selama streaming. */
+@keyframes sparkPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.82);
+    opacity: 0.5;
+  }
+}
+
+@keyframes blockIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dipasang di kontainer pesan AI yang sedang di-stream. MarkdownMessage memberi
+   key stabil per baris, jadi hanya blok yang BARU mount yang menjalankan
+   animasi ini — blok lama tidak ikut berkedip tiap flush. */
+.ai-stream-in :is(p, h3, ul, ol, li, hr, pre, table) {
+  animation: blockIn 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-stream-in :is(p, h3, ul, ol, li, hr, pre, table) {
+    animation: none;
+  }
+
+  .animate-\[sparkPulse_1\.4s_ease-in-out_infinite\] {
+    animation: none;
+  }
+}

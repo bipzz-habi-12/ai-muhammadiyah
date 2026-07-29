@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { trimHistoryToTokenBudget } from "@/lib/ai/context-window";
 import {
   streamChatReply,
   type ChatMessage,
@@ -26,7 +27,6 @@ import {
 type ChatRequestBody = {
   history?: ChatMessage[];
   messages?: ChatMessage[];
-  internalInstruction?: string;
   pdfContext?: string;
   documentContexts?: DocumentContext[];
   imageContexts?: ImageContext[];
@@ -35,8 +35,6 @@ type ChatRequestBody = {
   workspaceSystemInstructions?: string;
 };
 
-const maxRecentChatMessages = 10;
-const maxMessageTextLength = 2000;
 const maxWorkspaceSystemInstructionsLength = 4000;
 
 function isChatMessage(message: unknown): message is ChatMessage {
@@ -52,25 +50,10 @@ function isChatMessage(message: unknown): message is ChatMessage {
   );
 }
 
-function truncateMessageText(text: string) {
-  const trimmedText = text.trim();
-
-  if (trimmedText.length <= maxMessageTextLength) {
-    return trimmedText;
-  }
-
-  return `${trimmedText.slice(0, maxMessageTextLength)}\n[Pesan dipotong agar memori chat tetap ringan.]`;
-}
-
 function createSafeHistory(history: ChatMessage[]) {
-  // The browser already limits memory, but the API repeats the limit for safety.
-  return history
-    .filter((message) => message.text.trim())
-    .slice(-maxRecentChatMessages)
-    .map((message) => ({
-      role: message.role,
-      text: truncateMessageText(message.text),
-    }));
+  // Browser sudah memangkas ke anggaran token; server mengulanginya sebagai
+  // pengaman (payload tidak boleh dipercaya begitu saja).
+  return trimHistoryToTokenBudget(history);
 }
 
 function isDocumentContext(context: unknown): context is DocumentContext {
@@ -115,7 +98,6 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as ChatRequestBody;
     const rawHistory = body.history ?? body.messages ?? [];
-    const internalInstruction = body.internalInstruction ?? "";
     const pdfContext = body.pdfContext ?? "";
     const documentContexts = body.documentContexts ?? [];
     const imageContexts = body.imageContexts ?? [];
@@ -137,12 +119,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (typeof internalInstruction !== "string") {
-      return NextResponse.json(
-        { error: "Instruksi internal tidak valid." },
-        { status: 400 },
-      );
-    }
 
     if (
       !Array.isArray(documentContexts) ||
@@ -182,17 +158,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const safeHistory = createSafeHistory(
-      internalInstruction.trim()
-        ? [
-            ...rawHistory,
-            {
-              role: "user",
-              text: internalInstruction.trim(),
-            },
-          ]
-        : rawHistory,
-    );
+    const safeHistory = createSafeHistory(rawHistory);
     const latestUserMessage =
       safeHistory.findLast((message) => message.role === "user")?.text ?? "";
     const combinedDocumentContext = [
@@ -202,8 +168,11 @@ export async function POST(request: Request) {
           `${document.fileName} (${document.fileType})\n${document.text}`,
       ),
     ].filter((context) => context.trim()).join("\n\n---\n\n");
+    // Biaya kuota = TOKEN yang benar-benar terkirim: seluruh riwayat yang ikut
+    // dihitung, bukan cuma pesan terakhir — makin panjang percakapan, makin
+    // banyak token kuota yang terpakai (pola Claude), granular apa adanya.
     const estimatedInputTokens = estimateTokenUsage(
-      latestUserMessage,
+      ...safeHistory.map((message) => message.text),
       combinedDocumentContext,
       imageContexts.map((image) => image.fileName).join(" "),
     );
@@ -356,7 +325,7 @@ export async function POST(request: Request) {
 
           const finalReply = chatResult.reply || streamedReply;
           const estimatedTotalTokens = estimateTokenUsage(
-            latestUserMessage,
+            ...safeHistory.map((message) => message.text),
             combinedDocumentContext,
             finalReply,
           );
@@ -395,7 +364,6 @@ export async function POST(request: Request) {
                 skill_name: activeSkill.name,
                 fallback_event: chatResult.fallbackEvent ?? null,
                 finish_reason: chatResult.finishReason ?? null,
-                needs_continuation: Boolean(chatResult.needsContinuation),
                 streamed_reply_length: finalReply.length,
               },
               p_user_id: user.id,
@@ -410,7 +378,6 @@ export async function POST(request: Request) {
               modelUsed: chatResult.model,
               fallbackEvent: chatResult.fallbackEvent,
               finishReason: chatResult.finishReason,
-              needsContinuation: chatResult.needsContinuation,
               estimatedTotalTokens,
               error: usageError,
             });
@@ -422,7 +389,6 @@ export async function POST(request: Request) {
               modelUsed: chatResult.model,
               fallbackEvent: chatResult.fallbackEvent,
               finishReason: chatResult.finishReason,
-              needsContinuation: chatResult.needsContinuation,
               estimatedTotalTokens,
               usage: usageData,
             });

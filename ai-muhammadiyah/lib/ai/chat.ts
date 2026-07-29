@@ -1,4 +1,9 @@
 import {
+  documentTokenBudget,
+  tokensToChars,
+  trimHistoryToTokenBudget,
+} from "@/lib/ai/context-window";
+import {
   createUserMemorySystemPrompt,
   type UserMemory,
 } from "@/lib/memory/user-memory";
@@ -27,14 +32,12 @@ type GenerateChatReplyResult = {
   model: string;
   fallbackEvent?: string;
   finishReason?: string;
-  needsContinuation?: boolean;
 };
 
 type StreamChunkHandler = (chunk: string) => void | Promise<void>;
 type StreamProviderResult = {
   reply: string;
   finishReason?: string;
-  needsContinuation?: boolean;
 };
 type OpenAiErrorDetails = {
   status?: number;
@@ -87,9 +90,11 @@ export const islamicAiIdentitySystemPrompt = [
 
 const answerCompletionSystemPrompt = [
   "ANSWER COMPLETION RULES:",
-  "- Finish the answer completely and do not stop mid-sentence.",
-  "- If the answer is long, give a short summary first, then continue in structured sections.",
-  "- Prefer a complete but concise answer over an unfinished long answer.",
+  "- Deliver the ENTIRE answer in this single reply. There is no follow-up turn to finish it in.",
+  "- Never stop mid-sentence, mid-list, or mid-section, and never end on a colon that promises more.",
+  "- Never say you will continue later, ask if the user wants the rest, or use phrases like 'lanjut?', 'bersambung', or 'continued below'.",
+  "- If the topic is large, scope it so the complete answer fits: cover the essentials thoroughly rather than starting a long enumeration you cannot finish.",
+  "- A shorter answer that is finished always beats a longer answer that is cut off.",
 ].join("\n");
 
 const responseStyleSystemPrompt = [
@@ -183,14 +188,17 @@ const aiRouteConfig: Record<
   },
 };
 
-const maxRecentChatMessages = 10;
-const maxMessageTextLength = 2000;
-const maxDocumentContextLength = 12000;
+// Riwayat tidak lagi dipotong di 10 pesan / 2000 karakter — sekarang dibatasi
+// anggaran token context window (lihat lib/ai/context-window.ts).
+const maxDocumentContextLength = tokensToChars(documentTokenBudget);
 const minUsefulDocumentContextLength = 120;
-const openRouterMaxTokens = 1200;
-const openAiMaxOutputTokens = 1800;
-const geminiMaxOutputTokens = 1800;
-const continuationMarker = "\n\n[[AI_MU_CONTINUE_SUGGESTED]]";
+// Jawaban harus selesai dalam SATU output (tidak ada lagi tombol "Lanjutkan
+// jawaban"), jadi plafon token dinaikkan supaya jawaban panjang tidak terpotong
+// di tengah. `finish_reason` tetap dicatat ke usage_logs sebagai sinyal kalau
+// plafon ini masih kurang.
+const openRouterMaxTokens = 4000;
+const openAiMaxOutputTokens = 8000;
+const geminiMaxOutputTokens = 8000;
 
 function normalizeSelectedModel(selectedModel?: string): SelectedModel {
   if (
@@ -328,25 +336,10 @@ function getLatestUserMessage(messages: ChatMessage[]) {
   return messages.findLast((message) => message.role === "user")?.text ?? "";
 }
 
-function truncateMessageText(text: string) {
-  const trimmedText = text.trim();
-
-  if (trimmedText.length <= maxMessageTextLength) {
-    return trimmedText;
-  }
-
-  return `${trimmedText.slice(0, maxMessageTextLength)}\n[Pesan dipotong agar memori chat tetap ringan.]`;
-}
-
 function prepareChatHistory(messages: ChatMessage[]) {
-  // Keep only recent conversation memory so follow-up questions work without huge prompts.
-  return messages
-    .filter((message) => message.text.trim())
-    .slice(-maxRecentChatMessages)
-    .map((message) => ({
-      role: message.role,
-      text: truncateMessageText(message.text),
-    }));
+  // Kirim riwayat sebanyak yang muat di anggaran token, bukan N pesan terakhir —
+  // percakapan panjang tetap ingat konteks awalnya.
+  return trimHistoryToTokenBudget(messages);
 }
 
 function preparePdfContext(pdfContext: string) {
@@ -799,84 +792,6 @@ function isMaxTokenFinishReason(finishReason?: string | null) {
   );
 }
 
-function looksLikeIncompleteAnswer(reply: string) {
-  const trimmedReply = reply
-    .replace(continuationMarker, "")
-    .trim();
-
-  if (!trimmedReply) {
-    return false;
-  }
-
-  const lowerReply = trimmedReply.toLowerCase();
-  const lastLine = trimmedReply.split(/\r?\n/).filter(Boolean).at(-1)?.trim() ?? "";
-  const lowerLastLine = lastLine.toLowerCase();
-
-  if (/[.!?。؟)]$/.test(trimmedReply)) {
-    return false;
-  }
-
-  if (trimmedReply.endsWith(":")) {
-    return true;
-  }
-
-  if (/^([-*•]|\d+[.)])\s*$/.test(lastLine)) {
-    return true;
-  }
-
-  if (/^([-*•]|\d+[.)])\s+\S{0,32}$/.test(lastLine) && !/[.!?)]$/.test(lastLine)) {
-    return true;
-  }
-
-  const unfinishedPhrases = [
-    "berikut",
-    "yaitu",
-    "antara lain",
-    "sebagai berikut",
-    "di antaranya",
-    "mencakup",
-    "meliputi",
-    "contohnya",
-    "adalah",
-    "then",
-    "such as",
-    "including",
-  ];
-
-  return unfinishedPhrases.some(
-    (phrase) =>
-      lowerReply.endsWith(phrase) ||
-      lowerLastLine.endsWith(phrase) ||
-      lowerLastLine.endsWith(`${phrase}:`),
-  );
-}
-
-function shouldSuggestContinuation(result: StreamProviderResult) {
-  return (
-    Boolean(result.needsContinuation) ||
-    isMaxTokenFinishReason(result.finishReason) ||
-    result.reply.includes(continuationMarker) ||
-    looksLikeIncompleteAnswer(result.reply)
-  );
-}
-
-function appendContinuationMarkerIfNeeded(result: StreamProviderResult) {
-  if (!shouldSuggestContinuation(result)) {
-    return {
-      ...result,
-      needsContinuation: false,
-    };
-  }
-
-  const replyWithoutMarker = result.reply.replace(continuationMarker, "").trimEnd();
-
-  return {
-    ...result,
-    reply: `${replyWithoutMarker}${continuationMarker}`,
-    needsContinuation: true,
-  };
-}
-
 function createGeminiContents(
   messages: ChatMessage[],
   pdfContext: string,
@@ -1245,7 +1160,6 @@ async function streamOpenRouterReply(
       return {
         reply: streamedText,
         finishReason: streamedFinishReason,
-        needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
       };
     }
 
@@ -1583,8 +1497,7 @@ async function streamGeminiReply(
       ? {
           reply: streamedText,
           finishReason: streamedFinishReason,
-          needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
-        }
+          }
       : null;
   } catch (error) {
     console.error("Gemini stream request failed:", {
@@ -1859,7 +1772,6 @@ async function streamOpenAiGptReply(
     return {
       reply: streamedText,
       finishReason: streamedFinishReason,
-      needsContinuation: isMaxTokenFinishReason(streamedFinishReason),
     };
   } catch (error) {
     logOpenAiError("OpenAI GPT stream request failed:", {
@@ -2161,18 +2073,11 @@ export async function streamChatReply(
         tier: access.tier,
       });
 
-      const finalResult = appendContinuationMarkerIfNeeded(openAiResult);
-
-      if (finalResult.needsContinuation) {
-        await onChunk(continuationMarker);
-      }
-
       return {
-        reply: finalResult.reply,
+        reply: openAiResult.reply,
         provider: "openai" as const,
         model: resolveOpenAiModel(),
         finishReason: openAiResult.finishReason,
-        needsContinuation: finalResult.needsContinuation,
       };
     }
 
@@ -2224,21 +2129,14 @@ export async function streamChatReply(
         tier: access.tier,
       });
 
-      const finalResult = appendContinuationMarkerIfNeeded(geminiResult);
-
-      if (finalResult.needsContinuation) {
-        await onChunk(continuationMarker);
-      }
-
       return {
-        reply: finalResult.reply,
+        reply: geminiResult.reply,
         provider: "gemini" as const,
         model: geminiResult.model,
         fallbackEvent:
           geminiResult.fallbackEvent ??
           (triedOpenAi ? "openai_to_gemini" : undefined),
         finishReason: geminiResult.finishReason,
-        needsContinuation: finalResult.needsContinuation,
       };
     }
 
@@ -2293,19 +2191,11 @@ export async function streamChatReply(
     tier: access.tier,
   });
 
-  const finalOpenRouterResult =
-    appendContinuationMarkerIfNeeded(openRouterResult);
-
-  if (finalOpenRouterResult.needsContinuation) {
-    await onChunk(continuationMarker);
-  }
-
   return {
-    reply: finalOpenRouterResult.reply,
+    reply: openRouterResult.reply,
     provider: "openrouter" as const,
     model: resolveOpenRouterModel(route),
     fallbackEvent: "gemini_to_openrouter",
     finishReason: openRouterResult.finishReason,
-    needsContinuation: finalOpenRouterResult.needsContinuation,
   };
 }

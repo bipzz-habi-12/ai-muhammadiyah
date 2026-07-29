@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Dispatch, SetStateAction } from "react";
 import { SparkIcon, Icon } from "@/components/icons";
 import type { SettingsTab } from "@/lib/mappers/types";
-import type { UsageSnapshot } from "@/lib/usage/limits";
+import { getTightestWindow, type UsageSnapshot } from "@/lib/usage/limits";
 
 interface IconRailProps {
   // account menu (relocated here from the old Sidebar footer; shared open-state
@@ -149,7 +149,7 @@ export default function IconRail({
             </span>
             <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-1 text-xs font-bold text-[#0f5a3d]">
               {usageSnapshot
-                ? `${usageSnapshot.remainingMessagesToday}/${usageSnapshot.dailyMessageLimit}`
+                ? `${getTightestWindow(usageSnapshot.tokens).window.percentRemaining}%`
                 : "--"}
             </span>
           </button>

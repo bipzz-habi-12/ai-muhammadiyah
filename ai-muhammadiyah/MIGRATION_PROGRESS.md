@@ -555,7 +555,7 @@ User: *"jadikan pakar mendalam, jangan hanya skill bawaan tapi juga skill custom
 
 **Status:** di-commit `77bff9a` + push ke `main` (Vercel deploy) setelah user preview built-in deep + minta commit. Scaffold custom (kode) aktif di app setelah deploy Vercel selesai.
 
-## Langkah 35: Model utama naik ke GPT-5.6 Terra + GPT untuk SEMUA tier — SELESAI (belum commit)
+## Langkah 35: Model utama naik ke GPT-5.6 Terra + GPT untuk SEMUA tier — SELESAI (commit `fea903c`, di `main`; migrasi di-apply user; terbukti live: usage_logs `provider_used=openai`, `model_used=gpt-5.6-terra` di rute `auto`)
 
 Permintaan user: *"ganti dari model gpt 5-mini menjadi gpt 5.4 keatas (untuk semua tier)"*, diperjelas lewat AskUserQuestion jadi *"semua tier langsung dijawab oleh GPT"*. Model ID mula-mula dipilih `gpt-5.5`, lalu **diganti user ke `gpt-5.6-terra`** setelah ia mengecek `/v1/models` di mesinnya sendiri. Diputuskan juga: **tanpa retry ke model GPT lain** — kalau OpenAI gagal, langsung fallback ke Gemini (perilaku lama dipertahankan).
 
@@ -577,4 +577,68 @@ Permintaan user: *"ganti dari model gpt 5-mini menjadi gpt 5.4 keatas (untuk sem
 - **Model ID tak bisa diverifikasi dari sesi agent** — sandbox tak punya akses jaringan (`curl` ke `api.openai.com` = exit 000). `gpt-5.6-terra` dipilih user berdasarkan `/v1/models` yang **ia jalankan sendiri di PowerShell**, jadi keberadaan model sudah dikonfirmasi manusia, bukan ditebak agent. Tetap perlu cek pasca-deploy: kalau ID salah, panggilan gagal dan **diam-diam jatuh ke Gemini** (bukan error ke user). Bukti keras = `usage_logs.metadata` (`provider_used` / `model_used` / `fallback_event`) yang sudah dicatat tiap pesan oleh `app/api/chat/route.ts`; `GPT_TEST_MODE=true` sementara membuat kegagalan OpenAI muncul terang di balasan chat alih-alih tersembunyi.
 - **Biaya naik.** Sebelumnya user Free = 0 panggilan OpenAI; sekarang semua rute semua tier memanggil GPT-5.6 Terra lebih dulu. Kalau perlu direm, `shouldTryOpenAiFirst()` adalah satu-satunya titik yang perlu diubah.
 - **Rute `document` kini GPT dulu**, padahal sebelumnya sengaja Gemini Pro untuk konteks panjang. Dokumen sangat besar berpotensi ditolak OpenAI lalu jatuh ke Gemini Pro — hasil akhir tetap ada, tapi menambah satu round-trip.
-- **Belum diuji dengan chat live ber-login** (OTP tak bisa dijalankan agent): yang terbukti baru tipe/lint/build + pembacaan alur kode.
+- **Belum diuji dengan chat live ber-login** (OTP tak bisa dijalankan agent): yang terbukti baru tipe/lint/build + pembacaan alur kode. *(Update: setelah deploy, user membuktikan lewat query `usage_logs` — 3 pesan rute `auto` dijawab `provider_used=openai` / `model_used=gpt-5.6-terra`, nol fallback; kontras dengan baris pra-deploy yang `auto` → `gemini-2.5-flash`.)*
+
+## Langkah 36: Jawaban satu output (hapus sistem "Lanjutkan jawaban") + animasi streaming — SELESAI (belum commit)
+
+Permintaan user: *"tambahkan animasi saat AI menjawab juga hilangkan jawaban lanjutan dari AI, AI harus menjawab dalam 1 output"*.
+
+**Penghapusan sistem continuation (sisi server, `lib/ai/chat.ts` + `app/api/chat/route.ts`):**
+- `continuationMarker` (`[[AI_MU_CONTINUE_SUGGESTED]]`), `appendContinuationMarkerIfNeeded`, `shouldSuggestContinuation`, `looksLikeIncompleteAnswer` — semua **dihapus**; field `needsContinuation` dicabut dari semua tipe hasil provider & `GenerateChatReplyResult`. `finish_reason` **tetap dicatat** ke `usage_logs.metadata` sebagai sinyal kalau plafon token masih kurang (`needs_continuation` tidak lagi ditulis).
+- `internalInstruction` di body `/api/chat` dihapus (validasi + penyisipan ke history ikut hilang) — satu-satunya pemakainya adalah `continueAnswer`.
+- **Plafon output dinaikkan** supaya jawaban benar-benar muat satu output: OpenAI/Gemini 1800 → **8000** token, OpenRouter 1200 → **4000**.
+- `answerCompletionSystemPrompt` ditulis ulang: jawab TUNTAS dalam satu balasan, dilarang menggantung/berjanji melanjutkan/bertanya "lanjut?", kalau topik besar → scope-kan supaya selesai ("jawaban pendek yang selesai selalu menang atas jawaban panjang yang terpotong").
+
+**Penghapusan sisi client:**
+- `hooks/useChatSession.ts` — `continueAnswer` + opsi `hiddenInstruction`/`appendToLastAssistant` di `sendMessage` **dihapus total** (append-to-assistant path, `parseContinuationMarker` per-chunk, cabang update-vs-insert row assistant di Supabase → sekarang selalu insert row baru). `parseContinuationMarker` + `continuationMarker` di `lib/chat/errors.ts` dihapus; `Message.continuationSuggested` dicabut dari `lib/mappers/types.ts`.
+- `components/ChatArea.tsx` — tombol "Lanjutkan jawaban" dihapus.
+
+**Animasi streaming (baru — gaya Claude, atas permintaan eksplisit user *"saya ingin animasinya seperti claude"*):**
+- Versi pertama sesi ini (caret berkedip ala ChatGPT + 3 titik bounce) **diganti** sebelum commit. Final: (a) fase menunggu chunk pertama — kotak "Sedang menjawab…" ber-3-titik dihapus, diganti **SparkIcon berdenyut** (keyframe `sparkPulse`, scale+opacity breathe) di area jawaban + ikon header ikut berdenyut; label "Sedang menjawab…" tetap ada sebagai `sr-only` `role="status"` untuk screen reader; (b) fase mengalir — **tanpa caret**; ikon spark di header pesan yang sedang di-stream berdenyut, dan **tiap blok teks baru fade-in** (keyframe `blockIn`, kelas `.ai-stream-in` di `globals.css`). Trik kuncinya: `MarkdownMessage` memberi key stabil per baris (`p-${index}` dst), jadi React hanya me-mount blok BARU → hanya blok baru yang menjalankan animasi, blok lama tidak berkedip tiap flush 48ms. Keduanya di-guard `prefers-reduced-motion: reduce`.
+
+**Verifikasi:** `tsc`/`lint`/`build` bersih. Siklus animasi diuji end-to-end di browser via harness scratch (`app/dev-claude-anim-scratch/`, simulasi streaming berulang dengan markup persis ChatArea, **dihapus sebelum commit**), sampling computed-style per-200ms membuktikan ketiga fase: awaiting → 2 spark `animationName: sparkPulse` → streaming → spark header berdenyut + `<p>` baru `animationName: blockIn` → done → nol animasi tersisa (kelas dilepas tanpa flicker). Screenshot gagal (timeout tooling yang sama seperti Langkah 13/18 — bukan isu kode). Chat live ber-login belum diuji (OTP) — jalur data yang diubah identik dengan yang lama minus cabang append.
+
+**Catatan:**
+- Pesan lama di DB yang teksnya masih berisi marker `[[AI_MU_CONTINUE_SUGGESTED]]` (tersimpan sebelum langkah ini) akan menampilkan marker itu apa adanya — tidak dibersihkan retroaktif. Kalau muncul di riwayat lama dan mengganggu, perlu satu UPDATE kecil di DB.
+- Plafon 8000 token menaikkan biaya maksimum per jawaban (≈4× dari 1800) — hanya untuk jawaban yang memang panjang; jawaban pendek tidak terpengaruh.
+
+## Langkah 37: Kuota jendela 5 jam + mingguan (ala Claude), biaya ditimbang konteks, dan sistem context window — SELESAI (belum commit)
+
+Permintaan user: *"sistem kuota di web ini menjadi sistem reset 5 jam dan mingguan seperti claude"* + *"tambah sistem context window"*. Diperjelas lewat AskUserQuestion: angka = **2× opsi longgar**, **"semakin konteks window banyak semakin makan banyak kuota"**, **"kuota ditunjukkan dalam %"**; context window = **kirim riwayat lebih panjang** + **indikator sisa konteks di UI** (opsi ringkas-otomatis TIDAK dipilih).
+
+### A. Model jendela kuota (menggantikan reset harian)
+
+Dua jendela **beranker**, bukan rolling: sesi dimulai saat pesan PERTAMA setelah jendela sebelumnya kedaluwarsa lalu berlaku 5 jam penuh (pesan jam ke-4 masuk sesi sama; jam ke-6 membuka sesi baru). Sama untuk jendela mingguan (7 hari). Anker disimpan di `user_profiles.session_started_at`/`weekly_started_at`.
+
+**Keputusan penting:** yang MEMBUKA jendela hanya `increment_usage`; `get_usage_snapshot` cuma MEMBACA (jendela kedaluwarsa dianggap kosong, `resets_at` null). Kalau tidak begitu, sekadar membuka aplikasi akan menghabiskan jatah sesi tanpa mengirim satu pesan pun.
+
+### B. SATU meteran kuota berbasis TOKEN (revisi final atas permintaan user: *"usage nya dijadikan satu saja (penggunaan token) dan lebih realistis … 1001 1003 1006"*)
+
+Desain awal sesi ini (unit = `ceil(token/4000)`, meteran pesan & upload terpisah) **diganti sebelum commit**: kuota kini dihitung langsung dalam **token, granular apa adanya** (1001, 1003, 1006, …) dan **pesan + upload memakai satu kolam yang sama** (`usage_logs.estimated_tokens` di-SUM per jendela). `usage_logs.message_count` kembali selalu 1 (hitungan analitik), biaya kuota = `estimated_tokens`. Di `app/api/chat/route.ts`, estimasi token menjumlahkan **seluruh riwayat yang ikut terkirim** (dulu cuma pesan terakhir + dokumen) — itulah yang membuat biaya benar-benar mengikuti ukuran konteks.
+
+Batas per tier (token · 5 jam / minggu — setara batas unit lama × 4000, daya beli tidak berubah): Free **160rb/960rb** · Kader Pintar **800rb/5,6jt** · Muallim Pro **2,4jt/16jt** · Dakwah Digital **4,8jt/32jt** · Sinergi Ranting **16jt/112jt**. Tidak ada lagi limit upload terpisah — upload dokumen memotong kolam token yang sama.
+
+**Bonus kompatibilitas:** karena biaya = `p_estimated_tokens` yang memang sudah dikirim semua route sejak dulu, signature `check_usage_limits`/`increment_usage` **tidak berubah** dari versi 20260530 — route document & research tidak perlu disentuh sama sekali.
+
+### C. Sistem context window
+
+- **`lib/ai/context-window.ts` (BARU)** — sumber kebenaran bersama client & server: `contextWindowTokens = 200.000`, cadangan 8rb token untuk jawaban + 4rb untuk ~7 lapis system prompt, `historyTokenBudget` 55% & `documentTokenBudget` 40% dari sisanya, `maxSingleMessageTokens = 16.000`, plus `trimHistoryToTokenBudget` / `measureContextUsage` / `formatTokenCount`.
+- **Potongan keras 10-pesan/2000-karakter DIHAPUS di tiga tempat** yang selama ini menduplikasi aturan itu (`lib/ai/chat.ts`, `lib/mappers/message.ts`, `app/api/chat/route.ts`) — ketiganya sekarang memanggil `trimHistoryToTokenBudget`. Percakapan panjang tidak lagi "pikun" setelah 10 pesan. Pesan terbaru **selalu** ikut walau sendirian melebihi anggaran (kalau tidak, permintaan yang sedang berjalan justru hilang).
+- **Indikator di UI** — bar + teks di bawah composer aktif: *"Konteks 34% · 41rb/188rb token"*, berubah amber + *"pesan terlama mulai dilepas"* saat ≥80%. Dihitung **di client** dari state yang sudah ada, tanpa round-trip ke server.
+
+### D. Kuota dalam persen
+
+`UsageSnapshot` berubah bentuk total: `{ tokens: { session, weekly } }` — satu meteran, tiap jendela membawa `percentUsed`/`percentRemaining`/`resetsAt`. Helper baru `getTightestWindow` (jendela paling mepet = yang benar-benar membatasi user, itu yang ditampilkan), `hasQuota`, `formatResetCountdown`. IconRail menampilkan **persen sisa**; tab Subscription jadi **2 kartu** (Token · 5 jam / Token · mingguan) dengan bar progres, angka `used/limit` diformat `formatTokenCount` (mis. "41rb/160rb token") + hitung mundur reset. `hasUploadQuota` = `hasMessageQuota` (kolam sama). `quotas` di `plans.ts` juga jadi token ("160rb token / 5 jam").
+
+**Kompatibilitas:** `normalizeUsageSnapshot` sengaja **toleran** — kalau migrasi belum di-apply dan RPC lama masih mengembalikan bentuk lama, snapshot tetap terbentuk memakai batas dari konstanta `tierLimits` dengan pemakaian 0. UI tidak pecah, angkanya saja yang belum hidup. Ini yang membuat urutan deploy tidak kritis.
+
+**Migrasi (DITULIS, TIDAK di-apply agent):** `20260729000000_usage_windows_and_context.sql` — kolom anker di `user_profiles`, `get_subscription_limits` bentuk baru berbasis token (di-DROP dulu karena tipe kembalian berubah), `active_usage_windows` (BARU), `get_usage_snapshot` mengembalikan `session_tokens_used`/`weekly_tokens_used` (SUM `estimated_tokens`), `check_usage_limits`/`increment_usage` **signature tetap** (`create or replace` biasa). Kolom `daily_*` **sengaja tidak dihapus** supaya rollback gampang.
+
+**Verifikasi:** `tsc`/`lint`/`build` bersih (dijalankan ulang setelah revisi token-meter). Logika diuji dua ronde lewat harness scratch (dikompilasi + dijalankan di Node, **dihapus setelah selesai**): ronde 1 (29 assertion, desain unit) untuk jendela/persen/countdown/pemangkasan riwayat (60 pesan kecil semuanya lolos — dulu dipotong 10; pesan terbaru selalu ikut; pesan 5 juta karakter tetap dikirim tapi dipotong); ronde 2 (14 assertion, desain final token) membuktikan granularitas persis permintaan user (4001 chars→**1001** token, 4010→**1003**, 4022→**1006**), persen dari meteran token (41.337/160rb→26%), snapshot bentuk `tokens` tunggal, dan fallback toleran. Satu kegagalan di ronde 1 ternyata ekspektasi tes yang salah (pembulatan ke atas 2j 2m), bukan bug kode.
+
+**Gap/catatan:**
+- **Belum diuji dengan DB nyata** — perilaku anker jendela (sesi baru setelah 5 jam, reset mingguan) baru terbukti secara logika SQL, bukan dijalankan. Perlu 1× cek setelah migrasi di-apply.
+- **Estimasi token ≈ 4 karakter/token**, bukan tokenizer asli. Cukup untuk memilih apa yang dikirim & untuk indikator, tapi bukan angka tagihan.
+- **Biaya API naik** seiring riwayat yang dikirim jauh lebih panjang. Ini yang diimbangi oleh biaya kuota berunit, tapi plafon riil tetap perlu dipantau lewat `estimated_tokens` di `usage_logs`.
+- `contextWindowTokens = 200.000` adalah **asumsi** kapasitas `gpt-5.6-terra` — belum dikonfirmasi ke dokumentasi OpenAI (sandbox tanpa jaringan). Kalau ternyata lebih kecil, satu konstanta itu yang perlu diubah.
+- Kolom `daily_message_count`/`daily_upload_count`/`daily_reset_date` dan fungsi `reset_daily_counters` jadi **tidak terpakai** tapi belum dihapus.

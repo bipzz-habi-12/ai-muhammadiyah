@@ -7,8 +7,8 @@ export type SubscriptionPlan = {
   name: string;
   price: string;
   tagline: string;
-  dailyMessageLimit: number;
-  dailyUploadLimit: number;
+  sessionTokenLimit: number;
+  weeklyTokenLimit: number;
   modelNames: string[];
   modelBadges: string[];
   isGptPowered: boolean;
@@ -72,8 +72,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     name: tierLabels.free,
     price: "Rp0",
     tagline: "Mulai belajar dengan AI-mu.",
-    dailyMessageLimit: 20,
-    dailyUploadLimit: 3,
+    sessionTokenLimit: 160_000,
+    weeklyTokenLimit: 960_000,
     modelNames: ["GPT-5.6 Terra", "Auto", "Fast", "Smart"],
     modelBadges: ["Includes GPT-5.6 Terra"],
     isGptPowered: true,
@@ -84,34 +84,34 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "Upload dokumen dasar",
       "Quick Explain dan Cambridge Tutor Basic",
     ],
-    quotas: ["20 pesan per hari", "3 upload dokumen per hari"],
+    quotas: ["160rb token / 5 jam", "960rb token / minggu"],
   },
   {
     tier: "kader_pintar",
     name: tierLabels.kader_pintar,
     price: "Rp29.000",
     tagline: "Untuk kader dan pelajar aktif.",
-    dailyMessageLimit: 100,
-    dailyUploadLimit: 10,
+    sessionTokenLimit: 800_000,
+    weeklyTokenLimit: 5_600_000,
     modelNames: ["GPT-5.6 Terra", "Auto", "Fast", "Smart"],
     modelBadges: ["Includes GPT-5.6 Terra", "Kuota lebih besar"],
     isGptPowered: true,
     allowedModels: ["auto", "fast", "smart"],
     features: [
       "Akses Smart Model",
-      "Kuota harian lebih besar untuk belajar intensif",
+      "Kuota 5 jam & mingguan lebih besar untuk belajar intensif",
       "Rute GPT-5.6 Terra untuk penalaran mendalam",
       "OSN Coach, Research Mode, Advanced Cambridge, dan Full Step-by-Step",
     ],
-    quotas: ["100 pesan per hari", "10 upload dokumen per hari"],
+    quotas: ["800rb token / 5 jam", "5,6jt token / minggu"],
   },
   {
     tier: "muallim_pro",
     name: tierLabels.muallim_pro,
     price: "Rp79.000",
     tagline: "Untuk guru, mentor, dan pembimbing.",
-    dailyMessageLimit: 300,
-    dailyUploadLimit: 30,
+    sessionTokenLimit: 2_400_000,
+    weeklyTokenLimit: 16_000_000,
     modelNames: ["GPT-5.6 Terra", "Document", "Gemini 2.5 Pro (cadangan)"],
     modelBadges: ["Includes GPT-5.6 Terra", "Rute Document konteks panjang"],
     isGptPowered: true,
@@ -122,15 +122,15 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "Rute GPT-5.6 Terra untuk materi ajar dan kajian",
       "Study Modes premium untuk guru dan mentor",
     ],
-    quotas: ["300 pesan per hari", "30 upload dokumen per hari"],
+    quotas: ["2,4jt token / 5 jam", "16jt token / minggu"],
   },
   {
     tier: "dakwah_digital",
     name: tierLabels.dakwah_digital,
     price: "Rp149.000",
     tagline: "Untuk konten, dakwah, dan publikasi.",
-    dailyMessageLimit: 600,
-    dailyUploadLimit: 60,
+    sessionTokenLimit: 4_800_000,
+    weeklyTokenLimit: 32_000_000,
     modelNames: ["GPT-5.6 Terra", "Voice-ready routing", "Document"],
     modelBadges: [
       "Includes GPT-5.6 Terra",
@@ -145,15 +145,15 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "Kuota besar untuk tim konten kecil",
       "Study Modes premium untuk riset, coding, dan OSN",
     ],
-    quotas: ["600 pesan per hari", "60 upload dokumen per hari"],
+    quotas: ["4,8jt token / 5 jam", "32jt token / minggu"],
   },
   {
     tier: "sinergi_ranting",
     name: tierLabels.sinergi_ranting,
     price: "Rp299.000",
     tagline: "Untuk ranting, sekolah, dan tim bersama.",
-    dailyMessageLimit: 2000,
-    dailyUploadLimit: 200,
+    sessionTokenLimit: 16_000_000,
+    weeklyTokenLimit: 112_000_000,
     modelNames: ["Full premium routing", "GPT-5.6 Terra", "Document"],
     modelBadges: [
       "Includes GPT-5.6 Terra",
@@ -168,7 +168,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "Placeholder administrasi upgrade manual",
       "Semua Study Modes untuk sekolah dan tim",
     ],
-    quotas: ["2.000 pesan per hari", "200 upload dokumen per hari"],
+    quotas: ["16jt token / 5 jam", "112jt token / minggu"],
   },
 ];
 

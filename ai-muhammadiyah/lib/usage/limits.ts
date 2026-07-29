@@ -1,3 +1,5 @@
+import { contextWindowTokens } from "@/lib/ai/context-window";
+
 export type SubscriptionTier =
   | "free"
   | "kader_pintar"
@@ -7,15 +9,31 @@ export type SubscriptionTier =
 
 export type UsageAction = "message" | "document_upload";
 
+/** Dua jendela berjalan ala Claude: sesi 5 jam + jatah mingguan. */
+export type UsageWindowKey = "session" | "weekly";
+
+export const usageWindowLabels: Record<UsageWindowKey, string> = {
+  session: "5 jam",
+  weekly: "mingguan",
+};
+
+export type UsageWindow = {
+  limit: number;
+  used: number;
+  remaining: number;
+  /** 0-100, dibulatkan. Ini yang ditampilkan di UI. */
+  percentUsed: number;
+  percentRemaining: number;
+  /** ISO timestamp; null = jendela belum berjalan (belum ada pemakaian). */
+  resetsAt: string | null;
+};
+
 export type UsageSnapshot = {
   tier: SubscriptionTier;
-  dailyMessageLimit: number;
-  dailyUploadLimit: number;
-  messagesUsedToday: number;
-  uploadsUsedToday: number;
-  remainingMessagesToday: number;
-  remainingUploadsToday: number;
   allowedModels: string[];
+  contextWindowTokens: number;
+  /** Satu meteran untuk semua pemakaian: TOKEN (pesan & upload sekaligus). */
+  tokens: Record<UsageWindowKey, UsageWindow>;
 };
 
 export const tierLabels: Record<SubscriptionTier, string> = {
@@ -26,36 +44,44 @@ export const tierLabels: Record<SubscriptionTier, string> = {
   sinergi_ranting: "Sinergi Ranting",
 };
 
-const tierLimitFallbacks: Record<
-  SubscriptionTier,
-  Pick<
-    UsageSnapshot,
-    "dailyMessageLimit" | "dailyUploadLimit" | "allowedModels"
-  >
-> = {
+export const sessionWindowHours = 5;
+export const weeklyWindowDays = 7;
+
+/**
+ * Kuota dihitung langsung dalam TOKEN, granular apa adanya (1001, 1003, ...),
+ * bukan dibulatkan ke unit. Batas per tier = batas unit lama x 4000 token,
+ * jadi daya beli tiap paket tidak berubah — hanya satuannya yang jujur.
+ */
+export type TierLimits = {
+  sessionTokenLimit: number;
+  weeklyTokenLimit: number;
+  allowedModels: string[];
+};
+
+export const tierLimits: Record<SubscriptionTier, TierLimits> = {
   free: {
-    dailyMessageLimit: 20,
-    dailyUploadLimit: 3,
+    sessionTokenLimit: 160_000,
+    weeklyTokenLimit: 960_000,
     allowedModels: ["auto", "fast", "smart"],
   },
   kader_pintar: {
-    dailyMessageLimit: 100,
-    dailyUploadLimit: 10,
+    sessionTokenLimit: 800_000,
+    weeklyTokenLimit: 5_600_000,
     allowedModels: ["auto", "fast", "smart"],
   },
   muallim_pro: {
-    dailyMessageLimit: 300,
-    dailyUploadLimit: 30,
+    sessionTokenLimit: 2_400_000,
+    weeklyTokenLimit: 16_000_000,
     allowedModels: ["auto", "fast", "smart", "document"],
   },
   dakwah_digital: {
-    dailyMessageLimit: 600,
-    dailyUploadLimit: 60,
+    sessionTokenLimit: 4_800_000,
+    weeklyTokenLimit: 32_000_000,
     allowedModels: ["auto", "fast", "smart", "document"],
   },
   sinergi_ranting: {
-    dailyMessageLimit: 2000,
-    dailyUploadLimit: 200,
+    sessionTokenLimit: 16_000_000,
+    weeklyTokenLimit: 112_000_000,
     allowedModels: ["auto", "fast", "smart", "document"],
   },
 };
@@ -95,12 +121,46 @@ function getSnapshotValue(
   return snapshot[snakeCaseKey] ?? snapshot[camelCaseKey];
 }
 
+function getIsoString(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+export function buildUsageWindow(
+  limit: number,
+  used: number,
+  resetsAt: string | null,
+): UsageWindow {
+  const safeLimit = Math.max(limit, 1);
+  const safeUsed = Math.max(used, 0);
+  const percentUsed = Math.min(100, Math.round((safeUsed / safeLimit) * 100));
+
+  return {
+    limit: safeLimit,
+    used: safeUsed,
+    remaining: Math.max(safeLimit - safeUsed, 0),
+    percentUsed,
+    percentRemaining: 100 - percentUsed,
+    resetsAt,
+  };
+}
+
 export function estimateTokenUsage(...parts: string[]) {
   const characters = parts.reduce((total, part) => total + part.length, 0);
 
   return Math.max(1, Math.ceil(characters / 4));
 }
 
+/**
+ * Toleran terhadap RPC versi lama: kalau kolom jendela belum ada (migrasi belum
+ * di-apply), snapshot tetap terbentuk memakai batas dari `tierLimits` dengan
+ * pemakaian 0 — UI tidak pecah, cuma angkanya belum hidup.
+ */
 export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -108,21 +168,8 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
 
   const snapshot = value as Record<string, unknown>;
   const tier = normalizeSubscriptionTier(snapshot.tier);
-  const fallback = tierLimitFallbacks[tier];
-  const dailyMessageLimit = getPositiveNumber(
-    getSnapshotValue(snapshot, "daily_message_limit", "dailyMessageLimit"),
-    fallback.dailyMessageLimit,
-  );
-  const dailyUploadLimit = getPositiveNumber(
-    getSnapshotValue(snapshot, "daily_upload_limit", "dailyUploadLimit"),
-    fallback.dailyUploadLimit,
-  );
-  const messagesUsedToday = getNonNegativeNumber(
-    getSnapshotValue(snapshot, "messages_used_today", "messagesUsedToday"),
-  );
-  const uploadsUsedToday = getNonNegativeNumber(
-    getSnapshotValue(snapshot, "uploads_used_today", "uploadsUsedToday"),
-  );
+  const fallback = tierLimits[tier];
+
   const rawAllowedModels = getSnapshotValue(
     snapshot,
     "allowed_models",
@@ -132,16 +179,89 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
     ? rawAllowedModels.map(String)
     : fallback.allowedModels;
 
+  const sessionTokenLimit = getPositiveNumber(
+    getSnapshotValue(snapshot, "session_token_limit", "sessionTokenLimit"),
+    fallback.sessionTokenLimit,
+  );
+  const weeklyTokenLimit = getPositiveNumber(
+    getSnapshotValue(snapshot, "weekly_token_limit", "weeklyTokenLimit"),
+    fallback.weeklyTokenLimit,
+  );
+
+  const sessionTokensUsed = getNonNegativeNumber(
+    getSnapshotValue(snapshot, "session_tokens_used", "sessionTokensUsed"),
+  );
+  const weeklyTokensUsed = getNonNegativeNumber(
+    getSnapshotValue(snapshot, "weekly_tokens_used", "weeklyTokensUsed"),
+  );
+
+  const sessionResetsAt = getIsoString(
+    getSnapshotValue(snapshot, "session_resets_at", "sessionResetsAt"),
+  );
+  const weeklyResetsAt = getIsoString(
+    getSnapshotValue(snapshot, "weekly_resets_at", "weeklyResetsAt"),
+  );
+
   return {
     tier,
-    dailyMessageLimit,
-    dailyUploadLimit,
-    messagesUsedToday,
-    uploadsUsedToday,
-    remainingMessagesToday: Math.max(dailyMessageLimit - messagesUsedToday, 0),
-    remainingUploadsToday: Math.max(dailyUploadLimit - uploadsUsedToday, 0),
     allowedModels: allowedModels.length ? allowedModels : fallback.allowedModels,
+    contextWindowTokens: getPositiveNumber(
+      getSnapshotValue(snapshot, "context_window_tokens", "contextWindowTokens"),
+      contextWindowTokens,
+    ),
+    tokens: {
+      session: buildUsageWindow(
+        sessionTokenLimit,
+        sessionTokensUsed,
+        sessionResetsAt,
+      ),
+      weekly: buildUsageWindow(
+        weeklyTokenLimit,
+        weeklyTokensUsed,
+        weeklyResetsAt,
+      ),
+    },
   };
+}
+
+/** Jendela yang paling mepet — itu yang benar-benar membatasi user. */
+export function getTightestWindow(
+  windows: Record<UsageWindowKey, UsageWindow>,
+): { key: UsageWindowKey; window: UsageWindow } {
+  return windows.session.percentUsed >= windows.weekly.percentUsed
+    ? { key: "session", window: windows.session }
+    : { key: "weekly", window: windows.weekly };
+}
+
+export function hasQuota(windows: Record<UsageWindowKey, UsageWindow>) {
+  return windows.session.remaining > 0 && windows.weekly.remaining > 0;
+}
+
+export function formatResetCountdown(resetsAt: string | null) {
+  if (!resetsAt) {
+    return "belum berjalan";
+  }
+
+  const diffMs = new Date(resetsAt).getTime() - Date.now();
+
+  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+    return "segera reset";
+  }
+
+  const totalMinutes = Math.ceil(diffMs / 60_000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return `${days}h ${hours}j lagi`;
+  }
+
+  if (hours > 0) {
+    return `${hours}j ${minutes}m lagi`;
+  }
+
+  return `${minutes}m lagi`;
 }
 
 export async function fetchUsageSnapshot() {
@@ -160,16 +280,16 @@ export async function fetchUsageSnapshot() {
 }
 
 export function getLimitErrorMessage(error: string | undefined) {
-  if (error === "daily_message_limit_exceeded") {
-    return "Limit pesan harian paket kamu sudah habis. Silakan coba lagi besok atau upgrade paket.";
+  if (error === "session_token_limit_exceeded") {
+    return `Kuota token ${sessionWindowHours} jam terakhir sudah habis. Tunggu jendela berikutnya atau upgrade paket.`;
   }
 
-  if (error === "daily_upload_limit_exceeded") {
-    return "Limit upload dokumen harian paket kamu sudah habis. Silakan coba lagi besok atau upgrade paket.";
+  if (error === "weekly_token_limit_exceeded") {
+    return "Kuota token mingguan paket kamu sudah habis. Tunggu reset mingguan atau upgrade paket.";
   }
 
   if (error === "model_not_allowed") {
-    return "Model ini belum tersedia untuk paket kamu. Paket Free hanya dapat memakai Auto / Free Model dan Fast Model.";
+    return "Model ini belum tersedia untuk paket kamu.";
   }
 
   return "Pemakaian belum bisa diproses. Silakan coba lagi.";

@@ -9,11 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 import { parseArtifactBlocks, type ArtifactDraft } from "@/lib/artifacts";
-import {
-  getFriendlyChatError,
-  parseContinuationMarker,
-  continuationMarker,
-} from "@/lib/chat/errors";
+import { getFriendlyChatError } from "@/lib/chat/errors";
 import {
   createConversationTitle,
   mapConversationRow,
@@ -222,29 +218,14 @@ export function useChatSession(
     return conversation;
   }
 
-  async function sendMessage(
-    messageOverride?: string,
-    options?: { hiddenInstruction?: boolean; appendToLastAssistant?: boolean },
-  ) {
+  async function sendMessage(messageOverride?: string) {
     const userText = (messageOverride ?? input).trim();
-    const isHiddenInstruction = Boolean(options?.hiddenInstruction);
-    const appendTarget =
-      isHiddenInstruction && options?.appendToLastAssistant
-        ? [...messages].reverse().find((message) => message.role === "ai")
-        : undefined;
-    const canAppendToAssistant = Boolean(appendTarget?.id);
-    const appendBaseText = canAppendToAssistant
-      ? appendTarget?.text.replace(continuationMarker, "").trimEnd() ?? ""
-      : "";
 
     if (!userText || isSending || !hasMessageQuota) return;
 
-    // A "/" slash override applies to this one visible message only; hidden
-    // instructions (e.g. continueAnswer) keep the session's selected skill.
+    // A "/" slash override applies to this one visible message only.
     const activeSkill = resolveAllowedSkill(
-      isHiddenInstruction
-        ? selectedSkillId
-        : (messageSkillOverrideId ?? selectedSkillId),
+      messageSkillOverrideId ?? selectedSkillId,
       usageSnapshot?.tier,
       skills,
     );
@@ -258,7 +239,7 @@ export function useChatSession(
     // one-shot "/" override — otherwise the override would leak into the stored
     // conversation and reappear as the default on the next reload.
     const sessionSkill =
-      !isHiddenInstruction && messageSkillOverrideId
+      messageSkillOverrideId
         ? (resolveAllowedSkill(selectedSkillId, usageSnapshot?.tier, skills) ??
           activeSkill)
         : activeSkill;
@@ -306,54 +287,30 @@ export function useChatSession(
       skillId: activeSkill.id,
       documentMetadata,
     };
-    const nextMessages: Message[] = isHiddenInstruction
-      ? messages
-      : [...messages, visibleUserMessage];
-    const aiHistory = getRecentChatHistory(
-      isHiddenInstruction ? messages : nextMessages,
-    );
+    const nextMessages: Message[] = [...messages, visibleUserMessage];
+    const aiHistory = getRecentChatHistory(nextMessages);
 
     setMessages(nextMessages);
-    if (!isHiddenInstruction) {
-      setInput("");
-    }
+    setInput("");
     setIsSending(true);
     setIsAwaitingFirstChunk(true);
     const requestController = new AbortController();
     let streamFlushTimer: number | null = null;
-    let latestParsedReply = {
-      text: "",
-      needsContinuation: false,
-    };
+    let latestReplyText = "";
     let didReceiveFirstChunk = false;
     activeRequestRef.current?.abort();
     activeRequestRef.current = requestController;
 
-    const applyStreamedReply = (parsedReply = latestParsedReply) => {
+    const applyStreamedReply = (replyText = latestReplyText) => {
       setMessages((prev) => {
         const updatedMessages = [...prev];
         const lastMessage = updatedMessages.at(-1);
 
         if (lastMessage?.role === "ai") {
-          if (canAppendToAssistant && appendTarget?.id) {
-            const targetIndex = updatedMessages.findIndex(
-              (message) => message.id === appendTarget.id,
-            );
-
-            if (targetIndex >= 0) {
-              updatedMessages[targetIndex] = {
-                ...updatedMessages[targetIndex],
-                text: `${appendBaseText}\n\n${parsedReply.text}`.trim(),
-                continuationSuggested: parsedReply.needsContinuation,
-              };
-            }
-          } else {
-            updatedMessages[updatedMessages.length - 1] = {
-              ...lastMessage,
-              text: parsedReply.text,
-              continuationSuggested: parsedReply.needsContinuation,
-            };
-          }
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            text: replyText,
+          };
         }
 
         return updatedMessages;
@@ -377,45 +334,30 @@ export function useChatSession(
       conversation ??= await createConversation(userText);
       const currentConversation = conversation;
 
-      if (!isHiddenInstruction) {
-        const { error: userMessageError } = await supabase.from("messages").insert({
-          conversation_id: currentConversation.id,
-          role: "user",
-          content: userText,
-          selected_model: selectedModel,
-          study_mode: skillToLegacyStudyMode(activeSkill),
-          skill_id: activeSkill.id,
-          document_metadata: documentMetadata,
-        });
+      const { error: userMessageError } = await supabase.from("messages").insert({
+        conversation_id: currentConversation.id,
+        role: "user",
+        content: userText,
+        selected_model: selectedModel,
+        study_mode: skillToLegacyStudyMode(activeSkill),
+        skill_id: activeSkill.id,
+        document_metadata: documentMetadata,
+      });
 
-        if (userMessageError) {
-          throw userMessageError;
-        }
+      if (userMessageError) {
+        throw userMessageError;
       }
 
-      if (canAppendToAssistant) {
-        setMessages((prev) =>
-          prev.map((message) =>
-            message.id === appendTarget?.id
-              ? {
-                  ...message,
-                  continuationSuggested: false,
-                }
-              : message,
-          ),
-        );
-      } else {
-        setMessages([
-          ...nextMessages,
-          {
-            role: "ai",
-            text: "",
-            model: selectedModel,
-            skillId: activeSkill.id,
-            documentMetadata,
-          },
-        ]);
-      }
+      setMessages([
+        ...nextMessages,
+        {
+          role: "ai",
+          text: "",
+          model: selectedModel,
+          skillId: activeSkill.id,
+          documentMetadata,
+        },
+      ]);
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -425,7 +367,6 @@ export function useChatSession(
         signal: requestController.signal,
         body: JSON.stringify({
           history: aiHistory,
-          internalInstruction: isHiddenInstruction ? userText : undefined,
           pdfContext: currentDocumentContext,
           documentContexts,
           imageContexts,
@@ -465,7 +406,7 @@ export function useChatSession(
         }
 
         streamedReply += chunk;
-        latestParsedReply = parseContinuationMarker(streamedReply);
+        latestReplyText = streamedReply;
 
         if (!didReceiveFirstChunk) {
           didReceiveFirstChunk = true;
@@ -479,7 +420,7 @@ export function useChatSession(
 
       if (finalChunk) {
         streamedReply += finalChunk;
-        latestParsedReply = parseContinuationMarker(streamedReply);
+        latestReplyText = streamedReply;
         setIsAwaitingFirstChunk(false);
       }
 
@@ -488,48 +429,34 @@ export function useChatSession(
         streamFlushTimer = null;
       }
 
-      applyStreamedReply(latestParsedReply);
+      applyStreamedReply(latestReplyText);
 
-      const finalReply = parseContinuationMarker(streamedReply);
+      const finalAssistantText = streamedReply.trimEnd();
 
-      if (!finalReply.text.trim()) {
+      if (!finalAssistantText.trim()) {
         throw new Error("Chat stream returned an empty reply");
       }
 
-      const finalAssistantText = canAppendToAssistant
-        ? `${appendBaseText}\n\n${finalReply.text}`.trim()
-        : finalReply.text;
-      const assistantWrite = canAppendToAssistant && appendTarget?.id
-        ? await supabase
-            .from("messages")
-            .update({
-              content: finalAssistantText,
-              selected_model: selectedModel,
-              study_mode: skillToLegacyStudyMode(activeSkill),
-              skill_id: activeSkill.id,
-              document_metadata: documentMetadata,
-            })
-            .eq("id", appendTarget.id)
-        : await supabase
-            .from("messages")
-            .insert({
-              conversation_id: currentConversation.id,
-              role: "assistant",
-              content: finalAssistantText,
-              selected_model: selectedModel,
-              study_mode: skillToLegacyStudyMode(activeSkill),
-              skill_id: activeSkill.id,
-              document_metadata: documentMetadata,
-            })
-            .select("id")
-            .single();
+      const assistantWrite = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: currentConversation.id,
+          role: "assistant",
+          content: finalAssistantText,
+          selected_model: selectedModel,
+          study_mode: skillToLegacyStudyMode(activeSkill),
+          skill_id: activeSkill.id,
+          document_metadata: documentMetadata,
+        })
+        .select("id")
+        .single();
       const assistantMessageError = assistantWrite.error;
 
       if (assistantMessageError) {
         throw assistantMessageError;
       }
 
-      if (!canAppendToAssistant && "data" in assistantWrite && assistantWrite.data) {
+      if (assistantWrite.data) {
         const assistantRow = assistantWrite.data as { id?: string };
         if (assistantRow.id) {
           setMessages((prev) => {
@@ -541,7 +468,6 @@ export function useChatSession(
                 ...lastMessage,
                 id: assistantRow.id,
                 text: finalAssistantText,
-                continuationSuggested: finalReply.needsContinuation,
               };
             }
 
@@ -586,10 +512,7 @@ export function useChatSession(
           ),
       );
 
-      // Artifacts: parse only the newly streamed part (finalReply.text) — on a
-      // "continue answer" append, re-parsing the combined text would re-save
-      // blocks that were already saved by the previous send.
-      const artifactDrafts = parseArtifactBlocks(finalReply.text);
+      const artifactDrafts = parseArtifactBlocks(finalAssistantText);
 
       if (artifactDrafts.length) {
         const artifactsSaved = await saveArtifacts(
@@ -655,26 +578,14 @@ export function useChatSession(
         activeRequestRef.current = null;
       }
 
-      // The one-shot "/" override is consumed by this visible message; clear it
-      // so the next message reverts to the session's selected skill.
-      if (!isHiddenInstruction) {
-        setMessageSkillOverrideId(null);
-      }
+      // The one-shot "/" override is consumed by this message; clear it so the
+      // next message reverts to the session's selected skill.
+      setMessageSkillOverrideId(null);
 
       await loadUsage();
       setIsAwaitingFirstChunk(false);
       setIsSending(false);
     }
-  }
-
-  function continueAnswer() {
-    void sendMessage(
-      "Lanjutkan jawaban sebelumnya dari bagian terakhir. Jangan ulangi dari awal, lanjutkan secara runtut sampai selesai.",
-      {
-        hiddenInstruction: true,
-        appendToLastAssistant: true,
-      },
-    );
   }
 
   function getActiveChatMarkdown() {
@@ -758,7 +669,6 @@ export function useChatSession(
     setSharePreview,
     messagesEndRef,
     sendMessage,
-    continueAnswer,
     loadConversation,
     createConversation,
     resetChatSessionState,

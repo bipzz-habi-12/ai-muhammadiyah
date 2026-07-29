@@ -16,6 +16,10 @@ import {
 import { canAccessTier, getSkillBadge, type Skill } from "@/lib/skills";
 import { modelCatalog, type PlanModelId } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
+import {
+  formatTokenCount,
+  type ContextUsage,
+} from "@/lib/ai/context-window";
 
 // Shared disclaimer copy (reused by the welcome hero and the active composer).
 export const CHAT_DISCLAIMER =
@@ -53,6 +57,9 @@ interface ComposerProps {
   isStudyModeMenuOpen: boolean;
   setIsStudyModeMenuOpen: Dispatch<SetStateAction<boolean>>;
 
+  // indikator context window (hanya dipakai varian "active")
+  contextUsage?: ContextUsage | null;
+
   // one-shot per-message skill override (chosen via the "/" slash picker)
   messageSkillOverrideId: string | null;
   setMessageSkillOverrideId: Dispatch<SetStateAction<string | null>>;
@@ -85,6 +92,7 @@ export default function Composer({
   usageSnapshot,
   isStudyModeMenuOpen,
   setIsStudyModeMenuOpen,
+  contextUsage,
   messageSkillOverrideId,
   setMessageSkillOverrideId,
 }: ComposerProps) {
@@ -538,6 +546,38 @@ export default function Composer({
             </svg>
           </button>
         </div>
+
+        {contextUsage && contextUsage.percentUsed >= 1 && (
+          <div className="mt-2 flex items-center justify-center gap-2 text-[11px] font-semibold">
+            <span
+              className="h-1.5 w-24 overflow-hidden rounded-full bg-[#0b3d2a]/10"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={contextUsage.percentUsed}
+              aria-label="Context window terpakai"
+            >
+              <span
+                className={`block h-full rounded-full transition-[width] duration-500 ${
+                  contextUsage.isNearLimit ? "bg-[#b08833]" : "bg-[#0f5a3d]"
+                }`}
+                style={{ width: `${Math.max(contextUsage.percentUsed, 2)}%` }}
+              />
+            </span>
+            <span
+              className={
+                contextUsage.isNearLimit ? "text-[#b08833]" : "text-[#7c857f]"
+              }
+            >
+              Konteks {contextUsage.percentUsed}% ·{" "}
+              {formatTokenCount(contextUsage.usedTokens)}/
+              {formatTokenCount(contextUsage.windowTokens)} token
+              {contextUsage.isNearLimit
+                ? " · pesan terlama mulai dilepas"
+                : ""}
+            </span>
+          </div>
+        )}
 
         <p className="mt-2 text-center text-[11px] leading-relaxed text-[#8a9089]">
           {CHAT_DISCLAIMER}
