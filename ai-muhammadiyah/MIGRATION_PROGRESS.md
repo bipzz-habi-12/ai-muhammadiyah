@@ -642,3 +642,22 @@ Batas per tier (token · 5 jam / minggu — setara batas unit lama × 4000, daya
 - **Biaya API naik** seiring riwayat yang dikirim jauh lebih panjang. Ini yang diimbangi oleh biaya kuota berunit, tapi plafon riil tetap perlu dipantau lewat `estimated_tokens` di `usage_logs`.
 - `contextWindowTokens = 200.000` adalah **asumsi** kapasitas `gpt-5.6-terra` — belum dikonfirmasi ke dokumentasi OpenAI (sandbox tanpa jaringan). Kalau ternyata lebih kecil, satu konstanta itu yang perlu diubah.
 - Kolom `daily_message_count`/`daily_upload_count`/`daily_reset_date` dan fungsi `reset_daily_counters` jadi **tidak terpakai** tapi belum dihapus.
+
+### Hotfix Langkah 37: overload RPC kuota ganda (ditemukan saat verifikasi produksi, SUDAH BERES)
+
+Setelah user apply migrasi `20260729`, verifikasi read-only ke DB produksi menemukan **`check_usage_limits` dan `increment_usage` gagal total** dengan PostgREST `PGRST203` ("Could not choose the best candidate function"). Penyebabnya: draf awal migrasi ini (desain unit, ber-`p_cost_units`) sempat ter-apply sebelum direvisi jadi meteran token; karena versi final memakai `create or replace` dengan signature ASLI, varian lama yang parameternya beda **tidak ikut terhapus** → dua overload hidup berdampingan → tiap panggilan RPC kuota ambigu. Efeknya di app: semua chat/upload/research mati dengan *"Limit penggunaan belum bisa dicek."*
+
+**Pelajaran:** kalau satu migrasi pernah di-apply dengan signature berbeda lalu direvisi, `create or replace` saja TIDAK cukup — varian lama harus di-`drop` eksplisit.
+
+**Fix:** `20260730000000_drop_stale_usage_overloads.sql` (2 baris `drop function if exists`, di-apply user).
+
+**Verifikasi pasca-fix (data produksi nyata, read-only):**
+- `get_subscription_limits`: free `160000/960000`, sinergi_ranting `16000000/112000000`, `context_window_tokens 200000` — sesuai.
+- Kolom anker `session_started_at`/`weekly_started_at` ada, masih `null` (belum ada pemakaian → benar, jendela memang belum berjalan).
+- `get_usage_snapshot` bentuk baru: `session_tokens_used 0`, `resets_at null`.
+- **Granularitas terbukti di DB**, bukan cuma di unit test: biaya 1001 → dicatat `1001`, 1003 → `1003`, 1006 → `1006`, 159.999 → ALLOWED.
+- **Batas tepat**: 160.001 → `BLOCKED (session_token_limit_exceeded)` (limit 160.000, jadi cek `used + cost > limit` benar di batas).
+- **Gating model masih jalan**: `document` di tier free → `BLOCKED (model_not_allowed)`; `smart` → ALLOWED (efek migrasi `20260728`).
+- `increment_usage` dengan uuid acak → `23503` FK error (bukan lagi ambiguitas) = overload sudah tunggal. Tidak ada baris kuota palsu yang tertulis.
+
+**Belum diuji:** rollover jendela nyata (sesi baru setelah 5 jam, mingguan setelah 7 hari) — butuh menunggu waktu berjalan; `resets_at` baru terisi setelah pesan pertama masuk.
