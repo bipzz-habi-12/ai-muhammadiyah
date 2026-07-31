@@ -579,7 +579,7 @@ Permintaan user: *"ganti dari model gpt 5-mini menjadi gpt 5.4 keatas (untuk sem
 - **Rute `document` kini GPT dulu**, padahal sebelumnya sengaja Gemini Pro untuk konteks panjang. Dokumen sangat besar berpotensi ditolak OpenAI lalu jatuh ke Gemini Pro — hasil akhir tetap ada, tapi menambah satu round-trip.
 - **Belum diuji dengan chat live ber-login** (OTP tak bisa dijalankan agent): yang terbukti baru tipe/lint/build + pembacaan alur kode. *(Update: setelah deploy, user membuktikan lewat query `usage_logs` — 3 pesan rute `auto` dijawab `provider_used=openai` / `model_used=gpt-5.6-terra`, nol fallback; kontras dengan baris pra-deploy yang `auto` → `gemini-2.5-flash`.)*
 
-## Langkah 36: Jawaban satu output (hapus sistem "Lanjutkan jawaban") + animasi streaming — SELESAI (belum commit)
+## Langkah 36: Jawaban satu output (hapus sistem "Lanjutkan jawaban") + animasi streaming — SELESAI (commit `d4e3414`, di `main`)
 
 Permintaan user: *"tambahkan animasi saat AI menjawab juga hilangkan jawaban lanjutan dari AI, AI harus menjawab dalam 1 output"*.
 
@@ -602,7 +602,7 @@ Permintaan user: *"tambahkan animasi saat AI menjawab juga hilangkan jawaban lan
 - Pesan lama di DB yang teksnya masih berisi marker `[[AI_MU_CONTINUE_SUGGESTED]]` (tersimpan sebelum langkah ini) akan menampilkan marker itu apa adanya — tidak dibersihkan retroaktif. Kalau muncul di riwayat lama dan mengganggu, perlu satu UPDATE kecil di DB.
 - Plafon 8000 token menaikkan biaya maksimum per jawaban (≈4× dari 1800) — hanya untuk jawaban yang memang panjang; jawaban pendek tidak terpengaruh.
 
-## Langkah 37: Kuota jendela 5 jam + mingguan (ala Claude), biaya ditimbang konteks, dan sistem context window — SELESAI (belum commit)
+## Langkah 37: Kuota jendela 5 jam + mingguan (ala Claude), SATU meteran token, dan sistem context window — SELESAI (commit `d4e3414` + hotfix `49e06e4`, di `main`; migrasi di-apply user; terbukti live)
 
 Permintaan user: *"sistem kuota di web ini menjadi sistem reset 5 jam dan mingguan seperti claude"* + *"tambah sistem context window"*. Diperjelas lewat AskUserQuestion: angka = **2× opsi longgar**, **"semakin konteks window banyak semakin makan banyak kuota"**, **"kuota ditunjukkan dalam %"**; context window = **kirim riwayat lebih panjang** + **indikator sisa konteks di UI** (opsi ringkas-otomatis TIDAK dipilih).
 
@@ -661,3 +661,25 @@ Setelah user apply migrasi `20260729`, verifikasi read-only ke DB produksi menem
 - `increment_usage` dengan uuid acak → `23503` FK error (bukan lagi ambiguitas) = overload sudah tunggal. Tidak ada baris kuota palsu yang tertulis.
 
 **Belum diuji:** rollover jendela nyata (sesi baru setelah 5 jam, mingguan setelah 7 hari) — butuh menunggu waktu berjalan; `resets_at` baru terisi setelah pesan pertama masuk.
+
+### Verifikasi produksi akhir Langkah 35-37 (31 Juli 2026) — SEMUA TERBUKTI LIVE
+
+Dicek read-only ke DB produksi setelah user apply migrasi + redeploy.
+
+**Jendela kuota hidup & beranker dengan benar.** User `e6eb571b` (tier free): `session_started_at` terisi tepat saat pesan pertama (23:45), `session_resets_at` = +5 jam persis (04:45), `weekly_resets_at` = +7 hari (5 Agustus). **4 user lain masih `null`** — bukti keputusan desain "hanya `increment_usage` yang membuka jendela" benar-benar jalan: user yang cuma membuka aplikasi tidak kehilangan jatah sesi.
+
+**Granularitas token terbukti dengan beban nyata, rentang 46 s.d. 11.134 token dalam satu jendela:**
+
+| Pemakaian | Token |
+|---|---:|
+| Chat pendek | 46 |
+| Chat dengan riwayat terbawa | 1.214 / 1.285 / 2.305 |
+| `/research` deep (278 sumber disapu, 30 dibaca) | 11.134 |
+
+Ini sekaligus membuktikan "makin banyak konteks makin makan kuota" bekerja lintas-fitur, karena **satu meteran** menampung chat + riset + upload sekaligus (riset tercatat dengan metadata bentuk lain: `feature: research`, `mode: deep`, `searched`, `read` — bukan anomali).
+
+**Insiden fallback senyap (terselesaikan).** Tiga pesan 30 Juli malam tercatat `provider_used=gemini` + `fallback_event=openai_to_gemini`. Diagnosis: bukan kode. Diuji langsung ke OpenAI dengan key `.env.local` — model `gpt-5.6-terra` OK, `max_output_tokens` 8000 OK, streaming + instruksi berlapis ala produksi OK (teks pertama 2,3 detik). Deduksi kunci: `fallback_event` HANYA tercatat kalau OpenAI benar-benar dipanggil, jadi `OPENAI_API_KEY` di Vercel ada tapi berbeda/tidak valid. Setelah user menyamakan `OPENAI_API_KEY` + `OPENAI_MODEL` di Vercel lalu redeploy, pesan berikutnya (03:17) langsung `provider_used=openai`, `model_used=gpt-5.6-terra`, `fallback_event=null`. **Terbukti: env Vercel, bukan kode.**
+
+**Nilai `finish_reason` masih `null`** di semua baris = tidak ada jawaban yang terpotong plafon 8000 token sejak Langkah 36 — aturan "satu output" bertahan pada beban nyata.
+
+**Satu-satunya yang belum terbukti:** rollover jendela (sesi baru setelah 5 jam terlewat, mingguan setelah 7 hari). Butuh menunggu waktu berjalan, tidak bisa dipercepat tanpa memalsukan anker di DB.
