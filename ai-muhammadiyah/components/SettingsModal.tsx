@@ -1,8 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { Icon } from "@/components/icons";
+import { useBilling } from "@/hooks/useBilling";
+import { describeBillingSubscription } from "@/lib/subscriptions/billing";
 import {
   skillNameToLegacyStudyMode,
   skillToLegacyStudyMode,
@@ -164,6 +171,13 @@ export default function SettingsModal({
   isSavingProfile,
 }: SettingsModalProps) {
   const router = useRouter();
+  const {
+    billingState,
+    loadBillingState,
+    manageBilling,
+    isPortalPending,
+    billingError,
+  } = useBilling();
 
   // "Skill saya" tab: local form + edit/delete state. Kept here (not threaded
   // through page.tsx) because it is only used inside this modal.
@@ -229,9 +243,22 @@ export default function SettingsModal({
     }
   }
 
+  // Status langganan hanya diambil saat tab Subscription dibuka, bukan tiap
+  // kali modal muncul.
+  useEffect(() => {
+    if (isSettingsOpen && activeSettingsTab === "subscription") {
+      void loadBillingState();
+    }
+  }, [isSettingsOpen, activeSettingsTab, loadBillingState]);
+
   if (!isSettingsOpen) {
     return null;
   }
+
+  const billingNote = describeBillingSubscription(billingState);
+  const canManageSubscription = Boolean(
+    billingState.isStripeConfigured && billingState.subscription,
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#16211c]/40 px-3 py-4 sm:items-center sm:justify-center">
@@ -738,6 +765,11 @@ export default function SettingsModal({
                   <p className="mt-2 text-sm leading-relaxed text-[#5d6862]">
                     {currentPlan?.tagline ?? "Status paket sedang dimuat."}
                   </p>
+                  {billingNote && (
+                    <p className="mt-3 rounded-2xl bg-[#0f5a3d]/[0.07] px-3 py-2 text-sm font-semibold text-[#0f5a3d]">
+                      {billingNote}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(
@@ -783,13 +815,35 @@ export default function SettingsModal({
                   makin besar konteks yang dibawa percakapan (riwayat panjang,
                   dokumen), makin banyak token yang terpakai per pesan.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => router.push("/plans")}
-                  className="h-12 rounded-full bg-[#0f5a3d] px-6 text-sm font-bold text-white transition hover:bg-[#0a3d2a]"
-                >
-                  Upgrade plan
-                </button>
+                {billingError && (
+                  <p
+                    role="alert"
+                    className="rounded-2xl bg-[#e7c77e]/25 px-4 py-3 text-sm font-semibold text-[#8a6a1f]"
+                  >
+                    {billingError}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/plans")}
+                    className="h-12 rounded-full bg-[#0f5a3d] px-6 text-sm font-bold text-white transition hover:bg-[#0a3d2a]"
+                  >
+                    {canManageSubscription ? "Lihat semua paket" : "Upgrade plan"}
+                  </button>
+                  {canManageSubscription && (
+                    <button
+                      type="button"
+                      onClick={manageBilling}
+                      disabled={isPortalPending}
+                      className="h-12 rounded-full px-6 text-sm font-bold text-[#0f5a3d] ring-1 ring-[#0b3d2a]/15 transition hover:bg-[#0f5a3d]/[0.07] disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isPortalPending
+                        ? "Membuka…"
+                        : "Kelola langganan & invoice"}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

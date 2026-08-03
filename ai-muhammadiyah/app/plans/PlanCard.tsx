@@ -1,9 +1,17 @@
-import type { SubscriptionPlan } from "@/lib/subscriptions/plans";
+"use client";
 
-// Design v2 pricing card. Presentational + boundary-agnostic. Highlighted
-// ("popular") variant is the dark-green card; the rest are cream. Payments
-// aren't active yet, so the CTA is always disabled — current tier reads "Paket
-// kamu saat ini", others "Segera hadir".
+import { getTierRank, type SubscriptionPlan } from "@/lib/subscriptions/plans";
+import {
+  describeBillingSubscription,
+  resolveBillingAction,
+  type BillingState,
+} from "@/lib/subscriptions/billing";
+import type { SubscriptionTier } from "@/lib/usage/limits";
+
+// Design v2 pricing card. Highlighted ("popular") variant is the dark-green
+// card; the rest are cream. CTA-nya nyata sekarang: paket berbayar membuka
+// Stripe Checkout, paket aktif membuka Billing Portal. Tombol hanya mati kalau
+// Stripe memang belum dikonfigurasi di server.
 
 // Diamond-grid texture for the highlighted card (inline data URI).
 const cardPattern =
@@ -20,16 +28,88 @@ function Check({ popular }: { popular: boolean }) {
   );
 }
 
+type PlanCardAction = {
+  label: string;
+  disabled: boolean;
+  onClick?: () => void;
+};
+
+function toCardAction({
+  plan,
+  billingState,
+  isPending,
+  onCheckout,
+  onSwitchPlan,
+  onManage,
+}: {
+  plan: SubscriptionPlan;
+  billingState: BillingState;
+  isPending: boolean;
+  onCheckout: (tier: SubscriptionTier) => void;
+  onSwitchPlan: (tier: SubscriptionTier) => void;
+  onManage: () => void;
+}): PlanCardAction {
+  if (isPending) {
+    return { label: "Menyiapkan…", disabled: true };
+  }
+
+  const action = resolveBillingAction({
+    planTier: plan.tier,
+    planName: plan.name,
+    currentTier: billingState.tier,
+    state: billingState,
+    tierRank: getTierRank,
+  });
+
+  switch (action.kind) {
+    case "checkout":
+      return {
+        label: action.label,
+        disabled: false,
+        onClick: () => onCheckout(plan.tier),
+      };
+    case "switch":
+      return {
+        label: action.label,
+        disabled: false,
+        onClick: () => onSwitchPlan(plan.tier),
+      };
+    case "portal":
+      return { label: action.label, disabled: false, onClick: onManage };
+    default:
+      return { label: action.label, disabled: true };
+  }
+}
+
 export default function PlanCard({
   plan,
   isCurrent,
   isPopular,
+  billingState,
+  isPending,
+  onCheckout,
+  onSwitchPlan,
+  onManage,
 }: {
   plan: SubscriptionPlan;
   isCurrent: boolean;
   isPopular: boolean;
+  billingState: BillingState;
+  isPending: boolean;
+  onCheckout: (tier: SubscriptionTier) => void;
+  onSwitchPlan: (tier: SubscriptionTier) => void;
+  onManage: () => void;
 }) {
   const checklist = [...plan.quotas, ...plan.features];
+  const action = toCardAction({
+    plan,
+    billingState,
+    isPending,
+    onCheckout,
+    onSwitchPlan,
+    onManage,
+  });
+  const statusNote = isCurrent ? describeBillingSubscription(billingState) : null;
 
   if (isPopular) {
     return (
@@ -57,12 +137,18 @@ export default function PlanCard({
         </div>
         <button
           type="button"
-          disabled
-          className="mb-6 h-11 cursor-not-allowed rounded-[11px] bg-[#e7c77e] text-sm font-bold text-[#0b3d2a] opacity-95"
+          disabled={action.disabled}
+          onClick={action.onClick}
+          className="mb-2 h-11 rounded-[11px] bg-[#e7c77e] text-sm font-bold text-[#0b3d2a] transition hover:bg-[#f0d69a] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-[#e7c77e]"
         >
-          {isCurrent ? "Paket kamu saat ini" : "Segera hadir"}
+          {action.label}
         </button>
-        <div className="flex flex-col gap-2.5 text-[13.5px] text-[#dce4db]">
+        {statusNote && (
+          <p className="mb-4 text-[12px] leading-relaxed text-[#9fb3a5]">
+            {statusNote}
+          </p>
+        )}
+        <div className={`flex flex-col gap-2.5 text-[13.5px] text-[#dce4db] ${statusNote ? "" : "mt-4"}`}>
           {checklist.map((item) => (
             <div key={item} className="flex gap-2.5">
               <Check popular /> {item}
@@ -88,22 +174,28 @@ export default function PlanCard({
       </div>
       <div className="mb-[22px] flex items-baseline gap-1.5">
         <span className="font-serif text-[40px] text-[#12211b]">{plan.price}</span>
-        {plan.price !== "Rp0" && (
+        {plan.priceIdr > 0 && (
           <span className="text-[13px] text-[#8a9089]">/bulan</span>
         )}
       </div>
       <button
         type="button"
-        disabled
+        disabled={action.disabled}
+        onClick={action.onClick}
         className={
           isCurrent
-            ? "mb-6 h-11 cursor-not-allowed rounded-[11px] bg-[#0f5a3d] text-sm font-semibold text-[#f5f3ec] opacity-95"
-            : "mb-6 h-11 cursor-not-allowed rounded-[11px] border border-[#0b3d2a]/16 text-sm font-semibold text-[#25302a] opacity-80"
+            ? "mb-2 h-11 rounded-[11px] bg-[#0f5a3d] text-sm font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-[#0f5a3d]"
+            : "mb-2 h-11 rounded-[11px] border border-[#0b3d2a]/16 text-sm font-semibold text-[#25302a] transition hover:border-[#0f5a3d] hover:bg-[#0f5a3d]/[0.06] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-[#0b3d2a]/16 disabled:hover:bg-transparent"
         }
       >
-        {isCurrent ? "Paket kamu saat ini" : "Segera hadir"}
+        {action.label}
       </button>
-      <div className="flex flex-col gap-2.5 text-[13.5px] text-[#3a453e]">
+      {statusNote && (
+        <p className="mb-4 text-[12px] leading-relaxed text-[#7c857f]">
+          {statusNote}
+        </p>
+      )}
+      <div className={`flex flex-col gap-2.5 text-[13.5px] text-[#3a453e] ${statusNote ? "" : "mt-4"}`}>
         {checklist.map((item) => (
           <div key={item} className="flex gap-2.5">
             <Check popular={false} /> {item}

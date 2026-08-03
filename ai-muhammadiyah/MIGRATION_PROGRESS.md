@@ -683,3 +683,62 @@ Ini sekaligus membuktikan "makin banyak konteks makin makan kuota" bekerja linta
 **Nilai `finish_reason` masih `null`** di semua baris = tidak ada jawaban yang terpotong plafon 8000 token sejak Langkah 36 — aturan "satu output" bertahan pada beban nyata.
 
 **Satu-satunya yang belum terbukti:** rollover jendela (sesi baru setelah 5 jam terlewat, mingguan setelah 7 hari). Butuh menunggu waktu berjalan, tidak bisa dipercepat tanpa memalsukan anker di DB.
+
+## Langkah 38: Pembayaran Stripe untuk setiap paket berbayar — SELESAI di kode (migrasi DITULIS belum di-apply; env Stripe belum diisi)
+
+Permintaan user: *"tambahkan pembayaran dengan stripe untuk setiap paket"*. Sebelum ini seluruh CTA harga mati (`disabled` + "Segera hadir"/"Coming Soon") dan `PlanCard`/`UpgradeModal` menyebut sendiri "Pembayaran otomatis belum diaktifkan" — tier hanya bisa naik lewat edit DB manual.
+
+**Bentuk integrasi:** Stripe **Checkout (hosted)** + **Billing Portal**, bukan Elements/form kartu sendiri. Konsekuensi yang disengaja: nomor kartu tidak pernah menyentuh server ini, beban PCI ikut pindah ke Stripe. Dependency baru: `stripe@^22.4.0` (satu-satunya paket yang ditambahkan).
+
+### A. Enam rute API (`app/api/billing/*`, semua `runtime = "nodejs"`)
+
+| Rute | Fungsi | Catatan keamanan |
+|---|---|---|
+| `POST /checkout` | Buka Checkout untuk satu tier | Body hanya MEMILIH tier; harga selalu dibentuk server dari `plans.ts`/env — client tidak bisa menawar harga |
+| `POST /change-plan` | Ganti paket pada langganan yang sudah jalan | Langganan dicari lewat klien ber-RLS, jadi tidak bisa mengubah langganan orang lain |
+| `POST /portal` | Billing Portal (invoice, ganti kartu, batal) | Pesan error dibedakan kalau portal belum dikonfigurasi di Dashboard |
+| `POST /webhook` | Sumber kebenaran status langganan | **Tanpa sesi login** — otentikasinya tanda tangan `stripe-signature`; ditolak sebelum body diproses kalau tidak valid |
+| `POST /sync` | Rekonsiliasi setelah user kembali dari Checkout | `client_reference_id` harus sama dengan user yang login, jadi session id orang lain tidak bisa ditempel ke URL |
+| `GET /state` | Status langganan untuk UI | Baca `get_billing_state` lewat RLS |
+
+**Keputusan yang paling menentukan: user yang SUDAH berlangganan tidak pernah diarahkan ke Checkout.** Checkout mode `subscription` selalu MEMBUAT langganan baru — "upgrade" lewat checkout kedua = dua langganan berjalan dan dua tagihan tiap bulan. Karena itu ada `/change-plan` yang mengganti harga pada item langganan yang ada dengan `proration_behavior: "create_prorations"`, dan aturannya dipusatkan di satu fungsi (lihat C).
+
+**Kenapa `/sync` ada padahal sudah ada webhook:** user kembali ke `/plans` beberapa detik sebelum webhook mendarat, dan pada pemasangan pertama webhook-nya mungkin belum terdaftar sama sekali. Tanpa ini halaman sempat memperlihatkan "paket lama" tepat setelah orang membayar. `PlansBilling` memanggilnya sekali lalu polling `/state` sampai 5x @2 detik.
+
+### B. Price id nyata, bukan `price_data` inline (revisi di tengah jalan)
+
+Versi pertama memakai `line_items[].price_data` inline supaya checkout jalan tanpa setup katalog. **Diganti** setelah ketahuan `subscriptions.update` (ganti paket) **hanya menerima Price id** — `price_data` pada item langganan mewajibkan `product` yang sudah ada. Harga inline = upgrade/downgrade mustahil.
+
+Final: `resolveTierPriceId()` memakai `STRIPE_PRICE_<TIER>` kalau diisi; kalau kosong, Price dibuat sekali lewat API lalu dipakai ulang lewat `lookup_key` (`aimu_<tier>_monthly_<currency>_<amount>`) di atas Product ber-id deterministik (`aimu_plan_<tier>`). Lookup key memuat nominal, jadi mengubah harga di `plans.ts` membuat Price BARU — bukan diam-diam memakai harga usang. Balapan dua request ditangani: create yang kalah menangkap error lalu mengambil hasil request yang menang.
+
+**Satuan mata uang.** Stripe menagih dalam satuan terkecil dan **IDR bukan zero-decimal**, jadi Rp29.000 → `2900000`. Salah di sini = tagihan meleset 100x, karena itu daftar zero-decimal ditulis eksplisit di `stripe.ts` dan diuji (lihat E). `plans.ts` sekarang menyimpan `priceIdr` sebagai sumber kebenaran; string `price` diturunkan darinya lewat `formatIdrPrice()`.
+
+### C. Satu tempat memutuskan tombol
+
+`resolveBillingAction()` di `lib/subscriptions/billing.ts` mengembalikan `checkout | switch | portal | none`. Dipakai `PlanCard` **dan** `UpgradeModal` supaya keduanya tidak bisa berbeda pendapat soal kapan boleh membuka Checkout. `billing.ts` sengaja bebas SDK Stripe & env server (hanya `import type`), jadi aman diimpor komponen client; semua yang menyentuh secret key ada di `stripe.ts`/`stripe-sync.ts`.
+
+### D. Migrasi `20260731000000_stripe_billing.sql` (DITULIS, **belum di-apply**)
+
+- Kolom tautan Stripe di `user_profiles` (`stripe_customer_id`, unique partial index) dan `subscriptions` (`provider`, `stripe_subscription_id` unique partial, `stripe_price_id`, `cancel_at_period_end`, `canceled_at`).
+- `subscriptions_status_check` diperluas ke status Stripe (`incomplete`, `incomplete_expired`, `unpaid`, `paused`) supaya baris DB jujur mencerminkan Stripe.
+- **`get_current_subscription_tier` sengaja TIDAK disentuh** — ia hanya mengakui `active`/`trialing`, jadi `past_due`/`unpaid`/`incomplete` otomatis tidak memberi akses premium tanpa logika tambahan. Baris `free` bawaan `ensure_user_profile` juga dibiarkan hidup: itulah yang membuat user jatuh kembali ke Free saat langganan berakhir.
+- **`billing_events`** (PK = event id Stripe, RLS on tanpa policy = service role saja) untuk idempotensi. Yang menolak duplikat adalah primary key, bukan "select dulu" yang bisa balapan antar dua pengiriman. Kalau handler gagal, barisnya dihapus supaya retry Stripe benar-benar diproses ulang.
+- **`apply_stripe_subscription`** = satu pintu tulis, `revoke ... from public, anon, authenticated` + `grant ... to service_role`. Kalau user biasa bisa memanggilnya, siapa pun bisa menaikkan tier sendiri. Ia juga menjaga invarian **satu langganan Stripe aktif per user**: baris Stripe lain milik user itu dimatikan, kalau tidak `get_current_subscription_tier` akan tetap memberi tier tertinggi = bayar paket murah dapat akses paket mahal.
+- **`get_billing_state`** untuk UI (tier, punya customer, status langganan, periode, `cancel_at_period_end`).
+
+### E. Verifikasi
+
+- `npx tsc --noEmit`, `npm run lint`, `npm run build` — bersih; keenam rute `/api/billing/*` teregister.
+- **SQL benar-benar diparse**, bukan dibaca saja: `libpg-query` (di scratchpad, dihapus setelah selesai) — 16 statement DDL luar OK, plus 6 statement yang tertanam di body plpgsql diparse terpisah (parser luar melihat body sebagai string). Yang paling ingin dipastikan: `on conflict (stripe_subscription_id) where stripe_subscription_id is not null do update` — inference indeks parsial memang **wajib** menuliskan ulang predikatnya, dan draf awal langkah ini belum melakukannya.
+- **27 assertion** lewat harness Node (type-stripping langsung atas salinan `billing.ts`; dihapus setelah selesai) untuk `normalizeBillingState` (toleran saat migrasi belum di-apply; tier/status tak dikenal jatuh ke `free`/`canceled`, bukan memberi akses), `describeBillingSubscription`, dan matriks `resolveBillingAction`. Termasuk cek regresi mata uang langsung ke sumber `stripe.ts`: `"idr"` **tidak** ada di daftar zero-decimal, `"jpy"` ada, dan cabang berdesimal mengali 100. Satu kegagalan awal ternyata ekspektasi tes yang salah (user dengan langganan mati memang sudah kembali ke Free, jadi kartu Free benar berbunyi "Paket kamu saat ini") — tapi itu memunculkan celah nyata: di `/plans` ia jadi tak punya jalan ke invoice. Ditambahkan link "Buka kelola langganan" di bawah grid untuk siapa pun yang punya baris langganan Stripe.
+- **Render nyata di browser** lewat halaman scratch (`app/dev-claude-billing-scratch/`, **dihapus sebelum commit**) yang memasang `PlanCard` di 4 keadaan billing sekaligus — satu-satunya cara melihat CTA tanpa login/OTP. Terbukti: user baru → "Pilih <paket>" (checkout); sudah langganan Muallim Pro → tier bawah "Turunkan ke paket ini", tier atas "Naik ke paket ini", kartu sendiri "Kelola langganan" + "Perpanjang otomatis 31 Agustus 2026."; dijadwalkan berhenti → "Aktif sampai 31 Agustus 2026, lalu berhenti otomatis."; **Stripe belum dikonfigurasi → kelima CTA `disabled` "Segera hadir"** (tidak ada jalan ke checkout). Nol error konsol. Screenshot gagal (timeout tooling yang sama seperti Langkah 13/18/36 — bukan isu kode).
+- `/plans` dijalankan di dev server: 307 ke `/login` tanpa sesi, tanpa error server — impor `stripe.ts` (server-only) di server component aman.
+
+### Gap/catatan
+
+- **Belum ada satu pun pembayaran nyata yang diuji.** Env Stripe masih kosong dan migrasi belum di-apply, jadi yang terbukti baru tipe/lint/build + parsing SQL + logika + render UI. **Wajib diuji dulu dengan kunci test (`sk_test_`) sebelum live.**
+- **Langkah setup yang masih manual** (tidak bisa dikerjakan agent): (1) apply migrasi ke Supabase setelah backup; (2) isi `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_SITE_URL` di `.env.local` **dan** di Vercel — placeholder-nya sudah ditambahkan ke `.env.local`; (3) daftarkan endpoint webhook `<domain>/api/billing/webhook` di Dashboard Stripe dengan event `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created/updated/deleted/paused/resumed`, `invoice.paid`, `invoice.payment_failed`; (4) simpan konfigurasi Customer Portal di Dashboard (Settings → Billing → Customer portal) — kalau belum, `/portal` gagal dan pesannya sudah menyebut ini spesifik.
+- **IDR harus didukung akun Stripe-nya.** Kalau akun tidak bisa menagih IDR, `STRIPE_CURRENCY` bisa diubah — tapi angka rupiah di `plans.ts` **tidak** ikut dikonversi, jadi wajib memasang `STRIPE_PRICE_*` sendiri saat itu dilakukan.
+- **Pajak belum diurus.** `automatic_tax` tidak diaktifkan; halaman harga masih menulis "belum termasuk pajak".
+- **Tier `sinergi_ranting` ikut dijual self-service** mengikuti permintaan "setiap paket", padahal deskripsinya masih "Placeholder administrasi upgrade manual". Kalau tier organisasi seharusnya lewat sales, keluarkan dari `purchasableTiers` di `plans.ts`.
+- **Kolom `daily_*`** dari Langkah 37 masih belum dihapus (tidak terkait langkah ini, dicatat supaya tidak hilang).

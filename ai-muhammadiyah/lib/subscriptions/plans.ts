@@ -5,7 +5,10 @@ export type PlanModelId = "auto" | "fast" | "smart" | "document";
 export type SubscriptionPlan = {
   tier: SubscriptionTier;
   name: string;
+  /** Label harga siap tampil, diturunkan dari `priceIdr`. */
   price: string;
+  /** Harga bulanan dalam rupiah penuh. Ini yang dipakai Stripe Checkout. */
+  priceIdr: number;
   tagline: string;
   sessionTokenLimit: number;
   weeklyTokenLimit: number;
@@ -16,6 +19,11 @@ export type SubscriptionPlan = {
   features: string[];
   quotas: string[];
 };
+
+/** "Rp29.000" — dipakai kartu harga dan ringkasan checkout. */
+export function formatIdrPrice(amount: number) {
+  return `Rp${new Intl.NumberFormat("id-ID").format(Math.round(amount))}`;
+}
 
 export const planOrder: SubscriptionTier[] = [
   "free",
@@ -70,7 +78,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   {
     tier: "free",
     name: tierLabels.free,
-    price: "Rp0",
+    price: formatIdrPrice(0),
+    priceIdr: 0,
     tagline: "Mulai belajar dengan AI-mu.",
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
@@ -89,7 +98,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   {
     tier: "kader_pintar",
     name: tierLabels.kader_pintar,
-    price: "Rp29.000",
+    price: formatIdrPrice(29_000),
+    priceIdr: 29_000,
     tagline: "Untuk kader dan pelajar aktif.",
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
@@ -108,7 +118,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   {
     tier: "muallim_pro",
     name: tierLabels.muallim_pro,
-    price: "Rp79.000",
+    price: formatIdrPrice(79_000),
+    priceIdr: 79_000,
     tagline: "Untuk guru, mentor, dan pembimbing.",
     sessionTokenLimit: 2_400_000,
     weeklyTokenLimit: 16_000_000,
@@ -127,7 +138,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   {
     tier: "dakwah_digital",
     name: tierLabels.dakwah_digital,
-    price: "Rp149.000",
+    price: formatIdrPrice(149_000),
+    priceIdr: 149_000,
     tagline: "Untuk konten, dakwah, dan publikasi.",
     sessionTokenLimit: 4_800_000,
     weeklyTokenLimit: 32_000_000,
@@ -150,7 +162,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   {
     tier: "sinergi_ranting",
     name: tierLabels.sinergi_ranting,
-    price: "Rp299.000",
+    price: formatIdrPrice(299_000),
+    priceIdr: 299_000,
     tagline: "Untuk ranting, sekolah, dan tim bersama.",
     sessionTokenLimit: 16_000_000,
     weeklyTokenLimit: 112_000_000,
@@ -181,4 +194,25 @@ export function getPlanByTier(tier: SubscriptionTier) {
 
 export function getUpgradePlanForModel(model: PlanModelId) {
   return getPlanByTier(modelCatalog[model].minimumTier);
+}
+
+/** Semua tier selain Free bisa dibeli lewat Stripe Checkout. */
+export const purchasableTiers = planOrder.filter(
+  (tier) => tier !== "free",
+) as Exclude<SubscriptionTier, "free">[];
+
+export type PurchasableTier = (typeof purchasableTiers)[number];
+
+export function isPurchasableTier(value: unknown): value is PurchasableTier {
+  return (
+    typeof value === "string" &&
+    (purchasableTiers as string[]).includes(value)
+  );
+}
+
+/** Urutan tier: dipakai untuk membedakan upgrade dari downgrade. */
+export function getTierRank(tier: SubscriptionTier) {
+  const index = planOrder.indexOf(tier);
+
+  return index === -1 ? 0 : index;
 }

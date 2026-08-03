@@ -1,13 +1,19 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { useBilling } from "@/hooks/useBilling";
 import {
+  resolveBillingAction,
+  type BillingState,
+} from "@/lib/subscriptions/billing";
+import {
+  getTierRank,
   modelCatalog,
   subscriptionPlans,
   type PlanModelId,
   type SubscriptionPlan,
 } from "@/lib/subscriptions/plans";
-import type { UsageSnapshot } from "@/lib/usage/limits";
+import type { SubscriptionTier, UsageSnapshot } from "@/lib/usage/limits";
 
 interface UpgradeModalProps {
   isUpgradeOpen: boolean;
@@ -18,6 +24,76 @@ interface UpgradeModalProps {
   usageSnapshot: UsageSnapshot | null;
 }
 
+/**
+ * Tombol aksi tiap kartu paket. Keputusannya diambil `resolveBillingAction`
+ * yang sama dengan halaman /plans — jadi kedua tempat ini tidak bisa berbeda
+ * pendapat soal kapan boleh membuka Checkout (aturan pentingnya: user yang
+ * sudah berlangganan TIDAK pernah, karena itu akan membuat langganan kedua).
+ */
+function UpgradeAction({
+  plan,
+  currentTier,
+  billingState,
+  isPending,
+  onCheckout,
+  onSwitchPlan,
+  onManage,
+}: {
+  plan: SubscriptionPlan;
+  currentTier: SubscriptionTier;
+  billingState: BillingState;
+  isPending: boolean;
+  onCheckout: () => void;
+  onSwitchPlan: () => void;
+  onManage: () => void;
+}) {
+  const activeClassName =
+    "mt-4 h-10 w-full rounded-full bg-[#0f5a3d] text-xs font-bold text-white transition hover:bg-[#0a3d2a]";
+  const mutedClassName =
+    "mt-4 h-10 w-full rounded-full bg-[#0f5a3d]/10 text-xs font-bold text-[#0f5a3d] ring-1 ring-[#0b3d2a]/10 disabled:cursor-not-allowed disabled:opacity-80";
+
+  if (isPending) {
+    return (
+      <button type="button" disabled className={mutedClassName}>
+        Menyiapkan…
+      </button>
+    );
+  }
+
+  const action = resolveBillingAction({
+    planTier: plan.tier,
+    planName: plan.name,
+    currentTier,
+    state: billingState,
+    tierRank: getTierRank,
+  });
+
+  if (action.kind === "none") {
+    return (
+      <button type="button" disabled className={mutedClassName}>
+        {action.label}
+      </button>
+    );
+  }
+
+  const onClick =
+    action.kind === "checkout"
+      ? onCheckout
+      : action.kind === "switch"
+        ? onSwitchPlan
+        : onManage;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={action.kind === "portal" ? mutedClassName : activeClassName}
+    >
+      {action.label}
+    </button>
+  );
+}
+
 export default function UpgradeModal({
   isUpgradeOpen,
   setIsUpgradeOpen,
@@ -26,9 +102,36 @@ export default function UpgradeModal({
   upgradePlan,
   usageSnapshot,
 }: UpgradeModalProps) {
+  const {
+    billingState,
+    isBillingLoaded,
+    loadBillingState,
+    checkout,
+    switchPlan,
+    manageBilling,
+    pendingTier,
+    isPortalPending,
+    billingError,
+  } = useBilling();
+
+  // Status langganan hanya diambil saat modal benar-benar dibuka: modal ini
+  // ikut ter-render di setiap halaman chat, dan tanpa syarat ini setiap orang
+  // akan menembak /api/billing/state di tiap load.
+  useEffect(() => {
+    if (isUpgradeOpen) {
+      void loadBillingState();
+    }
+  }, [isUpgradeOpen, loadBillingState]);
+
   if (!isUpgradeOpen) {
     return null;
   }
+
+  // Setelah ganti paket, `usageSnapshot` milik halaman induk masih tier lama —
+  // begitu billing state termuat, itu yang dipakai menandai kartu "Aktif".
+  const currentTier = isBillingLoaded
+    ? billingState.tier
+    : usageSnapshot?.tier;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#16211c]/40 px-3 py-4 sm:items-center sm:justify-center">
@@ -68,7 +171,7 @@ export default function UpgradeModal({
 
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {subscriptionPlans.map((plan) => {
-            const isCurrentPlan = usageSnapshot?.tier === plan.tier;
+            const isCurrentPlan = currentTier === plan.tier;
             const unlocksTarget = plan.allowedModels.includes(upgradeTargetModel);
 
             return (
@@ -120,22 +223,33 @@ export default function UpgradeModal({
                     </span>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  disabled
-                  className="mt-4 h-10 w-full rounded-full bg-[#0f5a3d]/10 text-xs font-bold text-[#0f5a3d] ring-1 ring-[#0b3d2a]/10 disabled:cursor-not-allowed disabled:opacity-80"
-                >
-                  Coming Soon
-                </button>
+                <UpgradeAction
+                  plan={plan}
+                  currentTier={currentTier ?? "free"}
+                  billingState={billingState}
+                  isPending={pendingTier === plan.tier || isPortalPending}
+                  onCheckout={() => checkout(plan.tier)}
+                  onSwitchPlan={() => switchPlan(plan.tier)}
+                  onManage={manageBilling}
+                />
               </article>
             );
           })}
         </div>
 
+        {billingError && (
+          <div
+            role="alert"
+            className="mt-5 rounded-[22px] bg-[#e7c77e]/25 p-4 text-sm font-semibold leading-relaxed text-[#8a6a1f]"
+          >
+            {billingError}
+          </div>
+        )}
+
         <div className="mt-5 rounded-[22px] bg-[#0f5a3d]/10 p-4 text-sm leading-relaxed text-[#5d6862] ring-1 ring-[#0b3d2a]/10">
-          Pembayaran otomatis belum diaktifkan. Untuk sekarang, upgrade
-          ditampilkan sebagai placeholder manual sambil rute premium dan kuota
-          subscription tetap siap dipakai dari data subscription.
+          {billingState.isStripeConfigured
+            ? "Pembayaran diproses aman oleh Stripe. Langganan berulang tiap bulan dan bisa dibatalkan kapan saja dari halaman kelola langganan."
+            : "Pembayaran otomatis belum diaktifkan di server ini. Rute premium dan kuota tetap mengikuti data subscription yang ada."}
         </div>
       </div>
     </div>

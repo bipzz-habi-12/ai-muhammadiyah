@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import PlanCard from "@/app/plans/PlanCard";
+import PlansBilling from "@/app/plans/PlansBilling";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
-import { modelCatalog, subscriptionPlans } from "@/lib/subscriptions/plans";
-import { normalizeUsageSnapshot, tierLabels } from "@/lib/usage/limits";
+import { normalizeBillingState } from "@/lib/subscriptions/billing";
+import { modelCatalog } from "@/lib/subscriptions/plans";
+import { isStripeConfigured } from "@/lib/subscriptions/stripe";
+import { tierLabels } from "@/lib/usage/limits";
 
 // Pricing v2 (Pricing.dc.html port). Design layout, real data: the actual
 // subscriptionPlans (5 tiers, monthly-only) and the live current tier. No
 // billing toggle — there is no yearly pricing in the data, so a Monthly/Yearly
-// switch would be a dead control. Payments aren't active yet, so the CTAs stay
-// honestly disabled (see PlanCard).
+// switch would be a dead control. Pembayaran memakai Stripe Checkout; kartu
+// harga dan hasil kembalinya user dari Stripe ditangani <PlansBilling>.
 
-const popularTier = "kader_pintar";
+type PlansPageProps = {
+  searchParams: Promise<{ checkout?: string; session_id?: string }>;
+};
 
-export default async function PlansPage() {
+export default async function PlansPage({ searchParams }: PlansPageProps) {
   const supabase = await createSupabaseAuthServerClient();
   const {
     data: { user },
@@ -23,9 +27,11 @@ export default async function PlansPage() {
     redirect("/login");
   }
 
-  const { data } = await supabase.rpc("get_usage_snapshot");
-  const usageSnapshot = normalizeUsageSnapshot(data);
-  const currentTier = usageSnapshot?.tier ?? "free";
+  const { checkout, session_id: sessionId = "" } = await searchParams;
+  const { data: billingData } = await supabase.rpc("get_billing_state");
+  const billingState = normalizeBillingState(billingData, isStripeConfigured());
+  const checkoutOutcome =
+    checkout === "success" ? "success" : checkout === "cancel" ? "cancel" : null;
 
   return (
     <main className="min-h-dvh bg-[#f5f3ec] text-[#16211c]">
@@ -38,7 +44,7 @@ export default async function PlansPage() {
             <span aria-hidden="true">&larr;</span> Kembali ke chat
           </Link>
           <span className="rounded-full bg-[#0f5a3d]/[0.08] px-3.5 py-1.5 text-[13px] font-semibold text-[#0f5a3d]">
-            Paket aktif: {tierLabels[currentTier]}
+            Paket aktif: {tierLabels[billingState.tier]}
           </span>
         </div>
 
@@ -54,22 +60,11 @@ export default async function PlansPage() {
           </p>
         </header>
 
-        <section className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {subscriptionPlans.map((plan) => (
-            <PlanCard
-              key={plan.tier}
-              plan={plan}
-              isCurrent={plan.tier === currentTier}
-              isPopular={plan.tier === popularTier}
-            />
-          ))}
-        </section>
-
-        <p className="mt-7 text-center text-[13.5px] text-[#8a9089]">
-          Semua paket mencakup Muhammadiyah Hub, respons streaming, dan upload
-          dokumen. Harga dalam IDR, belum termasuk pajak. Pembayaran otomatis
-          belum aktif.
-        </p>
+        <PlansBilling
+          initialBillingState={billingState}
+          checkoutOutcome={checkoutOutcome}
+          sessionId={sessionId}
+        />
 
         <section className="mt-14">
           <h2 className="font-serif text-[26px] font-normal text-[#12211b]">

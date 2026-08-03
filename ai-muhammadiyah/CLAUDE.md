@@ -133,6 +133,13 @@ knowledge_sources / knowledge_chunks : file RAG
 
 Muhammadiyah Hub tetap gratis di semua tier.
 
+**Pembayaran (Langkah 38):** semua tier berbayar dijual lewat **Stripe Checkout (hosted)** + **Billing Portal** — lihat `app/api/billing/*`, `lib/subscriptions/stripe.ts` (server-only, menyentuh secret key), `lib/subscriptions/stripe-sync.ts`, dan `lib/subscriptions/billing.ts` (client-safe, tanpa SDK/env server). Aturan yang tidak boleh dilanggar saat menambah UI pembayaran:
+- Keputusan tombol paket **selalu** lewat `resolveBillingAction()`; jangan menulis cabang checkout/portal sendiri.
+- User yang **sudah** punya langganan aktif **tidak boleh** diarahkan ke Checkout (itu membuat langganan kedua yang ikut ditagih) — pakai `/api/billing/change-plan`.
+- Status langganan hanya boleh ditulis lewat `apply_stripe_subscription` (service role), dipicu webhook bertanda tangan. Jangan pernah menaikkan tier dari input client.
+- Harga: `plans.ts` `priceIdr` adalah sumber kebenaran. **IDR bukan zero-decimal** di Stripe (Rp29.000 → `2900000`).
+- Selama `STRIPE_SECRET_KEY` kosong, semua CTA bayar wajib tetap mati ("Segera hadir").
+
 ---
 
 ## Urutan Kerja Coding v2 (prioritas)
