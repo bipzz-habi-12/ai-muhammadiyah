@@ -55,10 +55,13 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!user && request.nextUrl.pathname === "/") {
+    // Tanpa sesi: tampilkan halaman Home/marketing (bukan langsung dorong ke
+    // /login). REWRITE, bukan redirect — address bar tetap "/", kontennya
+    // saja yang datang dari app/home/page.tsx. CTA "Masuk"/"Buat akun" di
+    // Landing sendiri yang mengarahkan ke /login atau /register.
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("redirectTo", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    url.pathname = "/home";
+    return NextResponse.rewrite(url);
   }
 
   if (user && isAuthPage) {

@@ -101,7 +101,7 @@ knowledge_sources / knowledge_chunks : file RAG
 ## Sitemap v2 (10 Halaman)
 | # | Halaman | Rute contoh | Catatan |
 |---|---|---|---|
-| 1 | Home | `/` | Tidak berubah |
+| 1 | Home | `/` | Tanpa sesi login: rewrite (di `proxy.ts`) ke `app/home/page.tsx` (Landing/marketing) — URL tetap `/`. Dengan sesi login: langsung tampil chat (`app/page.tsx`), tidak berubah |
 | 2 | Login/Register | `/login`, `/register` | Tidak berubah |
 | 3 | Workspace | `/workspace/[id]` | **Baru**: daftar chat + akses Workspace System, bukan langsung ke satu chat |
 | 4 | Chat | `/workspace/[id]/chat/[chatId]` | **Berubah**: banyak chat per workspace; panel Artifact di kanan; slash picker skill |
