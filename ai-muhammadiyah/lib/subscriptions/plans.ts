@@ -1,6 +1,79 @@
 import { tierLabels, type SubscriptionTier } from "@/lib/usage/limits";
 
-export type PlanModelId = "auto" | "fast" | "smart" | "document";
+/**
+ * Model yang dipilih pengguna. Empat-empatnya rute GPT (masing-masing punya
+ * API key + model id sendiri lewat env, supaya tidak saling menghabiskan rate
+ * limit); Gemini tetap jadi cadangan otomatis kalau GPT gagal.
+ *
+ * Id lama (auto/fast/smart/document) sudah tidak dipakai UI, tapi tetap
+ * diizinkan di DB agar baris usage historis tidak melanggar constraint.
+ */
+export type PlanModelId = "aether" | "cosmos" | "prism" | "velo";
+
+/** Model default saat pengguna belum memilih apa pun. */
+export const defaultModelId: PlanModelId = "cosmos";
+
+/**
+ * Level "Upaya". Makin tinggi levelnya, makin dalam model berpikir dan makin
+ * panjang jawabannya — artinya makin banyak token terpakai, jadi kuota token
+ * (jendela 5 jam / mingguan) habis lebih cepat. Efeknya nyata di sisi provider,
+ * bukan sekadar label.
+ */
+export type EffortLevel = "low" | "medium" | "high" | "extra" | "ultra";
+
+export const effortLevels: {
+  id: EffortLevel;
+  label: string;
+  description: string;
+  isDefault?: boolean;
+}[] = [
+  {
+    id: "low",
+    label: "Rendah",
+    description:
+      "Berpikir seperlunya, jawaban ringkas. Paling hemat kuota.",
+  },
+  {
+    id: "medium",
+    label: "Sedang",
+    description:
+      "Berpikir cukup dalam untuk kebanyakan tugas. Pilihan seimbang.",
+    isDefault: true,
+  },
+  {
+    id: "high",
+    label: "Tinggi",
+    description:
+      "Berpikir lebih lama untuk soal rumit dan analisis bertahap.",
+  },
+  {
+    id: "extra",
+    label: "Ekstra",
+    description:
+      "Berpikir jauh lebih lama dan menyeluruh. Kuota terpakai lebih cepat.",
+  },
+  {
+    id: "ultra",
+    label: "Ultra",
+    description:
+      "Upaya maksimal: paling menyeluruh, paling lama, paling boros kuota.",
+  },
+];
+
+export const defaultEffortLevel: EffortLevel = "medium";
+
+export function normalizeEffortLevel(value: unknown): EffortLevel {
+  return effortLevels.some((level) => level.id === value)
+    ? (value as EffortLevel)
+    : defaultEffortLevel;
+}
+
+export function getEffortLabel(effort: EffortLevel) {
+  return (
+    effortLevels.find((level) => level.id === effort)?.label ??
+    effortLevels[1].label
+  );
+}
 
 export type SubscriptionPlan = {
   tier: SubscriptionTier;
@@ -38,41 +111,61 @@ export const modelCatalog: Record<
   {
     label: string;
     shortLabel: string;
+    /** Versi mesin di baliknya — ditampilkan kecil di bawah nama. */
+    engineLabel: string;
     description: string;
     premiumLabel: string;
     minimumTier: SubscriptionTier;
   }
 > = {
-  auto: {
-    label: "Auto / Free Model",
-    shortLabel: "Auto",
-    description: "Memilih rute tercepat yang tersedia untuk paket kamu.",
+  // Urutan = urutan tampil di pemilih model: tercanggih lebih dulu.
+  // Deskripsi mengikuti perilaku yang DIUKUR (pada upaya Sedang, pertanyaan
+  // sama): Aether ~3,7s · Cosmos ~2,6s · Prism ~2,5s · Velo ~28,5s.
+  aether: {
+    label: "Aether",
+    shortLabel: "Aether",
+    engineLabel: "GPT-5.6 Sol",
+    description: "Model terbaru dan paling canggih. Tajam sekaligus responsif.",
     premiumLabel: "Included",
     minimumTier: "free",
   },
-  fast: {
-    label: "Fast Model",
-    shortLabel: "Fast",
-    description: "Rute cepat untuk obrolan belajar harian.",
+  cosmos: {
+    label: "Cosmos",
+    shortLabel: "Cosmos",
+    engineLabel: "GPT-5.6 Terra",
+    description: "Seimbang dan cepat untuk tugas sehari-hari.",
     premiumLabel: "Included",
     minimumTier: "free",
   },
-  smart: {
-    label: "GPT-5.6 Terra Smart",
-    shortLabel: "Smart",
-    description: "Rute GPT-5.6 Terra untuk penalaran, strategi, dan analisis.",
+  prism: {
+    label: "Prism",
+    shortLabel: "Prism",
+    engineLabel: "GPT-5.6 Luna",
+    description: "Penalaran tajam untuk analisis dan strategi.",
     premiumLabel: "Included",
     minimumTier: "free",
   },
-  document: {
-    label: "Document Model",
-    shortLabel: "Document",
+  velo: {
+    label: "Velo",
+    shortLabel: "Velo",
+    engineLabel: "GPT-5.5 Pro",
     description:
-      "Rute konteks panjang untuk analisis dokumen (GPT-5.6 Terra, cadangan Gemini 2.5 Pro).",
-    premiumLabel: "Konteks panjang",
-    minimumTier: "muallim_pro",
+      "Generasi sebelumnya. Menimbang paling lama — cocok untuk soal berat, tapi jawabannya lebih lambat.",
+    premiumLabel: "Included",
+    minimumTier: "free",
   },
 };
+
+/**
+ * Fitur diskusi antar-AI. Belum aktif — ditampilkan di pemilih model sebagai
+ * entri "segera hadir" (tidak bisa dipilih), bukan halaman terpisah.
+ */
+export const aiDiscussion = {
+  label: "AI Discussion",
+  description: "Dua model berdiskusi untuk menajamkan jawaban.",
+  comingSoonLabel: "Segera hadir",
+  isAvailable: false,
+} as const;
 
 export const subscriptionPlans: SubscriptionPlan[] = [
   {
@@ -83,15 +176,15 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Mulai belajar dengan AI-mu.",
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
-    modelNames: ["GPT-5.6 Terra", "Auto", "Fast", "Smart"],
+    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
     modelBadges: ["Includes GPT-5.6 Terra"],
     isGptPowered: true,
-    allowedModels: ["auto", "fast", "smart"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
     features: [
       "Chat AI streaming ditenagai GPT-5.6 Terra",
       "Riwayat obrolan tersimpan",
       "Upload dokumen dasar",
-      "Quick Explain dan Cambridge Tutor Basic",
+      "Skill bawaan siap pakai lewat perintah /",
     ],
     quotas: ["160rb token / 5 jam", "960rb token / minggu"],
   },
@@ -103,15 +196,15 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk kader dan pelajar aktif.",
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
-    modelNames: ["GPT-5.6 Terra", "Auto", "Fast", "Smart"],
+    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
     modelBadges: ["Includes GPT-5.6 Terra", "Kuota lebih besar"],
     isGptPowered: true,
-    allowedModels: ["auto", "fast", "smart"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
     features: [
-      "Akses Smart Model",
+      "Akses seluruh model (Aether, Cosmos, Prism, Velo)",
       "Kuota 5 jam & mingguan lebih besar untuk belajar intensif",
       "Rute GPT-5.6 Terra untuk penalaran mendalam",
-      "OSN Coach, Research Mode, Advanced Cambridge, dan Full Step-by-Step",
+      "Skill custom tanpa batas + upaya tinggi",
     ],
     quotas: ["800rb token / 5 jam", "5,6jt token / minggu"],
   },
@@ -123,15 +216,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk guru, mentor, dan pembimbing.",
     sessionTokenLimit: 2_400_000,
     weeklyTokenLimit: 16_000_000,
-    modelNames: ["GPT-5.6 Terra", "Document", "Gemini 2.5 Pro (cadangan)"],
-    modelBadges: ["Includes GPT-5.6 Terra", "Rute Document konteks panjang"],
+    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
+    modelBadges: ["Includes GPT-5.6 Terra", "Velo untuk konteks panjang"],
     isGptPowered: true,
-    allowedModels: ["auto", "fast", "smart", "document"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
     features: [
-      "Akses Document Model",
-      "Rute konteks panjang untuk dokumen besar",
+      "Velo untuk dokumen besar dan riset konteks panjang",
       "Rute GPT-5.6 Terra untuk materi ajar dan kajian",
-      "Study Modes premium untuk guru dan mentor",
+      "Skill domain untuk guru dan mentor",
     ],
     quotas: ["2,4jt token / 5 jam", "16jt token / minggu"],
   },
@@ -143,14 +235,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk konten, dakwah, dan publikasi.",
     sessionTokenLimit: 4_800_000,
     weeklyTokenLimit: 32_000_000,
-    modelNames: ["GPT-5.6 Terra", "Voice-ready routing", "Document"],
+    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
     modelBadges: [
       "Includes GPT-5.6 Terra",
-      "Rute Document konteks panjang",
+      "Velo untuk konteks panjang",
       "Voice routing ready",
     ],
     isGptPowered: true,
-    allowedModels: ["auto", "fast", "smart", "document"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
     features: [
       "Routing GPT-5.6 Terra untuk naskah dan ide konten",
       "Rute siap voice untuk fitur suara berikutnya",
@@ -167,14 +259,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk ranting, sekolah, dan tim bersama.",
     sessionTokenLimit: 16_000_000,
     weeklyTokenLimit: 112_000_000,
-    modelNames: ["Full premium routing", "GPT-5.6 Terra", "Document"],
+    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
     modelBadges: [
       "Includes GPT-5.6 Terra",
-      "Rute Document konteks panjang",
+      "Velo untuk konteks panjang",
       "Full routing access",
     ],
     isGptPowered: true,
-    allowedModels: ["auto", "fast", "smart", "document"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
     features: [
       "Semua model bersama untuk tim",
       "Kuota tertinggi untuk aktivitas organisasi",

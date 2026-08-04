@@ -1,19 +1,29 @@
-import type { PlanModelId } from "@/lib/subscriptions/plans";
+import { defaultModelId, type PlanModelId } from "@/lib/subscriptions/plans";
 import type { Skill } from "@/lib/skills";
 import { resolveSkillIdFromLegacyValue } from "./legacy-study-mode";
 import type { Conversation, ConversationRow, Workspace } from "./types";
 
+// Percakapan lama menyimpan id model versi lama (auto/fast/smart/document).
+// Id itu sudah tidak ada di UI, jadi dipetakan ke model baru yang paling dekat
+// supaya riwayat tetap bisa dibuka tanpa error.
+const legacyModelMap: Record<string, PlanModelId> = {
+  auto: "cosmos",
+  fast: "aether",
+  smart: "cosmos",
+  document: "velo",
+};
+
 export function normalizeSelectedModel(value?: string | null): PlanModelId {
   if (
-    value === "fast" ||
-    value === "smart" ||
-    value === "document" ||
-    value === "auto"
+    value === "aether" ||
+    value === "cosmos" ||
+    value === "prism" ||
+    value === "velo"
   ) {
     return value;
   }
 
-  return "auto";
+  return (value && legacyModelMap[value]) || defaultModelId;
 }
 
 export function mapConversationRow(

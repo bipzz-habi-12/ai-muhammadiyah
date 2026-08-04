@@ -742,3 +742,102 @@ Final: `resolveTierPriceId()` memakai `STRIPE_PRICE_<TIER>` kalau diisi; kalau k
 - **Pajak belum diurus.** `automatic_tax` tidak diaktifkan; halaman harga masih menulis "belum termasuk pajak".
 - **Tier `sinergi_ranting` ikut dijual self-service** mengikuti permintaan "setiap paket", padahal deskripsinya masih "Placeholder administrasi upgrade manual". Kalau tier organisasi seharusnya lewat sales, keluarkan dari `purchasableTiers` di `plans.ts`.
 - **Kolom `daily_*`** dari Langkah 37 masih belum dihapus (tidak terkait langkah ini, dicatat supaya tidak hilang).
+
+## Langkah 39: Empat model bernama (Aether/Cosmos/Prism/Velo) + level Upaya + toggle Pemikiran + AI Discussion (segera hadir), dan 7 study mode lama DIHAPUS — SELESAI di kode (belum commit; 1 migrasi WAJIB di-apply)
+
+Permintaan user (dengan referensi screenshot pemilih model ala Claude): hapus 7 study mode lama, ganti daftar model dengan nama sendiri, aktifkan Upaya rendah→Ultra ("makin tinggi upaya & model, makin tinggi penggunaan"), dan tambah entri **AI Discussion** yang segera hadir **di dalam pemilih model** (bukan halaman terpisah).
+
+**Keputusan user lewat AskUserQuestion:** (a) Upaya berefek **nyata via token, tanpa migrasi kuota**; (b) study mode lama **benar-benar dihapus** dari DB dan UI; (c) **semua model tetap GPT**, dinamai **Aether (GPT-5.6 Sol) · Cosmos (GPT-5.6 Terra) · Prism (GPT-5.6 Luna) · Velo (GPT-5.5 Pro)**, **tiap model punya API key sendiri** supaya tidak saling menghabiskan rate limit, **fallback tetap Gemini**.
+
+**Model & routing (`lib/subscriptions/plans.ts`, `lib/ai/chat.ts`):**
+- `PlanModelId` lama (`auto|fast|smart|document`) diganti 4 id baru; `modelCatalog` dapat `engineLabel` (versi mesin ditampilkan sebagai badge). Semua model terbuka untuk **semua tier** — pembatasan lewat kuota token, bukan akses model (konsisten dengan arah Langkah 35).
+- `modelRuntimeConfig`: tiap model punya `apiKeyEnv` + `modelEnv` sendiri (`OPENAI_API_KEY_AETHER`/`OPENAI_MODEL_AETHER`, dst.), **fallback berjenjang** ke `OPENAI_API_KEY`/`OPENAI_MODEL` supaya app tetap jalan sebelum key baru dipasang. Rute internal (`fast|smart|document`) dipertahankan untuk logika fallback OpenRouter/Gemini; Aether/Cosmos/Prism otomatis dinaikkan ke rute konteks panjang saat ada gambar/pertanyaan dokumen.
+- Auto-routing lama dihapus (tidak ada lagi id `auto`), jadi `isReasoningQuestion()` jadi mati dan ikut dihapus.
+- Percakapan lama yang menyimpan id model lama dipetakan aman di `lib/mappers/conversation.ts` (`auto→cosmos`, `fast→aether`, `smart→cosmos`, `document→velo`).
+
+**Upaya + Pemikiran (nyata, bukan label):** `effortLevels` Rendah/Sedang(bawaan)/Tinggi/Ekstra/Ultra → `effortRuntimeMap` memetakan ke **`reasoning.effort` OpenAI + plafon `max_output_tokens`** (2rb→32rb). Makin tinggi → makin banyak token → kuota 5 jam/mingguan habis lebih cepat (tanpa mengubah RPC kuota). Toggle **Pemikiran** mati = dipaksa ke level terendah. Keduanya disimpan di localStorage, dikirim di body `/api/chat`, divalidasi server (`normalizeEffortLevel`).
+
+**UI (`components/Composer.tsx`):** menu model kini berisi 4 model (+badge engine), pemisah, baris **"Upaya · <level> ›"** yang membuka submenu berisi 5 level + kalimat peringatan konsumsi kuota, toggle **"Pemikiran"** (switch), dan entri **"AI Discussion — Segera hadir"** yang sengaja **disabled** (jujur: fiturnya belum ada).
+
+**Hapus 7 study mode lama:** `Quick Explain, Cambridge Tutor, OSN Coach, Islamic Teacher, Coding Mentor, Research Mode, Step-by-Step` **dihapus dari DB produksi** (lewat service-role; 14 → **7 skill bawaan**, tersisa skill domain Langkah 34b/34c). Di kode: `defaultSkillName` dihapus (default kini skill bawaan gratis pertama yang tersisa), dropdown **"Default study mode"** dihapus dari `SettingsModal`, dan copy paket yang menyebut nama study mode lama diganti.
+
+**Migrasi `20260801000000_new_model_ids_and_drop_study_modes.sql` (DITULIS, bagian SQL BELUM di-apply):** (a) perluas CHECK `usage_events.model_used` → 4 id baru **+ id lama tetap diizinkan** (baris historis tidak boleh melanggar), (b) `get_subscription_limits.allowed_models` → 4 id baru untuk semua tier, (c) `delete` 7 study mode (bagian ini SUDAH dijalankan agent lewat PostgREST).
+
+**Verifikasi:** `tsc`/`eslint`/`next build` bersih. `/api/chat` menerima body `selectedModel:"prism", effort:"ultra"` dan menjawab 401 saat belum login (guard utuh). UI di-drive di browser lewat scratch harness (`app/dev-model-scratch/`, **dihapus sebelum commit**): 4 model + engine label tampil, submenu Upaya menampilkan Rendah→Ultra + "Bawaan", pilih **Ultra** tersimpan (`localStorage ai-mu-effort=ultra`) & submenu menutup, ganti model → trigger jadi **"Prism"** & menu menutup, toggle Pemikiran `aria-checked true→false` (`ai-mu-thinking=off`), entri AI Discussion tampil "Segera hadir". Nol console error.
+
+**WAJIB sebelum deploy (kalau tidak, chat produksi rusak):** apply bagian SQL migrasi `20260801000000`. Klien sekarang mengirim id model baru; selama `allowed_models` di DB masih berisi id lama, `check_usage_limits` akan menolak dengan `model_not_allowed`.
+
+**Gap/catatan jujur:**
+- **Nama engine belum benar-benar berbeda.** Karena `OPENAI_MODEL=gpt-5.6-terra` masih terisi dan env per-model belum ada, **keempat model saat ini memanggil mesin yang sama (Terra)** meski badge menulis Sol/Luna/5.5 Pro. Isi `OPENAI_MODEL_AETHER/COSMOS/PRISM/VELO` (+ `OPENAI_API_KEY_*`) agar sesuai label dan agar rate limit benar-benar terpisah.
+- `reasoning.effort` hanya dikirim untuk model keluarga GPT-5; kalau provider menolak parameter itu, rute jatuh ke Gemini (fallback lama).
+- Kolom legacy `conversations/messages.study_mode` + `lib/study-modes.ts` + `legacy-study-mode.ts` **sengaja dibiarkan** (data historis; mapper mengembalikan null dengan aman setelah skill-nya hilang).
+- **AI Discussion belum ada backend-nya** — hanya entri "segera hadir".
+
+### Addendum Langkah 39a: migrasi ter-apply, API key per-model aktif, dan tangga Upaya dikoreksi berdasarkan uji provider — SELESAI
+
+Setelah user apply migrasi + memasang 4 API key baru (dan **menghapus `OPENAI_API_KEY` bersama**), dilakukan verifikasi nyata. Tiga temuan, dua di antaranya bug asli yang sudah diperbaiki.
+
+**1. Migrasi terbukti masuk.** Dua kali gagal dulu karena agent menebak, bukan memverifikasi: (a) nama tabel ditulis `usage_events` padahal riilnya **`usage_logs`**; (b) `pg_get_constraintdef(con)` dipanggil dengan baris, bukan `oid`. Versi final menghapus CHECK lewat katalog (`con.conkey` → `pg_attribute.attname`) tanpa fungsi itu. Hasil dicek langsung ke DB: `allowed_models` kelima tier = `["aether","cosmos","prism","velo"]`, dan insert uji `usage_logs.model_used='prism'` **diterima** (baris uji dihapus lagi).
+
+**2. `OPENAI_API_KEY` dihapus → guard "tidak ada provider" jadi salah (BUG, diperbaiki).** Dua guard di `lib/ai/chat.ts` masih memeriksa `process.env.OPENAI_API_KEY` langsung; dengan key bersama dihapus, guard itu menganggap GPT tak terkonfigurasi. Saat ini tak sampai memicu mock karena `GEMINI_API_KEY` masih ada, tapi rapuh. Ditambah `hasAnyOpenAiKey()` yang memeriksa keempat key per-model.
+
+**3. Tangga Upaya salah dan sudah dikoreksi (BUG, diperbaiki).** Peta awal memakai `reasoning.effort: 'minimal'` untuk level Rendah — **ditolak 400 oleh keempat model**, artinya tiap permintaan "Rendah" (dan tiap permintaan dengan Pemikiran dimatikan) akan gagal lalu jatuh ke Gemini. Matriks dukungan diuji langsung ke provider:
+
+| effort | Aether (sol) | Cosmos (terra) | Prism (luna) | Velo (5.5 pro) |
+|---|---|---|---|---|
+| none | OK | OK | OK | **NO** |
+| minimal | **NO** | **NO** | **NO** | **NO** |
+| low | OK | OK | OK | **NO** |
+| medium / high / xhigh | OK | OK | OK | OK |
+| max | OK | OK | **NO** | **NO** |
+
+`effortRuntimeMap` diganti `modelEffortValues` (tangga **per model**): sol/terra/luna = `none→low→medium→high→xhigh`; **Velo punya lantai di `medium`** (tiga level terbawah dibedakan oleh plafon token saja, bukan kedalaman reasoning — dicatat jujur di komentar kode). Plafon token tetap 2rb→32rb. Verifikasi akhir: **20/20 kombinasi (4 model × 5 level) diterima provider**; satu kegagalan sesaat pada Prism+xhigh terbukti **HTTP 500 transien** (percobaan ulang OK), sudah tercakup fallback Gemini.
+
+**Gap "nama engine belum benar-benar berbeda" (Langkah 39) kini TERTUTUP:** keempat key + model id terpasang dan diuji hidup — Aether=`gpt-5.6-sol`, Cosmos=`gpt-5.6-terra`, Prism=`gpt-5.6-luna`, Velo=`gpt-5.5-pro`, **4 key unik** (rate limit benar-benar terpisah). Label di UI sekarang jujur.
+
+### Addendum Langkah 39b: Upaya dinaikkan (berpikir lebih lama) + sisa id model lama dibersihkan — SELESAI di kode (1 migrasi WAJIB di-apply)
+
+Permintaan user: *"saya ingin ai bisa berpikir sedikit lebih lama"* + *"model smart, auto free, dan document juga dihapus karena sudah tidak ada ai-nya"*.
+
+**1. Tangga Upaya dinaikkan satu tingkat penuh.** Sebelumnya level terendah = `none` (tanpa reasoning sama sekali) dan default Sedang = `low`. Sekarang tiap level benar-benar berpikir:
+
+| Level | Aether / Cosmos | Prism | Velo |
+|---|---|---|---|
+| Pemikiran OFF | `none` | `none` | `medium` (lantai) |
+| Rendah | `low` | `low` | `medium` |
+| Sedang (bawaan) | `medium` | `medium` | `medium` |
+| Tinggi | `high` | `high` | `high` |
+| Ekstra | `xhigh` | `xhigh` | `xhigh` |
+| Ultra | `max` | `xhigh` | `xhigh` |
+
+Plafon token ikut naik (**6rb → 16rb → 24rb → 40rb → 64rb**) karena **token reasoning ikut dihitung ke `max_output_tokens`** — kalau plafon kekecilan sementara model berpikir lama, jatah habis di reasoning dan jawaban jadi kosong. Toggle Pemikiran mati kini benar-benar `none` (bukan sekadar level terendah). Deskripsi level di UI diperbarui agar cocok. **Verifikasi: 24/24 kombinasi (4 model × 6 kondisi, termasuk plafon 64rb) diterima provider.**
+
+**2. Sisa id model lama dibersihkan dari kode:**
+- **`lib/usage/limits.ts` (BUG laten, diperbaiki):** `tierLimitFallbacks.allowedModels` masih berisi `auto/fast/smart/document`. Kalau RPC usage gagal, klien akan menganggap **semua model baru terkunci** → tiap pilihan model membuka modal upgrade. Diganti ke 4 id baru.
+- **Pesan fallback AI** yang menyuruh pengguna *"pilih Auto / Free Model"* (model yang sudah tak ada) diganti jadi *"pilih model yang lebih ringan seperti Aether"*.
+- Badge/fitur paket yang menyebut *"Rute Document konteks panjang"* diganti ke **Velo**.
+- Catatan: `AiRoute` internal (`fast|smart|document`) **sengaja dipertahankan** — itu label rute internal untuk memilih tingkatan fallback Gemini/OpenRouter, bukan model yang bisa dipilih pengguna.
+
+**3. TEMUAN KRITIS — 3 tabel lain masih menolak id model baru.** Ketahuan saat mencoba memetakan 12 conversation lama: `new row ... violates check constraint "conversations_selected_model_check"`. Ternyata **`conversations.selected_model`, `messages.selected_model`** (20260530000000) dan **`user_memory.default_model`** (20260531000000) sama-sama punya CHECK id lama + default `'auto'`. **Tanpa perbaikan ini chat RUSAK TOTAL setelah deploy** — setiap insert percakapan/pesan dengan `'cosmos'` dst. ditolak. Migrasi `20260801000000` sebelumnya hanya membereskan `usage_logs` + `allowed_models`, jadi belum cukup.
+
+**Migrasi `20260801010000_chat_tables_new_model_ids.sql` (DITULIS, WAJIB di-apply):** drop CHECK lama di ketiga kolom itu (pola sapu katalog yang sama & sudah terbukti), set default → `'cosmos'`, pasang CHECK baru (id baru **+ id lama tetap diizinkan** demi baris historis), lalu petakan data hidup: `conversations` & `user_memory.default_model` (`auto|smart→cosmos`, `fast→aether`, `document→velo`). **`messages` historis sengaja tidak diubah** — itu catatan model yang benar-benar dipakai saat itu, bukan preferensi.
+
+**Kenapa `usage_logs` tetap mengizinkan id lama:** ada **226 baris historis** (`auto` 135, `smart` 53, `document` 23, `fast` 15). Itu catatan pemakaian nyata — tidak ditulis ulang, hanya constraint-nya yang diperlonggar.
+
+`tsc`/`eslint`/`next build` bersih. **Belum di-commit.**
+
+### Addendum Langkah 39c: urutan/penyajian model diperbaiki + popover yang keluar layar (BUG UI) — SELESAI
+
+**1. Penyajian model dikoreksi.** User meluruskan: **Aether (GPT-5.6 Sol) adalah model terbaru & terbaik**, urutan tampil Aether → Cosmos → Prism → Velo. Pemetaan mesin **tidak diubah** (user konfirmasi 5.6 Sol memang generasi terbaru); yang diperbaiki deskripsinya, dan ditulis mengikuti **angka hasil ukur** (upaya Sedang, pertanyaan sama): Aether ~3,7s · Cosmos ~2,6s · Prism ~2,5s · **Velo ~28,5s**. Karena itu Velo dideskripsikan apa adanya: *"Generasi sebelumnya. Menimbang paling lama — cocok untuk soal berat, tapi jawabannya lebih lambat"* — bukan diklaim tercepat, supaya user tidak salah pilih.
+
+**2. BUG UI: tiga popover Composer keluar layar.** Semua popover (`menu model`, `dropdown skill`, `picker "/"`) memakai `absolute bottom-full` + `overflow-hidden` **tanpa batas tinggi**. Setelah menu model diisi 4 model + submenu Upaya + toggle Pemikiran + AI Discussion, tingginya ~557px — pada layar 640px menu meluber ke ATAS viewport dan bagian bawahnya (Pemikiran, AI Discussion) **tak terjangkau sama sekali**. Sama untuk daftar skill begitu jumlahnya banyak. Diperbaiki: `max-h-[min(70vh,560px)] overflow-y-auto overscroll-contain` + kelas `.scroll` (scrollbar tipis Design v2) pada **ketiganya**.
+
+**Verifikasi (harness `app/dev-menu-scratch/`, data realistis 7 skill bawaan + 3 custom, dihapus sebelum commit), viewport 390×640:**
+- Menu model + submenu Upaya terbuka: tinggi 448px (ter-cap), konten 557px, `keluarAtas=false`, bisa di-scroll, item terakhir **AI Discussion terjangkau** setelah scroll.
+- Dropdown skill 10 item: tidak keluar layar, bisa di-scroll, item terakhir terjangkau.
+- Picker `/` 10 match: idem.
+- Deskripsi & urutan model baru ter-render benar di menu.
+
+`tsc`/`eslint` bersih. **Belum di-commit.**
+
+**Catatan proses:** sempat mencoba menjalankan dev server sendiri di port 3214 dan gagal karena **dev server milik user sudah jalan di port 3000** (Next menolak dua dev server dari direktori sama). Pengujian dialihkan ke server user tersebut — server user **tidak dimatikan**.

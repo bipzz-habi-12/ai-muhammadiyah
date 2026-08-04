@@ -40,7 +40,7 @@ import { type PlanModelId } from "@/lib/subscriptions/plans";
 
 type SelectedModel = PlanModelId;
 
-const modelOptions: SelectedModel[] = ["auto", "fast", "smart", "document"];
+const modelOptions: SelectedModel[] = ["aether", "cosmos", "prism", "velo"];
 
 const supportedDocumentAccept =
   "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp";
@@ -121,12 +121,18 @@ export default function Home() {
     setSelectedModel,
     isModelMenuOpen,
     setIsModelMenuOpen,
+    isEffortMenuOpen,
+    setIsEffortMenuOpen,
     isUpgradeOpen,
     setIsUpgradeOpen,
     upgradeTargetModel,
     selectedModelInfo,
     upgradePlan,
     selectModel,
+    effort,
+    setEffort,
+    isThinkingEnabled,
+    toggleThinking,
   } = useModelSelection(allowedModels);
   const {
     learningProfile,
@@ -240,6 +246,8 @@ export default function Home() {
     selectedSkill,
     selectedModel,
     setSelectedModel,
+    effort,
+    isThinkingEnabled,
     uploadedAttachments,
     setUploadedAttachments,
     documentText,
@@ -717,6 +725,12 @@ export default function Home() {
               isModelMenuOpen={isModelMenuOpen}
               modelOptions={modelOptions}
               selectedModelInfo={selectedModelInfo}
+              isEffortMenuOpen={isEffortMenuOpen}
+              setIsEffortMenuOpen={setIsEffortMenuOpen}
+              effort={effort}
+              setEffort={setEffort}
+              isThinkingEnabled={isThinkingEnabled}
+              toggleThinking={toggleThinking}
               skills={skills}
               skillsLoading={skillsLoading}
               selectedSkillId={selectedSkillId}
@@ -749,6 +763,12 @@ export default function Home() {
                 isModelMenuOpen={isModelMenuOpen}
                 modelOptions={modelOptions}
                 selectedModelInfo={selectedModelInfo}
+                isEffortMenuOpen={isEffortMenuOpen}
+                setIsEffortMenuOpen={setIsEffortMenuOpen}
+                effort={effort}
+                setEffort={setEffort}
+                isThinkingEnabled={isThinkingEnabled}
+                toggleThinking={toggleThinking}
                 skills={skills}
                 skillsLoading={skillsLoading}
                 selectedSkillId={selectedSkillId}

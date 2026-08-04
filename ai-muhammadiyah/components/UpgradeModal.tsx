@@ -149,12 +149,6 @@ export default function UpgradeModal({
               <strong className="text-[#16211c]">{upgradePlan.name}</strong>{" "}
               untuk memakai {modelCatalog[upgradeTargetModel].description}
             </p>
-            {(upgradeTargetModel === "smart" ||
-              upgradeTargetModel === "document") && (
-              <p className="mt-2 inline-flex rounded-full bg-[#e7c77e] px-3 py-1 text-xs font-bold text-[#8a6a1f]">
-                Requires Muallim Pro or higher
-              </p>
-            )}
           </div>
           <button
             type="button"

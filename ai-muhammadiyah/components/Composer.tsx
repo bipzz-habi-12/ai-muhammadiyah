@@ -14,7 +14,14 @@ import {
   getLockedSkillRequirement,
 } from "@/lib/chat/selection-labels";
 import { canAccessTier, getSkillBadge, type Skill } from "@/lib/skills";
-import { modelCatalog, type PlanModelId } from "@/lib/subscriptions/plans";
+import {
+  aiDiscussion,
+  effortLevels,
+  getEffortLabel,
+  modelCatalog,
+  type EffortLevel,
+  type PlanModelId,
+} from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
 import {
   formatTokenCount,
@@ -44,6 +51,14 @@ interface ComposerProps {
   setIsModelMenuOpen: Dispatch<SetStateAction<boolean>>;
   modelOptions: PlanModelId[];
   selectedModelInfo: (typeof modelCatalog)[PlanModelId];
+
+  // submenu "Upaya" + toggle "Pemikiran" di dalam menu model
+  isEffortMenuOpen: boolean;
+  setIsEffortMenuOpen: Dispatch<SetStateAction<boolean>>;
+  effort: EffortLevel;
+  setEffort: (level: EffortLevel) => void;
+  isThinkingEnabled: boolean;
+  toggleThinking: () => void;
 
   // skill dropdown + active chip
   skills: Skill[];
@@ -82,6 +97,12 @@ export default function Composer({
   setIsModelMenuOpen,
   modelOptions,
   selectedModelInfo,
+  isEffortMenuOpen,
+  setIsEffortMenuOpen,
+  effort,
+  setEffort,
+  isThinkingEnabled,
+  toggleThinking,
   skills,
   skillsLoading,
   selectedSkill,
@@ -176,7 +197,7 @@ export default function Composer({
     }
 
     return (
-      <div className="absolute bottom-full left-0 z-30 mb-2 w-[min(86vw,340px)] overflow-hidden rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
+      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(70vh,560px)] w-[min(86vw,340px)] overflow-y-auto overscroll-contain rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
         {modelOptions.map((model) => {
           const modelInfo = modelCatalog[model];
           const isAllowed = allowedModels.includes(model);
@@ -198,17 +219,10 @@ export default function Composer({
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2 font-bold text-[#16211c]">
                   {modelInfo.label}
-                  {model === "smart" && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
-                      <SparkIcon className="h-3 w-3" />
-                      GPT-5.6 Terra
-                    </span>
-                  )}
-                  {model === "document" && (
-                    <span className="rounded-full bg-[#e0e0ff] px-2 py-0.5 text-[11px] font-bold text-[#343d96]">
-                      Konteks panjang
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
+                    <SparkIcon className="h-3 w-3" />
+                    {modelInfo.engineLabel}
+                  </span>
                   {!isAllowed && (
                     <span className="rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
                       Premium
@@ -224,6 +238,105 @@ export default function Composer({
             </button>
           );
         })}
+
+        <div className="my-1 h-px bg-[#0b3d2a]/10" />
+
+        {/* Baris "Upaya" — membuka submenu level Rendah..Ultra. */}
+        <button
+          type="button"
+          onClick={() => setIsEffortMenuOpen((isOpen) => !isOpen)}
+          aria-expanded={isEffortMenuOpen}
+          className="flex w-full items-center justify-between gap-3 rounded-[16px] p-3 text-left transition hover:bg-[#f0eee6]"
+        >
+          <span className="font-bold text-[#16211c]">Upaya</span>
+          <span className="flex items-center gap-1 text-xs font-bold text-[#5d6862]">
+            {getEffortLabel(effort)}
+            <span aria-hidden="true">{isEffortMenuOpen ? "⌄" : "›"}</span>
+          </span>
+        </button>
+
+        {isEffortMenuOpen && (
+          <div className="mb-1 rounded-[16px] bg-[#f7f5ee] p-1">
+            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold leading-relaxed text-[#5d6862]">
+              Upaya yang lebih tinggi berarti respons yang lebih menyeluruh,
+              tetapi butuh waktu lebih lama dan memakai kuota token lebih cepat.
+            </p>
+            {effortLevels.map((level) => (
+              <button
+                key={level.id}
+                type="button"
+                onClick={() => setEffort(level.id)}
+                className={
+                  effort === level.id
+                    ? "flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#0f5a3d]/10 px-3 py-2 text-left"
+                    : "flex w-full items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-left transition hover:bg-[#ece9df]"
+                }
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-bold text-[#16211c]">{level.label}</span>
+                  {level.isDefault && (
+                    <span className="rounded-full bg-[#0b3d2a]/10 px-2 py-0.5 text-[10px] font-bold text-[#5d6862]">
+                      Bawaan
+                    </span>
+                  )}
+                </span>
+                {effort === level.id && (
+                  <Icon name="check" className="h-4 w-4 text-[#0f5a3d]" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Toggle "Pemikiran" — mematikannya memaksa upaya minimal (hemat kuota). */}
+        <div className="flex items-center justify-between gap-3 rounded-[16px] p-3">
+          <span className="min-w-0">
+            <span className="block font-bold text-[#16211c]">Pemikiran</span>
+            <span className="mt-0.5 block text-xs font-semibold leading-relaxed text-[#5d6862]">
+              Berpikir untuk tugas yang lebih kompleks
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={toggleThinking}
+            role="switch"
+            aria-checked={isThinkingEnabled}
+            aria-label="Pemikiran"
+            className={
+              isThinkingEnabled
+                ? "relative h-6 w-11 shrink-0 rounded-full bg-[#0f5a3d] transition"
+                : "relative h-6 w-11 shrink-0 rounded-full bg-[#c7ccc8] transition"
+            }
+          >
+            <span
+              className={
+                isThinkingEnabled
+                  ? "absolute left-[22px] top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+                  : "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+              }
+            />
+          </button>
+        </div>
+
+        <div className="my-1 h-px bg-[#0b3d2a]/10" />
+
+        {/* AI Discussion — belum aktif, ditampilkan jujur sebagai "segera hadir". */}
+        <div
+          aria-disabled="true"
+          className="flex cursor-not-allowed items-center justify-between gap-3 rounded-[16px] p-3 opacity-70"
+        >
+          <span className="min-w-0">
+            <span className="block font-bold text-[#16211c]">
+              {aiDiscussion.label}
+            </span>
+            <span className="mt-0.5 block text-xs font-semibold leading-relaxed text-[#5d6862]">
+              {aiDiscussion.description}
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
+            {aiDiscussion.comingSoonLabel}
+          </span>
+        </div>
       </div>
     );
   }
@@ -234,7 +347,7 @@ export default function Composer({
     }
 
     return (
-      <div className="absolute bottom-full right-0 z-30 mb-2 w-[min(88vw,360px)] overflow-hidden rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
+      <div className="scroll absolute bottom-full right-0 z-30 mb-2 max-h-[min(70vh,560px)] w-[min(88vw,360px)] overflow-y-auto overscroll-contain rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
         {skillsLoading && !skills.length && (
           <div className="p-3 text-xs font-semibold text-[#8a9089]">
             Memuat skill...
@@ -350,7 +463,7 @@ export default function Composer({
     }
 
     return (
-      <div className="absolute bottom-full left-0 z-30 mb-2 w-[min(88vw,360px)] overflow-hidden rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
+      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(70vh,560px)] w-[min(88vw,360px)] overflow-y-auto overscroll-contain rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
         <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-[#8a9089]">
           Skill sekali pakai
         </div>

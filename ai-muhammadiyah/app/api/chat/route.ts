@@ -17,6 +17,10 @@ import {
   getSkillSystemPrompt,
   resolveAllowedSkill,
 } from "@/lib/skills";
+import {
+  defaultModelId,
+  normalizeEffortLevel,
+} from "@/lib/subscriptions/plans";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import {
   estimateTokenUsage,
@@ -32,6 +36,8 @@ type ChatRequestBody = {
   imageContexts?: ImageContext[];
   selectedModel?: string;
   skillId?: string;
+  effort?: string;
+  thinking?: boolean;
   workspaceSystemInstructions?: string;
 };
 
@@ -101,7 +107,11 @@ export async function POST(request: Request) {
     const pdfContext = body.pdfContext ?? "";
     const documentContexts = body.documentContexts ?? [];
     const imageContexts = body.imageContexts ?? [];
-    const selectedModel = body.selectedModel ?? "auto";
+    const selectedModel = body.selectedModel ?? defaultModelId;
+    // Level Upaya & toggle Pemikiran: divalidasi di server supaya body yang
+    // aneh tidak bisa memaksa plafon token di luar peta yang kita tentukan.
+    const effort = normalizeEffortLevel(body.effort);
+    const thinking = body.thinking !== false;
     const skillId = body.skillId ?? "";
     const workspaceSystemInstructions = body.workspaceSystemInstructions ?? "";
 
@@ -320,6 +330,8 @@ export async function POST(request: Request) {
               knowledgeContext,
               documentContexts,
               imageContexts,
+              effort,
+              thinking,
             },
           );
 

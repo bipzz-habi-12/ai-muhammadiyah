@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeStudyMode, type StudyModeId } from "@/lib/study-modes";
+import { defaultModelId, type PlanModelId } from "@/lib/subscriptions/plans";
 
 export type UserMemory = {
   displayName: string;
@@ -9,7 +10,7 @@ export type UserMemory = {
   preferredLanguage: string;
   preferredExplanationStyle: string;
   themePreference: "system" | "light" | "dark";
-  defaultModel: "auto" | "fast" | "smart" | "document";
+  defaultModel: PlanModelId;
   defaultStudyMode: StudyModeId;
 };
 
@@ -46,7 +47,7 @@ export const emptyUserMemory: UserMemory = {
   preferredLanguage: "",
   preferredExplanationStyle: "",
   themePreference: "system",
-  defaultModel: "auto",
+  defaultModel: defaultModelId,
   defaultStudyMode: "cambridge_tutor",
 };
 
@@ -91,15 +92,15 @@ function normalizeThemePreference(value: string | undefined) {
 
 function normalizeDefaultModel(value: string | undefined) {
   if (
-    value === "fast" ||
-    value === "smart" ||
-    value === "document" ||
-    value === "auto"
+    value === "aether" ||
+    value === "cosmos" ||
+    value === "prism" ||
+    value === "velo"
   ) {
     return value;
   }
 
-  return "auto";
+  return defaultModelId;
 }
 
 export function sanitizeUserMemory(input: UserMemoryInput): UserMemory {

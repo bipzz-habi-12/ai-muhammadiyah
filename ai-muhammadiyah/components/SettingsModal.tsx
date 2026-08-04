@@ -10,10 +10,6 @@ import {
 import { Icon } from "@/components/icons";
 import { useBilling } from "@/hooks/useBilling";
 import { describeBillingSubscription } from "@/lib/subscriptions/billing";
-import {
-  skillNameToLegacyStudyMode,
-  skillToLegacyStudyMode,
-} from "@/lib/mappers/legacy-study-mode";
 import type { SettingsTab } from "@/lib/mappers/types";
 import { type UserMemory } from "@/lib/memory/user-memory";
 import type { KnowledgeSource } from "@/lib/knowledge";
@@ -365,36 +361,6 @@ export default function SettingsModal({
                   </select>
                 </label>
 
-                <label className="block">
-                  <span className="text-sm font-bold text-[#16211c]">
-                    Default study mode
-                  </span>
-                  <select
-                    value={profileDraft.defaultStudyMode}
-                    onChange={(event) =>
-                      updateProfileDraft(
-                        "defaultStudyMode",
-                        event.target.value as UserMemory["defaultStudyMode"],
-                      )
-                    }
-                    className="mt-2 h-12 w-full rounded-2xl bg-[#fbfaf6] px-4 text-sm font-semibold text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10 focus:ring-[#0f5a3d]"
-                  >
-                    {skills
-                      .filter(
-                        (skill) =>
-                          skill.ownerId === null &&
-                          skillNameToLegacyStudyMode[skill.name],
-                      )
-                      .map((skill) => (
-                        <option
-                          key={skill.id}
-                          value={skillToLegacyStudyMode(skill)}
-                        >
-                          {skill.name} ({getSkillBadge(skill, usageSnapshot?.tier)})
-                        </option>
-                      ))}
-                  </select>
-                </label>
               </div>
             )}
 

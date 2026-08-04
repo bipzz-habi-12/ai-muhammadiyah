@@ -7,6 +7,12 @@ import {
   createUserMemorySystemPrompt,
   type UserMemory,
 } from "@/lib/memory/user-memory";
+import {
+  defaultModelId,
+  normalizeEffortLevel,
+  type EffortLevel,
+  type PlanModelId,
+} from "@/lib/subscriptions/plans";
 import type { SubscriptionTier } from "@/lib/usage/limits";
 
 export type ChatMessage = {
@@ -58,14 +64,23 @@ type OpenAiResponsesPayload = {
   max_output_tokens: number;
   stream?: boolean;
   temperature?: number;
+  reasoning?: { effort: OpenAiEffortValue };
 };
 type ChatContextOptions = {
   knowledgeContext?: string;
   documentContexts?: DocumentContext[];
   imageContexts?: ImageContext[];
+  /** Level "Upaya" pilihan pengguna (Rendah..Ultra). */
+  effort?: EffortLevel;
+  /** Toggle "Pemikiran" — mematikannya memaksa upaya minimal. */
+  thinking?: boolean;
 };
-type SelectedModel = "auto" | "fast" | "smart" | "document";
-type AiRoute = Exclude<SelectedModel, "auto">;
+type SelectedModel = PlanModelId;
+/**
+ * Rute internal (dipakai untuk fallback OpenRouter/Gemini). Nama publik model
+ * (Aether/Cosmos/Prism/Velo) dipetakan ke rute ini lewat `modelRouteMap`.
+ */
+type AiRoute = "fast" | "smart" | "document";
 type AiProvider = "mock" | "openrouter" | "openai" | "gemini";
 type RoutingAccess = {
   tier?: SubscriptionTier;
@@ -200,16 +215,132 @@ const openRouterMaxTokens = 4000;
 const openAiMaxOutputTokens = 8000;
 const geminiMaxOutputTokens = 8000;
 
+// ---------------------------------------------------------------------------
+// Model publik (Aether/Cosmos/Prism/Velo)
+//
+// Keempatnya rute GPT. Tiap model punya API key DAN model id sendiri lewat env
+// supaya satu model yang kena rate limit tidak menjatuhkan yang lain. Kalau env
+// per-model belum diisi, otomatis jatuh ke OPENAI_API_KEY / OPENAI_MODEL yang
+// sudah ada — jadi aplikasi tetap jalan sebelum key baru dipasang.
+// Gemini (lalu OpenRouter) tetap jadi cadangan otomatis untuk semua model.
+// ---------------------------------------------------------------------------
+const modelRuntimeConfig: Record<
+  SelectedModel,
+  { route: AiRoute; apiKeyEnv: string; modelEnv: string; defaultModel: string }
+> = {
+  aether: {
+    route: "fast",
+    apiKeyEnv: "OPENAI_API_KEY_AETHER",
+    modelEnv: "OPENAI_MODEL_AETHER",
+    defaultModel: "gpt-5.6-sol",
+  },
+  cosmos: {
+    route: "smart",
+    apiKeyEnv: "OPENAI_API_KEY_COSMOS",
+    modelEnv: "OPENAI_MODEL_COSMOS",
+    defaultModel: "gpt-5.6-terra",
+  },
+  prism: {
+    route: "smart",
+    apiKeyEnv: "OPENAI_API_KEY_PRISM",
+    modelEnv: "OPENAI_MODEL_PRISM",
+    defaultModel: "gpt-5.6-luna",
+  },
+  velo: {
+    route: "document",
+    apiKeyEnv: "OPENAI_API_KEY_VELO",
+    modelEnv: "OPENAI_MODEL_VELO",
+    defaultModel: "gpt-5.5-pro",
+  },
+};
+
+type OpenAiEffortValue =
+  | "none"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+
+/**
+ * Plafon token keluaran per level Upaya. Makin tinggi → jawaban boleh lebih
+ * panjang → kuota token 5 jam/mingguan habis lebih cepat.
+ */
+// Catatan penting: token reasoning IKUT dihitung ke `max_output_tokens`. Kalau
+// plafonnya terlalu kecil sementara modelnya berpikir lama, jatah habis di
+// reasoning dan jawabannya jadi kosong — jadi plafon naik seiring level.
+const effortMaxOutputTokens: Record<EffortLevel, number> = {
+  low: 6_000,
+  medium: 16_000,
+  high: 24_000,
+  extra: 40_000,
+  ultra: 64_000,
+};
+
+/**
+ * `reasoning.effort` per model — DIVERIFIKASI LANGSUNG ke provider, karena
+ * dukungannya berbeda-beda per model (bukan asumsi):
+ *   - 'minimal' ditolak SEMUA model di sini.
+ *   - 'none' & 'low' ditolak gpt-5.5-pro (Velo).
+ *   - 'max' ditolak gpt-5.6-luna (Prism) & gpt-5.5-pro (Velo).
+ *   - 'medium' | 'high' | 'xhigh' didukung keempat model.
+ * Nilai yang tidak didukung akan membuat provider balas 400 dan rutenya jatuh
+ * ke Gemini — jadi tangga ini sengaja dijaga di dalam batas yang terbukti.
+ * Velo punya lantai di 'medium'; di tiga level terbawah pembedanya adalah
+ * plafon token, bukan kedalaman reasoning.
+ */
+const modelEffortValues: Record<
+  SelectedModel,
+  Record<EffortLevel, OpenAiEffortValue>
+> = {
+  aether: { low: "low", medium: "medium", high: "high", extra: "xhigh", ultra: "max" },
+  cosmos: { low: "low", medium: "medium", high: "high", extra: "xhigh", ultra: "max" },
+  // Prism menolak 'max', jadi puncaknya 'xhigh'.
+  prism: { low: "low", medium: "medium", high: "high", extra: "xhigh", ultra: "xhigh" },
+  // Velo menolak 'none' dan 'low' → lantainya 'medium', puncaknya 'xhigh'.
+  velo: { low: "medium", medium: "medium", high: "high", extra: "xhigh", ultra: "xhigh" },
+};
+
+/**
+ * Nilai saat toggle "Pemikiran" dimatikan: benar-benar tanpa reasoning.
+ * Velo tidak mendukung 'none', jadi turun sejauh yang diizinkan ('medium').
+ */
+const thinkingOffEffort: Record<SelectedModel, OpenAiEffortValue> = {
+  aether: "none",
+  cosmos: "none",
+  prism: "none",
+  velo: "medium",
+};
+
+/**
+ * Upaya efektif. Kalau "Pemikiran" dimatikan, reasoning dimatikan juga dan
+ * plafon token memakai jatah terkecil.
+ */
+function resolveEffortRuntime(
+  options?: ChatContextOptions,
+  selectedModel: SelectedModel = defaultModelId,
+) {
+  const level = normalizeEffortLevel(options?.effort);
+  const isThinkingOff = options?.thinking === false;
+
+  return {
+    openAiEffort: isThinkingOff
+      ? thinkingOffEffort[selectedModel]
+      : modelEffortValues[selectedModel][level],
+    maxOutputTokens: isThinkingOff
+      ? effortMaxOutputTokens.low
+      : effortMaxOutputTokens[level],
+  };
+}
+
+type EffortRuntime = ReturnType<typeof resolveEffortRuntime>;
+
 function normalizeSelectedModel(selectedModel?: string): SelectedModel {
-  if (
-    selectedModel === "fast" ||
-    selectedModel === "smart" ||
-    selectedModel === "document"
-  ) {
-    return selectedModel;
+  if (selectedModel && selectedModel in modelRuntimeConfig) {
+    return selectedModel as SelectedModel;
   }
 
-  return "auto";
+  return defaultModelId;
 }
 
 function resolveOpenRouterModel(route: AiRoute) {
@@ -224,8 +355,26 @@ function hasGeminiProAccess(tier: SubscriptionTier) {
   );
 }
 
-function resolveOpenAiModel() {
-  return openAiDefaultModel;
+// Model id GPT untuk model publik terpilih: env per-model dulu, lalu
+// OPENAI_MODEL bersama, lalu default bawaan.
+function resolveOpenAiModel(selectedModel: SelectedModel = defaultModelId) {
+  const config = modelRuntimeConfig[selectedModel];
+  return (
+    process.env[config.modelEnv]?.trim() ||
+    process.env.OPENAI_MODEL?.trim() ||
+    config.defaultModel
+  );
+}
+
+// API key GPT untuk model publik terpilih: key per-model dulu (supaya rate
+// limit tidak saling menjatuhkan), lalu OPENAI_API_KEY bersama.
+function resolveOpenAiApiKey(selectedModel: SelectedModel = defaultModelId) {
+  const config = modelRuntimeConfig[selectedModel];
+  return (
+    process.env[config.apiKeyEnv]?.trim() ||
+    process.env.OPENAI_API_KEY?.trim() ||
+    ""
+  );
 }
 
 // Semua model keluarga GPT-5 (gpt-5-mini, gpt-5.5, gpt-5.6-terra, ...) menolak
@@ -237,8 +386,18 @@ function isGpt5FamilyModel(model: string) {
 
 // OpenAI dicoba lebih dulu untuk SEMUA rute dan SEMUA tier (Gemini &
 // OpenRouter tetap jadi fallback). Satu-satunya syarat: API key tersedia.
-function shouldTryOpenAiFirst() {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+function shouldTryOpenAiFirst(selectedModel: SelectedModel = defaultModelId) {
+  return Boolean(resolveOpenAiApiKey(selectedModel));
+}
+
+// Apakah ADA key GPT sama sekali — key per-model mana pun, atau key bersama.
+// Dipakai guard "tidak ada provider terkonfigurasi"; tanpa ini, menghapus
+// OPENAI_API_KEY bersama (karena sudah pindah ke key per-model) akan membuat
+// chat mengira tidak ada AI dan menjawab mock.
+function hasAnyOpenAiKey() {
+  return (
+    Object.keys(modelRuntimeConfig) as SelectedModel[]
+  ).some((model) => Boolean(resolveOpenAiApiKey(model)));
 }
 
 function createOpenAiResponsesPayload({
@@ -251,6 +410,7 @@ function createOpenAiResponsesPayload({
   systemPrompt,
   memory,
   stream,
+  effortRuntime,
 }: {
   model: string;
   messages: ChatMessage[];
@@ -261,6 +421,7 @@ function createOpenAiResponsesPayload({
   systemPrompt?: string;
   memory?: UserMemory;
   stream?: boolean;
+  effortRuntime?: EffortRuntime;
 }): OpenAiResponsesPayload {
   const payload: OpenAiResponsesPayload = {
     model,
@@ -273,8 +434,14 @@ function createOpenAiResponsesPayload({
       documentContexts,
       imageContexts,
     ),
-    max_output_tokens: openAiMaxOutputTokens,
+    max_output_tokens: effortRuntime?.maxOutputTokens ?? openAiMaxOutputTokens,
   };
+
+  // Keluarga GPT-5 mendukung `reasoning.effort` — ini yang membuat level Upaya
+  // benar-benar mengubah kedalaman berpikir (dan pemakaian token), bukan cuma label.
+  if (effortRuntime && isGpt5FamilyModel(model)) {
+    payload.reasoning = { effort: effortRuntime.openAiEffort };
+  }
 
   if (stream) {
     payload.stream = true;
@@ -296,30 +463,28 @@ function resolveGeminiModel(route: AiRoute = "fast", tier: SubscriptionTier = "f
   return model.replace(/^models\//, "");
 }
 
+/**
+ * Rute internal untuk model publik yang dipilih. Model yang ringan (Aether)
+ * dinaikkan otomatis ke rute konteks panjang saat ada gambar atau pertanyaan
+ * dokumen, supaya lampiran besar tetap terbaca.
+ */
 function routeSelectedModel(
   selectedModel: SelectedModel,
   latestMessage: string,
   pdfContext: string,
   hasImages = false,
-  allowedModels: string[] = ["auto", "fast"],
 ): AiRoute {
-  if (selectedModel !== "auto") {
-    return selectedModel;
+  const baseRoute = modelRuntimeConfig[selectedModel].route;
+
+  if (baseRoute === "document") {
+    return baseRoute;
   }
 
-  if (hasImages) {
-    return allowedModels.includes("document") ? "document" : "fast";
+  if (hasImages || (pdfContext && isDocumentQuestion(latestMessage))) {
+    return "document";
   }
 
-  if (pdfContext && isDocumentQuestion(latestMessage)) {
-    return allowedModels.includes("document") ? "document" : "fast";
-  }
-
-  if (isReasoningQuestion(latestMessage)) {
-    return allowedModels.includes("smart") ? "smart" : "fast";
-  }
-
-  return "fast";
+  return baseRoute;
 }
 
 function normalizeRoutingAccess(access?: RoutingAccess) {
@@ -328,7 +493,7 @@ function normalizeRoutingAccess(access?: RoutingAccess) {
     allowedModels:
       access?.allowedModels && access.allowedModels.length
         ? access.allowedModels
-        : ["auto", "fast"],
+        : Object.keys(modelRuntimeConfig),
   };
 }
 
@@ -459,35 +624,6 @@ function isImageQuestion(question: string) {
   return imageWords.some((word) => normalizedQuestion.includes(word));
 }
 
-function isReasoningQuestion(question: string) {
-  const normalizedQuestion = question.toLowerCase();
-
-  const reasoningWords = [
-    "analisis mendalam",
-    "analisa mendalam",
-    "reason",
-    "reasoning",
-    "logika",
-    "langkah demi langkah",
-    "step by step",
-    "bandingkan",
-    "compare",
-    "evaluasi",
-    "kritisi",
-    "strategi",
-    "rencana",
-    "argumen",
-    "mengapa",
-    "kenapa",
-    "buktikan",
-    "hitung",
-    "solve",
-    "pecahkan",
-  ];
-
-  return reasoningWords.some((word) => normalizedQuestion.includes(word));
-}
-
 function isPdfContextTooShort(pdfContext: string) {
   return pdfContext.length > 0 && pdfContext.length < minUsefulDocumentContextLength;
 }
@@ -534,14 +670,14 @@ function createModelUnavailableFallback(pdfContext: string) {
     return [
       "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
       "",
-      "Dokumen sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih Auto / Free Model.",
+      "Dokumen sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih model yang lebih ringan seperti Aether.",
     ].join("\n");
   }
 
   return [
     "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
     "",
-    "Silakan coba lagi sebentar lagi, atau pilih Auto / Free Model.",
+    "Silakan coba lagi sebentar lagi, atau pilih model yang lebih ringan seperti Aether.",
   ].join("\n");
 }
 
@@ -1208,12 +1344,16 @@ async function generateOpenAiGptReply(
   knowledgeContext = "",
   documentContexts: DocumentContext[] = [],
   imageContexts: ImageContext[] = [],
+  selectedModel: SelectedModel = defaultModelId,
+  effortRuntime?: EffortRuntime,
 ): Promise<OpenAiReplyResult> {
-  const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
-  const openAiModel = resolveOpenAiModel();
+  const openAiApiKey = resolveOpenAiApiKey(selectedModel);
+  const openAiModel = resolveOpenAiModel(selectedModel);
 
   if (!openAiApiKey) {
-    const error = { errorBody: "OPENAI_API_KEY is missing" };
+    const error = {
+      errorBody: `API key untuk model ${selectedModel} belum diisi (${modelRuntimeConfig[selectedModel].apiKeyEnv} atau OPENAI_API_KEY)`,
+    };
     logOpenAiRequestEvent("request failure", {
       model: openAiModel,
       errorBody: error.errorBody,
@@ -1241,6 +1381,7 @@ async function generateOpenAiGptReply(
         imageContexts,
         systemPrompt,
         memory,
+        effortRuntime,
       })),
     });
 
@@ -1632,15 +1773,19 @@ async function streamOpenAiGptReply(
   knowledgeContext = "",
   documentContexts: DocumentContext[] = [],
   imageContexts: ImageContext[] = [],
+  selectedModel: SelectedModel = defaultModelId,
+  effortRuntime?: EffortRuntime,
 ): Promise<OpenAiStreamResult | null> {
-  const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
-  const openAiModel = resolveOpenAiModel();
+  const openAiApiKey = resolveOpenAiApiKey(selectedModel);
+  const openAiModel = resolveOpenAiModel(selectedModel);
   let streamedText = "";
   let streamedFinishReason: string | undefined;
   let streamedError: OpenAiErrorDetails | undefined;
 
   if (!openAiApiKey) {
-    const error = { errorBody: "OPENAI_API_KEY is missing" };
+    const error = {
+      errorBody: `API key untuk model ${selectedModel} belum diisi (${modelRuntimeConfig[selectedModel].apiKeyEnv} atau OPENAI_API_KEY)`,
+    };
     logOpenAiRequestEvent("request failure", {
       model: openAiModel,
       errorBody: error.errorBody,
@@ -1669,6 +1814,7 @@ async function streamOpenAiGptReply(
         systemPrompt,
         memory,
         stream: true,
+        effortRuntime,
       })),
     });
 
@@ -1795,9 +1941,11 @@ async function generateProviderReply(
   systemPrompt: string | undefined,
   memory?: UserMemory,
   options?: ChatContextOptions,
+  selectedModel: SelectedModel = defaultModelId,
 ): Promise<GenerateChatReplyResult> {
   const routeConfig = aiRouteConfig[route];
-  const triedOpenAi = shouldTryOpenAiFirst();
+  const triedOpenAi = shouldTryOpenAiFirst(selectedModel);
+  const effortRuntime = resolveEffortRuntime(options, selectedModel);
 
   if (triedOpenAi) {
     const openAiResult = await generateOpenAiGptReply(
@@ -1808,20 +1956,22 @@ async function generateProviderReply(
       options?.knowledgeContext,
       options?.documentContexts,
       options?.imageContexts,
+      selectedModel,
+      effortRuntime,
     );
 
     if (openAiResult.reply) {
       logAiSuccess("AI Muhammadiyah provider handled request:", {
         route,
         provider: "openai",
-        model: resolveOpenAiModel(),
+        model: resolveOpenAiModel(selectedModel),
         tier: access.tier,
       });
 
       return {
         reply: openAiResult.reply,
         provider: "openai",
-        model: resolveOpenAiModel(),
+        model: resolveOpenAiModel(selectedModel),
       };
     }
 
@@ -1829,14 +1979,14 @@ async function generateProviderReply(
       return {
         reply: createOpenAiFailureReply(openAiResult.error),
         provider: "openai",
-        model: resolveOpenAiModel(),
+        model: resolveOpenAiModel(selectedModel),
         fallbackEvent: "gpt_test_mode_no_fallback",
       };
     }
 
     console.warn("AI Muhammadiyah falling back from OpenAI GPT to Gemini:", {
       route,
-      openAiModel: resolveOpenAiModel(),
+      openAiModel: resolveOpenAiModel(selectedModel),
       geminiModel: resolveGeminiModel("fast", "free"),
       tier: access.tier,
     });
@@ -1951,7 +2101,6 @@ export async function generateChatReply(
     latestMessage,
     preparedPdfContext,
     hasImages,
-    access.allowedModels,
   );
   const shouldUsePdfContext =
     Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
@@ -1967,7 +2116,7 @@ export async function generateChatReply(
   }
 
   if (
-    !process.env.OPENAI_API_KEY &&
+    !hasAnyOpenAiKey() &&
     !process.env.OPENROUTER_API_KEY &&
     !process.env.GEMINI_API_KEY
   ) {
@@ -1986,6 +2135,7 @@ export async function generateChatReply(
     systemPrompt,
     memory,
     options,
+    normalizedModel,
   );
 
   return result;
@@ -2023,7 +2173,6 @@ export async function streamChatReply(
     latestMessage,
     preparedPdfContext,
     hasImages,
-    access.allowedModels,
   );
   const shouldUsePdfContext =
     Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
@@ -2041,7 +2190,7 @@ export async function streamChatReply(
   }
 
   if (
-    !process.env.OPENAI_API_KEY &&
+    !hasAnyOpenAiKey() &&
     !process.env.OPENROUTER_API_KEY &&
     !process.env.GEMINI_API_KEY
   ) {
@@ -2051,7 +2200,8 @@ export async function streamChatReply(
   }
 
   const routeConfig = aiRouteConfig[route];
-  const triedOpenAi = shouldTryOpenAiFirst();
+  const triedOpenAi = shouldTryOpenAiFirst(normalizedModel);
+  const effortRuntime = resolveEffortRuntime(options, normalizedModel);
 
   if (triedOpenAi) {
     const openAiResult = await streamOpenAiGptReply(
@@ -2063,20 +2213,22 @@ export async function streamChatReply(
       options?.knowledgeContext,
       options?.documentContexts,
       options?.imageContexts,
+      normalizedModel,
+      effortRuntime,
     );
 
     if (openAiResult?.reply) {
       logAiSuccess("AI Muhammadiyah provider streamed request:", {
         route,
         provider: "openai",
-        model: resolveOpenAiModel(),
+        model: resolveOpenAiModel(normalizedModel),
         tier: access.tier,
       });
 
       return {
         reply: openAiResult.reply,
         provider: "openai" as const,
-        model: resolveOpenAiModel(),
+        model: resolveOpenAiModel(normalizedModel),
         finishReason: openAiResult.finishReason,
       };
     }
@@ -2089,14 +2241,14 @@ export async function streamChatReply(
       return {
         reply,
         provider: "openai" as const,
-        model: resolveOpenAiModel(),
+        model: resolveOpenAiModel(normalizedModel),
         fallbackEvent: "gpt_test_mode_no_fallback",
       };
     }
 
     console.warn("AI Muhammadiyah streaming fallback from OpenAI GPT to Gemini:", {
       route,
-      openAiModel: resolveOpenAiModel(),
+      openAiModel: resolveOpenAiModel(normalizedModel),
       geminiModel: resolveGeminiModel("fast", "free"),
       tier: access.tier,
     });

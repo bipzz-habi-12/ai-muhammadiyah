@@ -12,7 +12,11 @@ import MarkdownMessage from "@/components/MarkdownMessage";
 import { formatArtifactTextForDisplay } from "@/lib/artifacts";
 import type { Message } from "@/lib/mappers/types";
 import type { Skill } from "@/lib/skills";
-import { modelCatalog, type PlanModelId } from "@/lib/subscriptions/plans";
+import {
+  modelCatalog,
+  type EffortLevel,
+  type PlanModelId,
+} from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
 
 const quickPrompts = [
@@ -62,6 +66,12 @@ interface ChatAreaProps {
   isModelMenuOpen: boolean;
   modelOptions: PlanModelId[];
   selectedModelInfo: (typeof modelCatalog)[PlanModelId];
+  isEffortMenuOpen: boolean;
+  setIsEffortMenuOpen: Dispatch<SetStateAction<boolean>>;
+  effort: EffortLevel;
+  setEffort: (level: EffortLevel) => void;
+  isThinkingEnabled: boolean;
+  toggleThinking: () => void;
   skills: Skill[];
   skillsLoading: boolean;
   selectedSkillId: string | null;
@@ -95,6 +105,12 @@ export default function ChatArea({
   isModelMenuOpen,
   modelOptions,
   selectedModelInfo,
+  isEffortMenuOpen,
+  setIsEffortMenuOpen,
+  effort,
+  setEffort,
+  isThinkingEnabled,
+  toggleThinking,
   skills,
   skillsLoading,
   selectedSkillId,
@@ -145,6 +161,12 @@ export default function ChatArea({
             isModelMenuOpen={isModelMenuOpen}
             modelOptions={modelOptions}
             selectedModelInfo={selectedModelInfo}
+            isEffortMenuOpen={isEffortMenuOpen}
+            setIsEffortMenuOpen={setIsEffortMenuOpen}
+            effort={effort}
+            setEffort={setEffort}
+            isThinkingEnabled={isThinkingEnabled}
+            toggleThinking={toggleThinking}
             skills={skills}
             skillsLoading={skillsLoading}
             selectedSkillId={selectedSkillId}

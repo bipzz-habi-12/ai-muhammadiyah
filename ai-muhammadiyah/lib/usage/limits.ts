@@ -62,27 +62,27 @@ export const tierLimits: Record<SubscriptionTier, TierLimits> = {
   free: {
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
-    allowedModels: ["auto", "fast", "smart"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
   },
   kader_pintar: {
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
-    allowedModels: ["auto", "fast", "smart"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
   },
   muallim_pro: {
     sessionTokenLimit: 2_400_000,
     weeklyTokenLimit: 16_000_000,
-    allowedModels: ["auto", "fast", "smart", "document"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
   },
   dakwah_digital: {
     sessionTokenLimit: 4_800_000,
     weeklyTokenLimit: 32_000_000,
-    allowedModels: ["auto", "fast", "smart", "document"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
   },
   sinergi_ranting: {
     sessionTokenLimit: 16_000_000,
     weeklyTokenLimit: 112_000_000,
-    allowedModels: ["auto", "fast", "smart", "document"],
+    allowedModels: ["aether", "cosmos", "prism", "velo"],
   },
 };
 

@@ -16,6 +16,7 @@ import {
   tierLabels,
   type UsageSnapshot,
 } from "@/lib/usage/limits";
+import { defaultModelId } from "@/lib/subscriptions/plans";
 
 export function useUsage() {
   const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
@@ -74,7 +75,7 @@ export function applyUsageConstraints(
 ) {
   setSelectedModel((currentModel) =>
     snapshot && !snapshot.allowedModels.includes(currentModel)
-      ? "auto"
+      ? defaultModelId
       : currentModel,
   );
   setSelectedSkillId((currentId) =>

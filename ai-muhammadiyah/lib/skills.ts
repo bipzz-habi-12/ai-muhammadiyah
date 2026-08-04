@@ -30,8 +30,6 @@ export type SkillRow = {
   updated_at: string;
 };
 
-export const defaultSkillName = "Cambridge Tutor";
-
 // Fixed column list selected everywhere skills are read (fetchSkills + the
 // /api/skills routes), so mapSkillRow always receives the same shape.
 export const SKILL_COLUMNS =
@@ -109,12 +107,13 @@ export function canAccessTier(
   return userIndex >= minIndex;
 }
 
+// 7 study mode gaya-belajar lama sudah dihapus (migrasi 20260801000000), jadi
+// tidak ada lagi skill bernama khusus yang jadi default. Ambil skill bawaan
+// gratis pertama yang tersisa (skill domain), lalu apa pun yang ada.
 export function findDefaultSkill(skills: Skill[]): Skill | null {
   return (
-    skills.find(
-      (skill) => skill.ownerId === null && skill.name === defaultSkillName,
-    ) ??
     skills.find((skill) => skill.ownerId === null && skill.minTier === "free") ??
+    skills.find((skill) => skill.ownerId === null) ??
     skills[0] ??
     null
   );

@@ -31,6 +31,10 @@ import { resolveAllowedSkill, type Skill } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { PlanModelId } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
+import {
+  defaultModelId,
+  type EffortLevel,
+} from "@/lib/subscriptions/plans";
 
 const streamUiFlushMs = 48;
 
@@ -55,6 +59,8 @@ export function useChatSession(
   selectedSkill: Skill | null,
   selectedModel: PlanModelId,
   setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
+  effort: EffortLevel,
+  isThinkingEnabled: boolean,
   uploadedAttachments: UploadedAttachment[],
   setUploadedAttachments: Dispatch<SetStateAction<UploadedAttachment[]>>,
   documentText: string,
@@ -125,7 +131,9 @@ export function useChatSession(
     setActiveConversationId(conversation.id);
     void loadArtifacts(conversation.id);
     setSelectedModel(
-      allowedModels.includes(conversation.model) ? conversation.model : "auto",
+      allowedModels.includes(conversation.model)
+        ? conversation.model
+        : defaultModelId,
     );
     setSelectedSkillId(
       resolveAllowedSkill(conversation.skillId, usageSnapshot?.tier, skills)?.id ??
@@ -371,6 +379,8 @@ export function useChatSession(
           documentContexts,
           imageContexts,
           selectedModel,
+          effort,
+          thinking: isThinkingEnabled,
           skillId: activeSkill.id,
           workspaceSystemInstructions,
         }),
