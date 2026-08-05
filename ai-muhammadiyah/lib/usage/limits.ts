@@ -62,12 +62,12 @@ export const tierLimits: Record<SubscriptionTier, TierLimits> = {
   free: {
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: ["prism", "velo"],
   },
   kader_pintar: {
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: ["prism", "velo"],
   },
   muallim_pro: {
     sessionTokenLimit: 2_400_000,

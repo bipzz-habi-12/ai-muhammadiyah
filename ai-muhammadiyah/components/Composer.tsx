@@ -8,12 +8,12 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { SparkIcon, Icon } from "@/components/icons";
+import { Icon } from "@/components/icons";
 import {
   getLockedModelRequirement,
   getLockedSkillRequirement,
 } from "@/lib/chat/selection-labels";
-import { canAccessTier, getSkillBadge, type Skill } from "@/lib/skills";
+import { canAccessTier, type Skill } from "@/lib/skills";
 import {
   aiDiscussion,
   effortLevels,
@@ -197,10 +197,11 @@ export default function Composer({
     }
 
     return (
-      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(70vh,560px)] w-[min(86vw,340px)] overflow-y-auto overscroll-contain rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
+      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,380px)] w-[min(86vw,320px)] overflow-y-auto overscroll-contain rounded-[18px] bg-white p-1.5 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
         {modelOptions.map((model) => {
           const modelInfo = modelCatalog[model];
           const isAllowed = allowedModels.includes(model);
+          const isSelected = selectedModel === model;
 
           return (
             <button
@@ -208,33 +209,32 @@ export default function Composer({
               type="button"
               onClick={() => selectModel(model)}
               className={
-                selectedModel === model
-                  ? "flex w-full items-start gap-3 rounded-[16px] bg-[#0f5a3d]/10 p-3 text-left"
-                  : "flex w-full items-start gap-3 rounded-[16px] p-3 text-left transition hover:bg-[#f0eee6]"
+                isSelected
+                  ? "flex w-full items-center gap-2 rounded-[12px] bg-[#0f5a3d]/10 px-2.5 py-1.5 text-left"
+                  : "flex w-full items-center gap-2 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[#f0eee6]"
               }
             >
-              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f5a3d]/10 text-[#0f5a3d]">
-                <Icon name={isAllowed ? "check" : "lock"} className="h-4 w-4" />
-              </span>
               <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2 font-bold text-[#16211c]">
-                  {modelInfo.label}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
-                    <SparkIcon className="h-3 w-3" />
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-[13px] font-bold text-[#16211c]">
+                    {modelInfo.label}
+                  </span>
+                  <span className="shrink-0 text-[10px] font-semibold text-[#8a9089]">
                     {modelInfo.engineLabel}
                   </span>
                   {!isAllowed && (
-                    <span className="rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
-                      Premium
-                    </span>
+                    <Icon name="lock" className="h-3 w-3 shrink-0 text-[#8a6a1f]" />
                   )}
                 </span>
-                <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#5d6862]">
+                <span className="mt-0.5 block truncate text-[11px] leading-snug text-[#5d6862]">
                   {isAllowed
                     ? modelInfo.description
                     : getLockedModelRequirement(model)}
                 </span>
               </span>
+              {isSelected && (
+                <Icon name="check" className="h-4 w-4 shrink-0 text-[#0f5a3d]" />
+              )}
             </button>
           );
         })}
@@ -246,20 +246,19 @@ export default function Composer({
           type="button"
           onClick={() => setIsEffortMenuOpen((isOpen) => !isOpen)}
           aria-expanded={isEffortMenuOpen}
-          className="flex w-full items-center justify-between gap-3 rounded-[16px] p-3 text-left transition hover:bg-[#f0eee6]"
+          className="flex w-full items-center justify-between gap-3 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[#f0eee6]"
         >
-          <span className="font-bold text-[#16211c]">Upaya</span>
-          <span className="flex items-center gap-1 text-xs font-bold text-[#5d6862]">
+          <span className="text-[13px] font-bold text-[#16211c]">Upaya</span>
+          <span className="flex items-center gap-1 text-[11px] font-bold text-[#5d6862]">
             {getEffortLabel(effort)}
             <span aria-hidden="true">{isEffortMenuOpen ? "⌄" : "›"}</span>
           </span>
         </button>
 
         {isEffortMenuOpen && (
-          <div className="mb-1 rounded-[16px] bg-[#f7f5ee] p-1">
-            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold leading-relaxed text-[#5d6862]">
-              Upaya yang lebih tinggi berarti respons yang lebih menyeluruh,
-              tetapi butuh waktu lebih lama dan memakai kuota token lebih cepat.
+          <div className="mb-1 rounded-[12px] bg-[#f7f5ee] p-1">
+            <p className="px-2.5 pb-1 pt-1.5 text-[10px] leading-snug text-[#5d6862]">
+              Makin tinggi: makin menyeluruh, makin lama, makin boros kuota.
             </p>
             {effortLevels.map((level) => (
               <button
@@ -268,20 +267,22 @@ export default function Composer({
                 onClick={() => setEffort(level.id)}
                 className={
                   effort === level.id
-                    ? "flex w-full items-center justify-between gap-3 rounded-[14px] bg-[#0f5a3d]/10 px-3 py-2 text-left"
-                    : "flex w-full items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-left transition hover:bg-[#ece9df]"
+                    ? "flex w-full items-center justify-between gap-2 rounded-[10px] bg-[#0f5a3d]/10 px-2.5 py-1 text-left"
+                    : "flex w-full items-center justify-between gap-2 rounded-[10px] px-2.5 py-1 text-left transition hover:bg-[#ece9df]"
                 }
               >
                 <span className="flex items-center gap-2">
-                  <span className="font-bold text-[#16211c]">{level.label}</span>
+                  <span className="text-[13px] font-bold text-[#16211c]">
+                    {level.label}
+                  </span>
                   {level.isDefault && (
-                    <span className="rounded-full bg-[#0b3d2a]/10 px-2 py-0.5 text-[10px] font-bold text-[#5d6862]">
+                    <span className="rounded-full bg-[#0b3d2a]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#5d6862]">
                       Bawaan
                     </span>
                   )}
                 </span>
                 {effort === level.id && (
-                  <Icon name="check" className="h-4 w-4 text-[#0f5a3d]" />
+                  <Icon name="check" className="h-3.5 w-3.5 text-[#0f5a3d]" />
                 )}
               </button>
             ))}
@@ -289,10 +290,12 @@ export default function Composer({
         )}
 
         {/* Toggle "Pemikiran" — mematikannya memaksa upaya minimal (hemat kuota). */}
-        <div className="flex items-center justify-between gap-3 rounded-[16px] p-3">
+        <div className="flex items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5">
           <span className="min-w-0">
-            <span className="block font-bold text-[#16211c]">Pemikiran</span>
-            <span className="mt-0.5 block text-xs font-semibold leading-relaxed text-[#5d6862]">
+            <span className="block text-[13px] font-bold text-[#16211c]">
+              Pemikiran
+            </span>
+            <span className="mt-0.5 block truncate text-[11px] leading-snug text-[#5d6862]">
               Berpikir untuk tugas yang lebih kompleks
             </span>
           </span>
@@ -304,15 +307,15 @@ export default function Composer({
             aria-label="Pemikiran"
             className={
               isThinkingEnabled
-                ? "relative h-6 w-11 shrink-0 rounded-full bg-[#0f5a3d] transition"
-                : "relative h-6 w-11 shrink-0 rounded-full bg-[#c7ccc8] transition"
+                ? "relative h-5 w-9 shrink-0 rounded-full bg-[#0f5a3d] transition"
+                : "relative h-5 w-9 shrink-0 rounded-full bg-[#c7ccc8] transition"
             }
           >
             <span
               className={
                 isThinkingEnabled
-                  ? "absolute left-[22px] top-0.5 h-5 w-5 rounded-full bg-white transition-all"
-                  : "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+                  ? "absolute left-[18px] top-0.5 h-4 w-4 rounded-full bg-white transition-all"
+                  : "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-all"
               }
             />
           </button>
@@ -323,17 +326,17 @@ export default function Composer({
         {/* AI Discussion — belum aktif, ditampilkan jujur sebagai "segera hadir". */}
         <div
           aria-disabled="true"
-          className="flex cursor-not-allowed items-center justify-between gap-3 rounded-[16px] p-3 opacity-70"
+          className="flex cursor-not-allowed items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 opacity-70"
         >
           <span className="min-w-0">
-            <span className="block font-bold text-[#16211c]">
+            <span className="block text-[13px] font-bold text-[#16211c]">
               {aiDiscussion.label}
             </span>
-            <span className="mt-0.5 block text-xs font-semibold leading-relaxed text-[#5d6862]">
+            <span className="mt-0.5 block truncate text-[11px] leading-snug text-[#5d6862]">
               {aiDiscussion.description}
             </span>
           </span>
-          <span className="shrink-0 rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]">
+          <span className="shrink-0 rounded-full bg-[#e7c77e] px-1.5 py-0.5 text-[9px] font-bold text-[#8a6a1f]">
             {aiDiscussion.comingSoonLabel}
           </span>
         </div>
@@ -347,48 +350,47 @@ export default function Composer({
     }
 
     return (
-      <div className="scroll absolute bottom-full right-0 z-30 mb-2 max-h-[min(70vh,560px)] w-[min(88vw,360px)] overflow-y-auto overscroll-contain rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
+      <div className="scroll absolute bottom-full right-0 z-30 mb-2 max-h-[min(60vh,340px)] w-[min(88vw,300px)] overflow-y-auto overscroll-contain rounded-[18px] bg-white p-1.5 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
         {skillsLoading && !skills.length && (
-          <div className="p-3 text-xs font-semibold text-[#8a9089]">
+          <div className="px-2.5 py-2 text-[11px] font-semibold text-[#8a9089]">
             Memuat skill...
           </div>
         )}
         {skills.map((skill) => {
           const isAllowed = canAccessTier(usageSnapshot?.tier, skill.minTier);
-          const badge = getSkillBadge(skill, usageSnapshot?.tier);
+          const isSelected = selectedSkillId === skill.id;
 
           return (
             <button
               key={skill.id}
               type="button"
               onClick={() => selectSkill(skill.id)}
+              title={
+                isAllowed
+                  ? (skill.category ?? skill.name)
+                  : getLockedSkillRequirement(skill)
+              }
               className={
-                selectedSkillId === skill.id
-                  ? "flex w-full items-start gap-3 rounded-[16px] bg-[#0f5a3d]/10 p-3 text-left"
-                  : "flex w-full items-start gap-3 rounded-[16px] p-3 text-left transition hover:bg-[#f0eee6]"
+                isSelected
+                  ? "flex w-full items-center gap-2 rounded-[10px] bg-[#0f5a3d]/10 px-2.5 py-1.5 text-left"
+                  : "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left transition hover:bg-[#f0eee6]"
               }
             >
-              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f5a3d]/10 text-[#0f5a3d]">
-                <Icon name={isAllowed ? "check" : "lock"} className="h-4 w-4" />
+              <span className="truncate text-[13px] font-semibold text-[#16211c]">
+                {skill.name}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2 font-bold text-[#16211c]">
-                  {skill.name}
-                  <span
-                    className={
-                      isAllowed
-                        ? "rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 text-[11px] font-bold text-[#0f5a3d]"
-                        : "rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]"
-                    }
-                  >
-                    {badge}
-                  </span>
+              {skill.slashCommand && (
+                <span className="shrink-0 font-mono text-[10px] text-[#8a9089]">
+                  {skill.slashCommand}
                 </span>
-                <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#5d6862]">
-                  {isAllowed
-                    ? (skill.category ?? "")
-                    : getLockedSkillRequirement(skill)}
-                </span>
+              )}
+              <span className="ml-auto flex shrink-0 items-center gap-1">
+                {!isAllowed && (
+                  <Icon name="lock" className="h-3 w-3 text-[#8a6a1f]" />
+                )}
+                {isSelected && (
+                  <Icon name="check" className="h-3.5 w-3.5 text-[#0f5a3d]" />
+                )}
               </span>
             </button>
           );
@@ -463,12 +465,12 @@ export default function Composer({
     }
 
     return (
-      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(70vh,560px)] w-[min(88vw,360px)] overflow-y-auto overscroll-contain rounded-[20px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
-        <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-[#8a9089]">
+      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,340px)] w-[min(88vw,320px)] overflow-y-auto overscroll-contain rounded-[18px] bg-white p-1.5 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10">
+        <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8a9089]">
           Skill sekali pakai
         </div>
         {slashMatches.length === 0 ? (
-          <div className="p-3 text-xs font-semibold text-[#8a9089]">
+          <div className="px-2.5 py-2 text-[11px] font-semibold text-[#8a9089]">
             {skillsLoading && !skills.length
               ? "Memuat skill..."
               : "Tidak ada skill dengan perintah itu."}
@@ -482,24 +484,22 @@ export default function Composer({
                 key={skill.id}
                 type="button"
                 onClick={() => pickSlashSkill(skill)}
-                className="flex w-full items-center gap-3 rounded-[16px] p-3 text-left transition hover:bg-[#f0eee6]"
+                title={
+                  isAllowed
+                    ? (skill.category ?? skill.name)
+                    : getLockedSkillRequirement(skill)
+                }
+                className="flex w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left transition hover:bg-[#f0eee6]"
               >
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f5a3d]/10 text-[#0f5a3d]">
-                  <Icon name={isAllowed ? "book" : "lock"} className="h-4 w-4" />
+                <span className="shrink-0 font-mono text-[11px] font-bold text-[#0f5a3d]">
+                  {skill.slashCommand}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2 font-bold text-[#16211c]">
-                    <span className="font-mono text-[#0f5a3d]">
-                      {skill.slashCommand}
-                    </span>
-                    {skill.name}
-                  </span>
-                  <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#5d6862]">
-                    {isAllowed
-                      ? (skill.category ?? "")
-                      : getLockedSkillRequirement(skill)}
-                  </span>
+                <span className="truncate text-[13px] text-[#16211c]">
+                  {skill.name}
                 </span>
+                {!isAllowed && (
+                  <Icon name="lock" className="ml-auto h-3 w-3 shrink-0 text-[#8a6a1f]" />
+                )}
               </button>
             );
           })

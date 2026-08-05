@@ -841,3 +841,25 @@ Plafon token ikut naik (**6rb → 16rb → 24rb → 40rb → 64rb**) karena **to
 `tsc`/`eslint` bersih. **Belum di-commit.**
 
 **Catatan proses:** sempat mencoba menjalankan dev server sendiri di port 3214 dan gagal karena **dev server milik user sudah jalan di port 3000** (Next menolak dua dev server dari direktori sama). Pengujian dialihkan ke server user tersebut — server user **tidak dimatikan**.
+
+### Addendum Langkah 39d: menu diringkas (ala referensi) + Aether & Cosmos jadi khusus Muallim Pro+ — SELESAI (1 migrasi WAJIB di-apply)
+
+**1. Menu terlalu tinggi → dirampingkan.** Meski batas tinggi + scroll sudah ada (39c), barisnya masih terlalu tebal. Mengikuti referensi yang dikirim user, ketiga popover dibuat ringkas: lingkaran ikon 32px dibuang, centang dipindah ke kanan hanya untuk item terpilih, padding `p-3` → `px-2.5 py-1.5`, ukuran teks 13px/11px, dan teks bantuan submenu Upaya dipendekkan.
+
+| Menu | Tinggi baris | Tinggi total (390×640) |
+|---|---|---|
+| Model | 76px → **48px** | 557px → **347px** (muat tanpa scroll) |
+| Model + submenu Upaya | — | **380px** (ter-cap, konten 529px, scroll) |
+| Skill (10 item) | 76px → **31px** | **318px**, 10 item terlihat sekaligus |
+| Picker `/` (10 match) | 76px → **31px** | **340px** (ter-cap, scroll) |
+
+Efek samping: `SparkIcon` & `getSkillBadge` jadi tak terpakai di Composer → import dihapus.
+
+**2. Aether & Cosmos jadi khusus Muallim Pro ke atas.** Free & Kader Pintar kini hanya **Prism + Velo**.
+- `modelCatalog`: `minimumTier` Aether/Cosmos → `muallim_pro`; `allowedModels` paket Free & Kader → `["prism","velo"]`; fallback `lib/usage/limits.ts` ikut disesuaikan (kalau tidak, saat RPC gagal user gratis malah dapat semua model).
+- **`defaultModelId` diubah `cosmos` → `prism`.** Ini WAJIB: default lama kini terkunci untuk tier gratis, jadi user Free akan mengirim model terlarang dan chat-nya ditolak `model_not_allowed`.
+- Copy paket dirapikan supaya jujur: Free/Kader tidak lagi diiklankan "Includes GPT-5.6 Terra" (Terra = Cosmos, kini terkunci) — diganti "Prism (GPT-5.6 Luna)". Muallim Pro menonjolkan "Buka Aether & Cosmos".
+
+**Migrasi `20260802000000_gate_aether_cosmos_muallim_pro.sql` (DITULIS, WAJIB di-apply):** `get_subscription_limits.allowed_models` per tier (ini sumber kebenaran server — tanpa ini pembatasan hanya di UI dan bisa dilewati lewat panggilan API langsung), default kolom `selected_model`/`default_model` `'cosmos'` → `'prism'`, plus menurunkan preferensi/percakapan milik user tier gratis-kader yang masih menunjuk Aether/Cosmos ke Prism.
+
+`tsc`/`eslint`/`next build` bersih.

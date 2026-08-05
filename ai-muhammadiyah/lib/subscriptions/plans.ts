@@ -11,7 +11,7 @@ import { tierLabels, type SubscriptionTier } from "@/lib/usage/limits";
 export type PlanModelId = "aether" | "cosmos" | "prism" | "velo";
 
 /** Model default saat pengguna belum memilih apa pun. */
-export const defaultModelId: PlanModelId = "cosmos";
+export const defaultModelId: PlanModelId = "prism";
 
 /**
  * Level "Upaya". Makin tinggi levelnya, makin dalam model berpikir dan makin
@@ -126,16 +126,16 @@ export const modelCatalog: Record<
     shortLabel: "Aether",
     engineLabel: "GPT-5.6 Sol",
     description: "Model terbaru dan paling canggih. Tajam sekaligus responsif.",
-    premiumLabel: "Included",
-    minimumTier: "free",
+    premiumLabel: "Muallim Pro",
+    minimumTier: "muallim_pro",
   },
   cosmos: {
     label: "Cosmos",
     shortLabel: "Cosmos",
     engineLabel: "GPT-5.6 Terra",
     description: "Seimbang dan cepat untuk tugas sehari-hari.",
-    premiumLabel: "Included",
-    minimumTier: "free",
+    premiumLabel: "Muallim Pro",
+    minimumTier: "muallim_pro",
   },
   prism: {
     label: "Prism",
@@ -176,12 +176,12 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Mulai belajar dengan AI-mu.",
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
-    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
-    modelBadges: ["Includes GPT-5.6 Terra"],
+    modelNames: ["Prism", "Velo"],
+    modelBadges: ["Prism (GPT-5.6 Luna)"],
     isGptPowered: true,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: ["prism", "velo"],
     features: [
-      "Chat AI streaming ditenagai GPT-5.6 Terra",
+      "Chat AI streaming ditenagai Prism (GPT-5.6 Luna)",
       "Riwayat obrolan tersimpan",
       "Upload dokumen dasar",
       "Skill bawaan siap pakai lewat perintah /",
@@ -196,14 +196,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk kader dan pelajar aktif.",
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
-    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
-    modelBadges: ["Includes GPT-5.6 Terra", "Kuota lebih besar"],
+    modelNames: ["Prism", "Velo"],
+    modelBadges: ["Prism (GPT-5.6 Luna)", "Kuota lebih besar"],
     isGptPowered: true,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: ["prism", "velo"],
     features: [
-      "Akses seluruh model (Aether, Cosmos, Prism, Velo)",
+      "Akses Prism & Velo",
       "Kuota 5 jam & mingguan lebih besar untuk belajar intensif",
-      "Rute GPT-5.6 Terra untuk penalaran mendalam",
+      "Upaya tinggi untuk penalaran mendalam",
       "Skill custom tanpa batas + upaya tinggi",
     ],
     quotas: ["800rb token / 5 jam", "5,6jt token / minggu"],
@@ -217,12 +217,12 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     sessionTokenLimit: 2_400_000,
     weeklyTokenLimit: 16_000_000,
     modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
-    modelBadges: ["Includes GPT-5.6 Terra", "Velo untuk konteks panjang"],
+    modelBadges: ["Buka Aether & Cosmos", "Semua model"],
     isGptPowered: true,
     allowedModels: ["aether", "cosmos", "prism", "velo"],
     features: [
+      "Buka Aether (GPT-5.6 Sol) dan Cosmos (GPT-5.6 Terra)",
       "Velo untuk dokumen besar dan riset konteks panjang",
-      "Rute GPT-5.6 Terra untuk materi ajar dan kajian",
       "Skill domain untuk guru dan mentor",
     ],
     quotas: ["2,4jt token / 5 jam", "16jt token / minggu"],
