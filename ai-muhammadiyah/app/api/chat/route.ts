@@ -12,6 +12,10 @@ import {
 } from "@/lib/knowledge";
 import { loadUserMemory } from "@/lib/memory/user-memory";
 import {
+  createSecondBrainPromptContext,
+  retrieveRelevantNotes,
+} from "@/lib/second-brain/notes";
+import {
   canAccessTier,
   fetchSkills,
   getSkillSystemPrompt,
@@ -258,13 +262,30 @@ export async function POST(request: Request) {
     const trimmedWorkspaceInstructions = workspaceSystemInstructions
       .trim()
       .slice(0, maxWorkspaceSystemInstructionsLength);
-    const systemPrompt = trimmedWorkspaceInstructions
+    const workspaceLayeredPrompt = trimmedWorkspaceInstructions
       ? [
           skillSystemPrompt,
           "WORKSPACE SYSTEM INSTRUCTIONS (set by the user for this workspace; always apply unless they conflict with safety or the AI Muhammadiyah identity):",
           trimmedWorkspaceInstructions,
         ].join("\n\n")
       : skillSystemPrompt;
+
+    // Otak Kedua (Langkah 40): catatan pribadi pengguna yang relevan.
+    // Digabung ke systemPrompt — bukan ke knowledgeContext — karena
+    // `createKnowledgeGroundedPrompt` membingkai isinya sebagai korpus yang
+    // harus disitasi dan menyuruh AI bilang "tidak ditemukan di knowledge
+    // base"; framing itu keliru untuk catatan milik pengguna sendiri.
+    const noteChunks = await retrieveRelevantNotes(
+      supabase,
+      latestUserMessage,
+    ).catch((error) => {
+      console.error("Second brain retrieval failed:", error);
+      return [];
+    });
+    const secondBrainContext = createSecondBrainPromptContext(noteChunks);
+    const systemPrompt = secondBrainContext
+      ? [workspaceLayeredPrompt, secondBrainContext].join("\n\n")
+      : workspaceLayeredPrompt;
 
     const userMemory = await loadUserMemory(supabase, user.id).catch((error) => {
       console.error("User memory load failed:", error);

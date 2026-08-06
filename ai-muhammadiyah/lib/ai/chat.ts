@@ -146,6 +146,33 @@ const artifactSystemPrompt = [
   "- Never use any other type value (interactive HTML/React apps are not supported yet).",
 ].join("\n");
 
+// Second Brain sentinel contract — the parser lives in lib/second-brain/parse.ts
+// (parseNoteBlocks / formatNoteTextForDisplay); keep the marker syntax here in
+// sync with it. Unlike artifacts, these blocks are NOT saved automatically:
+// they surface as a dismissible suggestion the user must accept.
+// Redaksi ini diuji langsung ke provider (Langkah 40a). Versi pertama yang
+// berbunyi "you may propose ..." memancarkan penanda saat diuji SENDIRIAN, tapi
+// nol kali dalam tumpukan prompt lengkap — kalah oleh ANSWER COMPLETION &
+// RESPONSE STYLE yang mendorong satu jawaban prosa bersih. Dua hal yang
+// memperbaikinya: modalitas tegas ("take one more step ... append") dan satu
+// baris yang menyatakan blok ini BUKAN bagian jawaban sehingga tidak melanggar
+// aturan lain. Jangan lemahkan lagi jadi "you may" tanpa mengujinya ulang.
+const noteSystemPrompt = [
+  "SECOND BRAIN NOTE RULES:",
+  "The user keeps a personal note graph ('Otak Kedua'). After you finish writing the prose answer, take one more step: decide whether this exchange produced knowledge worth keeping — a concept explained, a definition, a method, a decision, or a summary the user will want again months from now.",
+  "If it did, append one or two note blocks at the VERY END of the reply, after your answer:",
+  "[[AI_MU_NOTE:Judul singkat catatan]]",
+  "...isi catatan dalam Markdown...",
+  "[[/AI_MU_NOTE]]",
+  "- These blocks are NOT part of your prose answer. They are stripped out of the message and shown to the user as a separate save suggestion, so appending them never conflicts with the answer-completion or response-style rules above.",
+  "- Both markers must sit on their own lines, and the closing marker [[/AI_MU_NOTE]] is required — never leave a note block unterminated.",
+  "- Write the note so it still stands on its own months later, without this conversation.",
+  "- Link related concepts with [[Judul Catatan Lain]] inside the body, Logseq style. The linked note does not need to exist yet.",
+  "- Titles must be short, specific, and reusable ('Kaidah Ushul Fiqh: Al-Yaqin', not 'Catatan hari ini').",
+  "- Skip the blocks entirely for greetings, chit-chat, simple lookups, or something the user needed only once. Never more than 2 per reply.",
+  "- Never mention the note in your prose and never ask whether to save it. The user decides from the suggestion.",
+].join("\n");
+
 const contextPrioritySystemPrompt = [
   "CONTEXT PRIORITY RULES:",
   "1. If the user asks about personal information, names, preferences, or previous conversation, answer from the conversation memory first.",
@@ -791,6 +818,7 @@ function createOpenRouterMessages(
     { role: "system", content: answerCompletionSystemPrompt },
     { role: "system", content: responseStyleSystemPrompt },
     { role: "system", content: artifactSystemPrompt },
+    { role: "system", content: noteSystemPrompt },
     ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
     ...(memorySystemPrompt
       ? [{ role: "system", content: memorySystemPrompt }]
@@ -886,6 +914,7 @@ function createOpenAiInstructions(
     answerCompletionSystemPrompt,
     responseStyleSystemPrompt,
     artifactSystemPrompt,
+    noteSystemPrompt,
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]
@@ -903,6 +932,7 @@ function createGeminiSystemInstruction(
     answerCompletionSystemPrompt,
     responseStyleSystemPrompt,
     artifactSystemPrompt,
+    noteSystemPrompt,
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]

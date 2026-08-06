@@ -9,7 +9,9 @@ import type {
 import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import NoteSuggestions from "@/components/NoteSuggestions";
 import { formatArtifactTextForDisplay } from "@/lib/artifacts";
+import { formatNoteTextForDisplay } from "@/lib/second-brain/parse";
 import type { Message } from "@/lib/mappers/types";
 import type { Skill } from "@/lib/skills";
 import {
@@ -81,6 +83,10 @@ interface ChatAreaProps {
   isStudyModeMenuOpen: boolean;
   messageSkillOverrideId: string | null;
   setMessageSkillOverrideId: Dispatch<SetStateAction<string | null>>;
+
+  // Otak Kedua: dipakai untuk mencatat asal usulan catatan yang disimpan.
+  activeConversationId: string | null;
+  activeWorkspaceId: string | null;
 }
 
 export default function ChatArea({
@@ -120,6 +126,8 @@ export default function ChatArea({
   isStudyModeMenuOpen,
   messageSkillOverrideId,
   setMessageSkillOverrideId,
+  activeConversationId,
+  activeWorkspaceId,
 }: ChatAreaProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
@@ -252,11 +260,23 @@ export default function ChatArea({
                     isStreamingMessage ? " ai-stream-in" : ""
                   }`}
                 >
-                  {/* Rows store raw artifact markers; collapse them to a panel
-                      reference at render time (works mid-stream too). */}
+                  {/* Rows store raw artifact + note markers; strip them at
+                      render time (works mid-stream too). Note blocks are
+                      removed entirely — isinya sudah tampil di chip usulan. */}
                   <MarkdownMessage
-                    text={formatArtifactTextForDisplay(message.text)}
+                    text={formatNoteTextForDisplay(
+                      formatArtifactTextForDisplay(message.text),
+                    )}
                   />
+                  {/* Usulan catatan hanya setelah streaming selesai, supaya
+                      tidak pernah menyela pengguna yang sedang membaca. */}
+                  {!isStreamingMessage && (
+                    <NoteSuggestions
+                      messageText={message.text}
+                      conversationId={activeConversationId}
+                      workspaceId={activeWorkspaceId}
+                    />
+                  )}
                 </div>
               </div>
             );

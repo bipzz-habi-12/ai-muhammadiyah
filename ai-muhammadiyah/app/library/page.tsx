@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
-import LibraryView, { type LibraryItem } from "./LibraryView";
+import LibraryTabs from "./LibraryTabs";
+import { type LibraryItem } from "./LibraryView";
+import { type NoteItem } from "./NotesView";
 
 // Library v2 (design port): the full app shell + a client grid of every Artifact
 // the user owns, across all workspaces. Filtering/search happen client-side over
@@ -102,6 +104,63 @@ export default async function LibraryPage() {
       "Umum",
   }));
 
+  // Otak Kedua: catatan pengguna + tautan dua arah. Dua query RLS-scoped,
+  // backlink dihitung di sini supaya NotesView tetap murni presentasi.
+  const [{ data: noteRows }, { data: linkRows }] = await Promise.all([
+    supabase
+      .from("notes")
+      .select("id,title,content,source,updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(200),
+    supabase.from("note_links").select("source_note_id,target_title,target_note_id"),
+  ]);
+
+  const notesRaw = (noteRows ?? []) as {
+    id: string;
+    title: string;
+    content: string;
+    source: NoteItem["source"];
+    updated_at: string;
+  }[];
+  const links = (linkRows ?? []) as {
+    source_note_id: string;
+    target_title: string;
+    target_note_id: string | null;
+  }[];
+
+  const titleById = new Map(notesRaw.map((note) => [note.id, note.title]));
+  const outgoingBySource = new Map<string, NoteItem["outgoingLinks"]>();
+  const backlinksByTarget = new Map<string, NoteItem["backlinks"]>();
+
+  for (const link of links) {
+    const outgoing = outgoingBySource.get(link.source_note_id) ?? [];
+    outgoing.push({ title: link.target_title, noteId: link.target_note_id });
+    outgoingBySource.set(link.source_note_id, outgoing);
+
+    // Tautan yang belum ter-resolve tidak punya tujuan, jadi tidak
+    // menghasilkan backlink sampai catatan tujuannya dibuat.
+    if (!link.target_note_id) {
+      continue;
+    }
+
+    const incoming = backlinksByTarget.get(link.target_note_id) ?? [];
+    incoming.push({
+      title: titleById.get(link.source_note_id) ?? "Catatan",
+      noteId: link.source_note_id,
+    });
+    backlinksByTarget.set(link.target_note_id, incoming);
+  }
+
+  const notes: NoteItem[] = notesRaw.map((note) => ({
+    id: note.id,
+    title: note.title,
+    content: note.content,
+    source: note.source,
+    updatedAt: note.updated_at,
+    outgoingLinks: outgoingBySource.get(note.id) ?? [],
+    backlinks: backlinksByTarget.get(note.id) ?? [],
+  }));
+
   return (
     <main className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
       <AppShellRail active="library" userInitials={getEmailInitials(user.email ?? "")} />
@@ -117,7 +176,9 @@ export default async function LibraryPage() {
             </h1>
             <p className="mt-3 max-w-[560px] text-base leading-relaxed text-[#5d6862]">
               Artifact tersimpan otomatis dari setiap workspace — dokumen,
-              visual, kode, dan mini app, semuanya bisa dicari.
+              visual, kode, dan mini app. Catatan adalah Otak Kedua-mu:
+              pengetahuan yang kamu simpan sendiri dan dipakai AI di percakapan
+              berikutnya.
             </p>
           </header>
 
@@ -126,7 +187,7 @@ export default async function LibraryPage() {
               Artifact belum bisa dimuat. Coba muat ulang halaman.
             </p>
           ) : (
-            <LibraryView items={items} />
+            <LibraryTabs items={items} notes={notes} />
           )}
         </div>
       </div>

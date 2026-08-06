@@ -740,6 +740,8 @@ export default function Home() {
               isStudyModeMenuOpen={isStudyModeMenuOpen}
               messageSkillOverrideId={messageSkillOverrideId}
               setMessageSkillOverrideId={setMessageSkillOverrideId}
+              activeConversationId={activeConversationId}
+              activeWorkspaceId={selectedWorkspaceId}
             />
 
             {messages.length > 1 && (

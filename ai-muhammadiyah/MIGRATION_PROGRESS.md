@@ -863,3 +863,110 @@ Efek samping: `SparkIcon` & `getSkillBadge` jadi tak terpakai di Composer → im
 **Migrasi `20260802000000_gate_aether_cosmos_muallim_pro.sql` (DITULIS, WAJIB di-apply):** `get_subscription_limits.allowed_models` per tier (ini sumber kebenaran server — tanpa ini pembatasan hanya di UI dan bisa dilewati lewat panggilan API langsung), default kolom `selected_model`/`default_model` `'cosmos'` → `'prism'`, plus menurunkan preferensi/percakapan milik user tier gratis-kader yang masih menunjuk Aether/Cosmos ke Prism.
 
 `tsc`/`eslint`/`next build` bersih.
+
+## Langkah 40: "Otak Kedua" (Second Brain) — catatan pribadi tertaut + retrieval semantik + tulis-balik AI — SELESAI di kode (1 migrasi WAJIB di-apply, BELUM diverifikasi hidup)
+
+Permintaan user: integrasikan Hermes Agent + Logseq supaya AI berpikir lebih baik dan jadi alat yang memberdayakan, bukan bikin kecanduan.
+
+**TEMUAN RISET YANG MENGUBAH RENCANA.** HTTP API Logseq hanya hidup di `localhost:12315`, butuh aplikasi Logseq berjalan di mesin pengguna, dan **memblokir CORS tanpa opsi setting**. Hermes Agent (Nous Research) juga orkestrator *on-device*. AI Muhammadiyah jalan di Vercel — server cloud tidak bisa menjangkau `localhost` pengguna, dan browser diblokir CORS. Di diagram user pun Hermes adalah PUSAT dan AI cloud cuma daun (arsitektur local-first), sementara target pengguna (pelajar/mahasiswa/guru, mayoritas di HP) tidak akan memasang Logseq + Hermes + LLM lokal. Jadi "Logseq asli lewat API untuk semua pengguna" **tidak mungkin secara jaringan**, bukan sekadar sulit.
+
+**Keputusan user lewat AskUserQuestion:** (a) bangun **Otak Kedua native dulu**, Logseq menyusul lewat file markdown (Tahap B) lalu jembatan lokal opsional (Tahap C); (b) pencarian pakai **pgvector + embedding**, bukan full-text saja; (c) AI **boleh menulis catatan tapi wajib minta konfirmasi, tanpa mengganggu pengguna yang sedang serius**; (d) prioritas tinggi, didahulukan dari sisa backlog v2.
+
+**Migrasi `20260806000000_second_brain_notes.sql` (DITULIS, WAJIB di-apply):** `create extension vector` + 3 tabel milik pengguna **langsung** (`user_id`, bukan join lewat `conversations` seperti `artifacts` — catatan harus hidup lintas percakapan):
+- `notes` — `workspace_id` nullable (catatan boleh global), `origin_conversation_id` `on delete set null` (jejak asal, bukan kepemilikan), unique `(user_id, lower(btrim(title)))` supaya resolusi `[[wikilink]]` deterministik ala halaman Logseq.
+- `note_chunks` — `embedding vector(1536)` (= `text-embedding-3-small`) + `search_vector tsvector`, `user_id` didenormalisasi supaya RLS/filter tidak perlu join per baris. Indeks HNSW `vector_cosine_ops` + GIN.
+- `note_links` — **`target_note_id` NULLABLE dengan sengaja**: `[[Halaman Baru]]` boleh menunjuk catatan yang belum ada (kalau dipaksa FK wajib, model backlink Logseq rusak). Trigger `notes_resolve_links` menyambungkan tautan menggantung saat catatan bertajuk itu akhirnya dibuat.
+- RPC `search_notes` — hybrid **Reciprocal Rank Fusion**, bukan penjumlahan berbobot: cosine distance dan `ts_rank` skalanya tidak sebanding, menjumlahkannya langsung menghasilkan peringkat menyesatkan. `security invoker` (RLS otomatis membatasi pemanggil) + filter `auth.uid()` eksplisit sebagai lapis kedua. `p_embedding` null → hasil murni full-text.
+
+**Kode:** `lib/second-brain/{embedding,notes,parse,store}.ts` + `app/api/notes/route.ts` (GET/POST, klien auth ber-RLS, bukan service role) + `components/NoteSuggestions.tsx` + tab "Catatan" di Library (`LibraryTabs`/`NotesView`, sitemap 10 halaman tetap utuh).
+
+**Keputusan arsitektur — konteks catatan digabung ke `systemPrompt` di `route.ts`, BUKAN ke `ChatContextOptions`.** Rencana awal menambah `secondBrainContext` ke `ChatContextOptions`, tapi `knowledgeContext` ternyata diteruskan lewat **~30 titik panggilan** di `lib/ai/chat.ts` (tiap builder provider merakit promptnya sendiri, tidak ada abstraksi middleware) — menjalurkan parameter baru ke semuanya berisiko tinggi terlewat satu. Lagipula `createKnowledgeGroundedPrompt` membingkai isinya sebagai korpus yang harus disitasi dan menyuruh AI bilang "tidak ditemukan di knowledge base" — framing itu **keliru** untuk catatan milik pengguna sendiri. Karena itu konteks catatan disusun bersama Workspace System di `app/api/chat/route.ts` (tempat komposisi lapisan memang sudah terjadi), dan instruksi sentinel statis (`noteSystemPrompt`) ditaruh sebagai konstanta di 3 builder di samping `artifactSystemPrompt`. Satu file berubah, nol penjaluran.
+
+**Retrieval TIDAK digerbangi allowlist kata kunci.** `isKnowledgeQuestion` (26 kata Muhammadiyah/pendidikan) benar untuk korpus bersama, tapi salah untuk catatan pribadi — pengguna menulis tentang apa saja. Gerbangnya hanya panjang pesan minimum 15 karakter, supaya "ok"/"lanjut" tidak membuang panggilan embedding.
+
+**Tulis-balik yang tidak mengganggu (aturan produk, bukan detail UI):** AI memancarkan `[[AI_MU_NOTE:Judul]]...[[/AI_MU_NOTE]]` (protokol sentinel sama seperti artifacts). Hasil parse **tidak disimpan** — muncul sebagai chip tenang di bawah pesan yang sudah selesai. Hanya setelah streaming berakhir, bukan modal/toast, bisa diabaikan sepenuhnya, dan tersimpan hanya setelah klik eksplisit. Prompt juga melarang AI menyebut-nyebut usulan itu di prosanya ("jangan tanya 'mau disimpan?'").
+
+**Degradasi anggun:** `OPENAI_API_KEY_EMBED` kosong → `isEmbeddingConfigured()` false, pencarian jatuh ke full-text, fitur tidak mati. Kegagalan retrieval dan kegagalan indexing dibungkus `.catch()`: chat tidak boleh gagal karena otak kedua, dan pengguna tidak boleh kehilangan tulisannya karena penyedia embedding bermasalah (rute mengembalikan `indexed:false`).
+
+**Env baru:** `OPENAI_API_KEY_EMBED` + `OPENAI_EMBED_MODEL` (default `text-embedding-3-small`). Dimensi 1536 **terikat** ke kolom `vector(1536)` — ganti model embedding = ubah kolom + embed ulang semua catatan, bukan sekadar ganti env.
+
+**Verifikasi:** `tsc`/`eslint`/`next build` bersih, `/api/notes` terdaftar di manifest build.
+
+### Verifikasi hidup Langkah 40 — 18/18 lulus (migrasi SUDAH di-apply user, `OPENAI_API_KEY_EMBED` terpasang di `.env.local` + Vercel)
+
+Diuji lewat skrip sekali-pakai memakai **supabase-js** (jalur serialisasi yang sama persis dengan aplikasi, bukan `curl` mentah — supaya cast array→vector benar-benar teruji), dengan **dua pengguna uji sungguhan** yang dibuat lewat admin API lalu dihapus di akhir. Skrip tidak ikut di-commit.
+
+| Yang dibuktikan | Hasil |
+|---|---|
+| 3 tabel + extension `vector` ada | PASS |
+| `OPENAI_API_KEY_EMBED` valid, dimensi 1536 | PASS |
+| Insert `note_chunks.embedding` dari **array JS → `vector(1536)`** lewat PostgREST | PASS |
+| RPC `search_notes` menerima `p_embedding vector(1536)` | PASS |
+| **Retrieval semantik nyata**: catatan "al-yaqin la yuzalu bisy-syakk" ditemukan oleh pertanyaan *"kalau ragu apakah wudhunya batal?"* — nol kata yang sama | PASS |
+| `p_embedding null` → fallback full-text tetap jalan | PASS |
+| User B tidak bisa membaca `notes`/`note_chunks` milik A | PASS (0 baris) |
+| `search_notes` tidak membocorkan catatan A ke B | PASS (0 hits) |
+| User B menulis baris dengan `user_id` milik A → **ditolak RLS** (`42501`) | PASS |
+| Tautan menggantung tersimpan dengan `target_note_id` null | PASS |
+| Trigger `notes_resolve_links` menyambungkan tautan saat catatan tujuan dibuat | PASS |
+| Judul duplikat beda kapitalisasi ditolak (`23505`) | PASS |
+
+Dua kekhawatiran terbesar sebelum uji — apakah PostgREST sungguh mau mengecast array JS ke `vector`, dan apakah isolasi antar-pengguna benar-benar rapat — **keduanya terbukti aman**, termasuk terhadap upaya pemalsuan `user_id` dari klien.
+
+**Yang MASIH belum diuji (jujur):** alur ujung-ke-ujung di browser dengan sesi login sungguhan — yaitu apakah model benar-benar memancarkan penanda `[[AI_MU_NOTE:...]]` sesuai prompt, dan apakah chip usulan muncul/tersimpan seperti rancangan. Kepatuhan format oleh model hanya bisa dibuktikan dengan percakapan nyata (catatan sama seperti artifacts di Langkah 26, yang kepatuhannya juga belum pernah diamati hidup).
+
+**Tahap B & C belum dikerjakan:** impor/ekspor markdown Logseq, lalu jembatan lokal Hermes/Logseq (endpoint ber-API-key, arah koneksi selalu keluar dari mesin lokal, idempotensi meniru webhook Stripe). **AI Discussion tetap stub** — pekerjaan terpisah, tidak dicampur ke Langkah 40.
+
+### Addendum Langkah 40a: usulan catatan tidak pernah muncul — dua bug asli, keduanya diperbaiki & diverifikasi hidup
+
+User melapor "layak simpan masih belum bekerja". Penyebabnya **bukan** DB dan bukan UI, melainkan dua hal di jalur prompt→parser. Titik render di `ChatArea` sudah benar sejak awal (di cabang pesan AI, digerbangi `!isStreamingMessage`) — dugaan pertama itu keliru dan dicoret setelah dibaca.
+
+**BUG 1 — prompt catatan tenggelam dalam tumpukan (penyebab utama).** Diuji langsung ke provider dengan dua varian: `noteSystemPrompt` **sendirian** memancarkan penanda dengan benar, tapi dalam **tumpukan lengkap** (identitas + context priority + answer completion + response style + artifact) hasilnya **nol penanda**. Blok `ANSWER COMPLETION` ("deliver the ENTIRE answer in this single reply") dan `RESPONSE STYLE` mendorong satu jawaban prosa bersih, dan modalitas lemah *"you may propose"* kalah bersaing. Dua perubahan yang memperbaikinya: (a) modalitas tegas — *"After you finish the prose answer, take one more step: decide whether ... If it did, append ..."*; (b) satu baris yang **mendamaikan konflik antar-aturan** secara eksplisit: *"These blocks are NOT part of your prose answer ... so appending them never conflicts with the answer-completion or response-style rules above."* Komentar peringatan ditaruh di atas konstanta supaya redaksinya tidak dilemahkan lagi tanpa uji ulang.
+
+**BUG 2 — model sesekali lupa menutup blok.** Sempat diduga jawaban terpotong plafon token; **dibantah oleh data**: `status=completed`, `incomplete_details=null`, keluaran hanya 678 token dari plafon 16.000. Jadi ini murni ragam model. Akibatnya fatal dan senyap: `parseNoteBlocks` mensyaratkan penanda penutup sehingga chip **tidak muncul**, sementara `formatNoteTextForDisplay` versi lama hanya menghapus penanda bukanya sehingga **isi catatan bocor mentah ke badan jawaban**. Perbaikan di `lib/second-brain/parse.ts`: (a) `findUnterminatedNoteBlock` memulihkan blok terakhir yang tak tertutup — aman karena blok catatan selalu di UJUNG balasan, dengan ambang isi minimum 40 karakter supaya penanda yang baru separuh ter-stream tidak jadi catatan kosong; (b) `formatNoteTextForDisplay` kini **memotong dari penanda buka sampai akhir**, bukan sekadar menghapus penandanya.
+
+**Verifikasi prompt (18/18).** Skrip uji **mengekstrak keempat konstanta prompt langsung dari `lib/ai/chat.ts`** supaya uji tidak bisa melenceng dari kode yang dikirim. Prism & Aether × {kaidah fiqh, React hooks, sapaan ringan} × 3 pengulangan: **18/18 sesuai harapan** — memancarkan penanda pada pengetahuan yang layak simpan, **tidak** memancarkan pada sapaan, dan **0 balasan tidak tertutup** pada putaran akhir (pemulihan parser tetap dipertahankan sebagai jaring pengaman karena kegagalan itu terbukti bisa terjadi).
+
+**Verifikasi parser (6/6):** blok lengkap, blok tidak tertutup (memakai keluaran ASLI dari provider), dua blok, penanda separuh ter-stream, buka tanpa isi memadai, dan tanpa catatan sama sekali. Tidak ada kebocoran isi catatan ke prosa di semua kasus.
+
+**Verifikasi DB (13/13) — memakai DUA PENGGUNA NYATA, bukan service role**, justru karena yang paling penting dibuktikan adalah isolasi antar-pengguna dan service role melewati RLS sehingga tidak membuktikan apa pun soal itu. Yang terbukti: insert `notes`/`note_chunks`/`note_links` lewat klien ber-RLS; **array JS diterima kolom `vector(1536)`** baik saat insert maupun sebagai **parameter RPC** (dua risiko terbesar yang dicatat Langkah 40 — kini tertutup); `search_notes` hybrid menemukan catatan sendiri; `p_embedding null` jatuh ke full-text dengan benar; **pengguna B tidak bisa menemukan, membaca, maupun mengubah catatan pengguna A**; trigger `notes_resolve_links` benar-benar menyambung tautan menggantung; judul kembar beda kapitalisasi ditolak `23505`; dan judul sama milik pengguna berbeda tetap diizinkan (unik per pengguna, bukan global). Pengguna uji dihapus setelahnya.
+
+**Embedding berkelompok terverifikasi:** 3 potongan → 3 vektor 1536 dimensi, pemetaan ulang lewat field `index` benar, dan kemiripan kosinus masuk akal (query fiqh → potongan fiqh 0,567 vs React 0,255 vs fotosintesis 0,155).
+
+`tsc`/`eslint`/`next build` bersih. Status Langkah 40 naik dari "belum diverifikasi hidup" menjadi **terverifikasi pada jalur prompt, parser, dan database**.
+
+**Yang MASIH belum diuji end-to-end:** rute `POST /api/notes` belum pernah dijalankan dengan sesi login sungguhan di browser (butuh cookie sesi). Komponen di dalamnya sudah terbukti satu per satu, tapi rangkaian utuh "klik Simpan di chip → catatan muncul di tab Catatan Library" belum pernah dijalankan sekali pun.
+
+### Addendum Langkah 40b: Tahap B — jembatan Logseq lewat berkas markdown (impor + ekspor) — SELESAI & TERVERIFIKASI END-TO-END
+
+Tahap B dari rencana Langkah 40: menyambung ke Logseq **tanpa** bergantung pada HTTP API-nya (yang hanya hidup di `localhost:12315`, butuh aplikasi Logseq berjalan, dan memblokir CORS — lihat temuan riset di Langkah 40). Jalurnya lewat format berkasnya: markdown biasa, yang justru portabel dan tidak menuntut apa pun dari mesin pengguna.
+
+**`lib/second-brain/logseq.ts` — penerjemah dua arah.**
+- Nama berkas ↔ judul: `___` **dan** persen-encoding (`%2F`) sama-sama diterima saat impor karena Logseq versi lama & baru berbeda; ekspor memakai `___` (paling luas didukung). Nama berkas dengan `%` yang bukan encoding sah (mis. "Diskon 100% Off") tidak boleh meledak — `decodeURIComponent` dibungkus try/catch.
+- Outline → markdown: properti halaman (`tags::`, `alias::`) dibuang **hanya kalau berada di blok paling atas** — `key:: value` di tengah catatan bisa jadi memang teks pengguna, dan membuangnya akan menghapus tulisan orang.
+- Markdown → outline: tiap baris jadi blok `- `, daftar yang sudah ada dipertahankan kedalamannya, dan **isi blok kode dilewatkan utuh** (memberi butir pada tiap baris kode akan merusaknya).
+- Yang **tidak** diterjemahkan dan diakui jujur di komentar kode: `((block-ref))` (kita tidak punya identitas per-blok, hanya per-catatan), `{{embed}}`/`{{query}}`, dan `journals/` diperlakukan sama seperti halaman biasa. `[[wikilink]]` & `#tag` sengaja dipertahankan utuh — itulah yang membuat grafnya hidup di kedua sisi.
+
+**`lib/second-brain/zip.ts` — penulis ZIP tanpa dependensi.** Ekspor hanya butuh entri "stored" (tanpa kompresi), bagian paling sederhana dari format ZIP, sementara pustaka zip penuh membawa deflate/streaming/enkripsi yang tidak dipakai. **Diverifikasi dengan membongkar arsipnya memakai Windows `Expand-Archive`, bukan hanya pembacanya sendiri** — termasuk nama berkas UTF-8 (`Catatan Émoji ünïcode 日本語.md`), folder bersarang, dan berkas kosong.
+
+**Rute:** `GET /api/notes/export` (zip berisi `pages/<Judul>.md`, siap disalin ke folder graf Logseq) dan `POST /api/notes/import` (multipart). Impor bersifat **upsert-berdasarkan-judul** lewat `upsertNoteByTitle` — mengimpor graf yang sama dua kali memperbarui, bukan menggandakan. Itu bukan kemewahan: judul memang identitas halaman di Logseq, dan `notes_user_title_key` sudah menegakkannya di DB, jadi tanpa upsert impor ulang akan gagal `23505`.
+
+**Batas & alasannya:** 40 berkas/permintaan, 1MB/berkas, 8MB total, `maxDuration = 60`. Embedding dilakukan berurutan per catatan, jadi jumlah berkas dibatasi agar muat. Graf Logseq bisa berisi ratusan halaman, karena itu **klien mengirim bergelombang** (`importBatchSize = 40`) sambil melaporkan kemajuan. Kegagalan indexing tidak membatalkan impor — catatannya sudah tersimpan dan tetap tercari lewat full-text; rute melaporkan `created`/`updated`/`indexed`/`skipped` apa adanya.
+
+**UI:** tombol "Impor Logseq" & "Ekspor .zip" di tab Catatan Library, plus ringkasan hasil impor (termasuk daftar berkas yang dilewati). `router.refresh()` dipanggil setelah impor supaya catatan baru dan backlink-nya langsung tampil.
+
+**Verifikasi format (21/21)** lewat modul yang **dikompilasi `tsc` dari sumber aslinya** (bukan transpile tangan): namespace dua gaya, path folder dibuang, persen tak sah, sanitasi karakter terlarang Windows, properti halaman dibuang tapi `key:: value` di tengah dipertahankan, blok kode utuh, pulang-pergi mempertahankan wikilink/isi/blok bersarang, dan hasil impor terbaca oleh `parseWikiLinks` kita.
+
+**Verifikasi end-to-end dengan sesi login sungguhan.** Alur OTP tidak bisa dipakai untuk akun uji (pengiriman email ke domain uji gagal), jadi sesi dibangun langsung sebagai cookie `@supabase/ssr` (`base64-` + base64url JSON sesi) — ini menutup gap yang tertulis di Langkah 40a. Hasilnya:
+- Impor 4 berkas → `created:2, indexed:2`, `.txt` dan `.md` kosong **dilewati dengan benar**.
+- Judul namespace terbaca `Kaidah Ushul Fiqh/Al-Yaqin`, properti `tags::` terbuang, blok bersarang & wikilink utuh.
+- **Impor ulang berkas yang sama → `created:0, updated:2`, total tetap 2 catatan** (idempotensi terbukti).
+- Tautan: 2 dari 3 tersambung; `[[Hukum Asal Tetap]]` **tetap menggantung dengan benar** karena catatannya memang belum ada.
+- Chunk 2/2 ber-embedding; pencarian hybrid "ragu wudu" mengembalikan 2 hasil dengan urutan masuk akal (catatan wudu di atas).
+- Ekspor: `Content-Type: application/zip`, tanda tangan `PK\003\004`, dibongkar Windows → isi **identik strukturnya** dengan masukan Logseq asli.
+- UI: tab "Catatan 2", badge "IMPOR LOGSEQ", "1 tautan masuk", panel "MENAUTKAN KE" (tautan ter-resolve vs menggantung dibedakan) dan "DITAUTKAN DARI".
+- Pengguna uji beserta seluruh datanya dihapus setelah pengujian.
+
+`tsc`/`eslint`/`next build` bersih; `/api/notes`, `/api/notes/export`, `/api/notes/import` terdaftar di manifest build.
+
+**Tahap C (jembatan lokal Hermes/Logseq) BELUM dikerjakan** — dan memang harus terakhir. Rancangannya tetap seperti Langkah 40: agen kecil di mesin pengguna yang **selalu menghubungi keluar** ke endpoint ber-API-key (karena cloud tidak bisa menjangkau `localhost` pengguna), dengan idempotensi meniru pola `billing_events` pada webhook Stripe. **AI Discussion tetap stub** — pekerjaan terpisah.
