@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { formatRelativeTime } from "@/lib/formatting/text";
+import SyncDevices from "./SyncDevices";
 
 // Tampilan "Otak Kedua" di Library: daftar catatan pribadi + backlink ala
 // Logseq. Berbeda dari grid Artifact di sebelahnya — artifact adalah keluaran
@@ -176,6 +177,8 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
           />
         </div>
       </div>
+
+      <SyncDevices />
 
       {(importProgress || importSummary || importError) && (
         <div className="mb-5 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[#f7f5ee] px-4 py-3 text-[13px]">
