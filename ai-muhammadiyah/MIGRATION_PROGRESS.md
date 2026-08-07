@@ -997,3 +997,15 @@ User memilih melanjutkan ke Tahap C meski catatan kecocokannya sudah disampaikan
 **Batas yang diakui jujur:** LWW berbasis waktu memakai mtime berkas lokal, jadi jam mesin yang meleset jauh bisa membuat kiriman kalah — konfliknya dilaporkan, tidak ditelan. Push dibatasi 25 catatan/permintaan karena tiap catatan memicu satu panggilan embedding di bawah `maxDuration = 60`. Belum ada rate limiting per token di luar batas ukuran batch. `((block-ref))` dan makro Logseq tetap tidak diterjemahkan (sama seperti Tahap B).
 
 **Langkah 40 (Otak Kedua) kini lengkap: Tahap A, B, dan C selesai dan terverifikasi.** AI Discussion tetap stub — pekerjaan terpisah, sengaja tidak dicampur.
+
+### Addendum Langkah 40d: bug penghapusan akun (diperkenalkan Tahap C) — DIPERBAIKI & TERVERIFIKASI
+
+Ditemukan bukan lewat pengujian yang direncanakan, melainkan saat membersihkan pengguna uji: `admin.deleteUser` gagal dengan "Database error deleting user" untuk **setiap** pengguna yang punya catatan.
+
+**Sebabnya:** cascade dari `auth.users` menghapus baris `notes`, trigger `notes_record_deletion` ikut terpicu, lalu mencoba menyisipkan nisan yang menunjuk `user_id` yang barusan lenyap. Insert itu melanggar FK `note_deletions.user_id -> auth.users`, seluruh transaksi dibatalkan, dan akunnya tidak pernah terhapus. Nisan juga tidak ada gunanya di situ — kalau akunnya hilang, tidak ada perangkat yang akan menyinkronkannya.
+
+**Migrasi `20260807010000_fix_note_deletion_on_user_delete.sql`** (sudah di-apply user): trigger melewati pencatatan saat pemiliknya sudah tidak ada di `auth.users`. Hanya mengganti satu fungsi, tidak menyentuh tabel maupun data.
+
+**Verifikasi (4/4):** nisan **tetap** tercatat saat catatan dihapus secara biasa (regresi terjaga); menghapus akun yang punya 2 catatan + 1 perangkat + 1 event + 1 nisan kini **berhasil tanpa error**; tidak ada baris yatim tertinggal di keenam tabel (`notes`, `note_chunks`, `note_links`, `note_deletions`, `note_sync_devices`, `note_sync_events` semuanya 0); dan akunnya benar-benar hilang.
+
+**Catatan untuk rilis:** aplikasi belum punya alur hapus akun di UI, jadi sebelum perbaikan ini dampaknya terbatas pada operasi admin — tetapi permintaan hapus akun pasti muncul setelah rilis publik, jadi ini bukan sesuatu yang boleh ditunda. Pelajaran prosesnya: bug ini lolos dari 22 pemeriksaan DB Tahap C karena semuanya menguji **jalur fitur**, tidak ada satu pun yang menguji **penghapusan akun** — padahal Tahap C menambah tiga tabel baru yang semuanya bergantung pada `auth.users`. Setiap kali menambah tabel ber-FK ke `auth.users` dengan trigger, uji juga penghapusan akunnya.
