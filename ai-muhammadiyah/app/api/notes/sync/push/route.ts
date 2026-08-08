@@ -7,7 +7,10 @@ import {
 import { normalizeNoteTitle } from "@/lib/second-brain/parse";
 import {
   authenticateSyncDevice,
+  consumeSyncQuota,
   maxSyncPushItems,
+  rateLimitResponseBody,
+  refundSyncNotes,
 } from "@/lib/second-brain/sync";
 import {
   maxNoteContentLength,
@@ -159,6 +162,26 @@ export async function POST(request: Request) {
     );
   }
 
+  // Kuota diperiksa SETELAH buku besar, supaya kiriman ulang yang duplikat
+  // tidak ikut memakan jatah. Konsekuensinya, penolakan kuota WAJIB menghapus
+  // lagi baris buku besarnya — kalau tidak, eventId itu terkunci selamanya dan
+  // batch yang sama tidak akan pernah bisa dikirim ulang setelah kuotanya pulih.
+  const notesInBatch = items.filter((item) => !item.deleted).length;
+  const quota = await consumeSyncQuota(admin, device.userId, notesInBatch);
+
+  if (!quota.allowed) {
+    await admin
+      .from("note_sync_events")
+      .delete()
+      .eq("device_id", device.deviceId)
+      .eq("event_id", eventId);
+
+    return NextResponse.json(rateLimitResponseBody(quota), {
+      status: 429,
+      headers: { "Retry-After": quota.reason === "notes" ? "3600" : "600" },
+    });
+  }
+
   try {
     const { data: existingRows, error: lookupError } = await admin
       .from("notes")
@@ -288,6 +311,10 @@ export async function POST(request: Request) {
       .delete()
       .eq("device_id", device.deviceId)
       .eq("event_id", eventId);
+
+    // Jatah dikembalikan juga: kegagalan server berulang tidak boleh memakan
+    // kuota harian pengguna padahal tidak ada catatan yang benar-benar masuk.
+    await refundSyncNotes(admin, device.userId, notesInBatch);
 
     return NextResponse.json(
       { error: "Gagal menerapkan perubahan." },

@@ -86,6 +86,37 @@ export const tierLimits: Record<SubscriptionTier, TierLimits> = {
   },
 };
 
+/**
+ * Batas jembatan sinkronisasi Logseq, per paket.
+ *
+ * Dua sumbu, karena keduanya membatasi hal yang berbeda:
+ *   - `requestsPerHour` menjaga server dari agen yang salah setel (mis. loop
+ *     tiap detik). Nyaris tidak terasa dalam pemakaian wajar: interval 5 menit
+ *     hanya menghabiskan 12 dari 60 jatah paket Gratis.
+ *   - `notesPerDay` membatasi biaya yang sebenarnya, yaitu embedding — tiap
+ *     catatan yang masuk memicu satu panggilan embedding.
+ *
+ * Paket Gratis sengaja diberi jatah lapang: 300 catatan/hari cukup untuk
+ * mengimpor graf berukuran wajar dan menyinkronkannya seharian penuh. Yang
+ * dibatasi adalah penyalahgunaan, bukan pemakaian normal.
+ */
+export type SyncTierLimits = {
+  requestsPerHour: number;
+  notesPerDay: number;
+};
+
+export const syncTierLimits: Record<SubscriptionTier, SyncTierLimits> = {
+  free: { requestsPerHour: 60, notesPerDay: 300 },
+  kader_pintar: { requestsPerHour: 180, notesPerDay: 1_500 },
+  muallim_pro: { requestsPerHour: 600, notesPerDay: 6_000 },
+  dakwah_digital: { requestsPerHour: 1_200, notesPerDay: 20_000 },
+  sinergi_ranting: { requestsPerHour: 2_400, notesPerDay: 60_000 },
+};
+
+export function getSyncTierLimits(tier: SubscriptionTier) {
+  return syncTierLimits[tier] ?? syncTierLimits.free;
+}
+
 function normalizeSubscriptionTier(value: unknown): SubscriptionTier {
   if (
     value === "kader_pintar" ||

@@ -5,9 +5,11 @@ import {
 } from "@/lib/second-brain/logseq";
 import {
   authenticateSyncDevice,
+  consumeSyncQuota,
   decodeSyncCursor,
   encodeSyncCursor,
   maxSyncPullItems,
+  rateLimitResponseBody,
 } from "@/lib/second-brain/sync";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -32,6 +34,16 @@ export async function GET(request: Request) {
         { error: "Token perangkat tidak sah." },
         { status: 401 },
       );
+    }
+
+    // Tarikan tidak memicu embedding, jadi hanya menghitung permintaan.
+    const quota = await consumeSyncQuota(admin, device.userId, 0);
+
+    if (!quota.allowed) {
+      return NextResponse.json(rateLimitResponseBody(quota), {
+        status: 429,
+        headers: { "Retry-After": "3600" },
+      });
     }
 
     const url = new URL(request.url);

@@ -19,7 +19,7 @@
 //   Windows PowerShell : $env:AIMU_SYNC_TOKEN="aimu_sync_..."
 //   macOS / Linux      : export AIMU_SYNC_TOKEN="aimu_sync_..."
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   mkdirSync,
   readdirSync,
@@ -98,6 +98,14 @@ async function callApi(path, options = {}) {
   });
 
   const payload = await response.json().catch(() => ({}));
+
+  if (response.status === 429) {
+    // Batas paket, bukan kerusakan. Pesannya sudah menjelaskan apa yang harus
+    // dilakukan pengguna, jadi jangan dibungkus jadi jejak galat teknis.
+    const error = new Error(payload.error ?? "Batas sinkronisasi tercapai.");
+    error.isRateLimit = true;
+    throw error;
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -313,11 +321,18 @@ async function push(state) {
     const result = await callApi("/api/notes/sync/push", {
       method: "POST",
       body: JSON.stringify({
-        // eventId membuat pengiriman ulang aman: kalau jaringan putus setelah
-        // server menerapkan batch tapi sebelum kita tahu, percobaan ulang
-        // dengan id yang sama akan ditolak sebagai duplikat, bukan diterapkan
-        // dua kali.
-        eventId: randomUUID(),
+        // eventId DITURUNKAN DARI ISI BATCH, bukan acak.
+        //
+        // Kalau acak, tiap percobaan ulang membawa id baru dan buku besar
+        // idempotensi di server tidak pernah mengenalinya — persis kasus yang
+        // ingin dicegah: jaringan putus setelah server menerapkan batch tapi
+        // sebelum kita menerima balasannya. Dengan id turunan isi, kiriman
+        // ulang batch yang sama persis dikenali sebagai duplikat.
+        eventId: hashOf(
+          JSON.stringify(
+            batch.map((item) => [item.fileName, item.hash ?? "", Boolean(item.deleted)]),
+          ),
+        ),
         items: batch.map(({ fileName, raw, clientUpdatedAt, deleted: isDeleted }) => ({
           fileName,
           raw,
@@ -419,6 +434,11 @@ try {
     }, intervalSeconds * 1000);
   }
 } catch (error) {
+  if (error.isRateLimit) {
+    console.error(`\nBATAS PAKET: ${error.message}`);
+    process.exit(2);
+  }
+
   console.error("gagal:", error.message);
   process.exit(1);
 }

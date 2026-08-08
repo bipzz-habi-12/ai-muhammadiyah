@@ -1,5 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  getSyncTierLimits,
+  syncTierLimits,
+  type SubscriptionTier,
+} from "@/lib/usage/limits";
 
 // SERVER-ONLY. Autentikasi jembatan sinkronisasi lokal (Langkah 40 Tahap C).
 // Jangan pernah diimpor dari komponen client.
@@ -97,6 +102,103 @@ export async function authenticateSyncDevice(
     .eq("id", data.id);
 
   return { deviceId: data.id as string, userId: data.user_id as string };
+}
+
+/**
+ * Tier pengguna untuk jalur sinkronisasi.
+ *
+ * Tidak bisa memakai `get_usage_snapshot` seperti rute lain: fungsi itu
+ * bersandar pada `auth.uid()`, sedangkan di sini tidak ada sesi sama sekali —
+ * identitasnya berasal dari token perangkat. Jadi tier dibaca langsung dari
+ * `subscriptions` memakai user_id hasil autentikasi token.
+ */
+export async function resolveSyncTier(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<SubscriptionTier> {
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("tier,status")
+    .eq("user_id", userId)
+    .in("status", ["active", "trialing"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const tier = data?.tier;
+
+  // Apa pun yang tidak dikenali jatuh ke `free` — tidak pernah menaikkan tier
+  // karena data yang aneh.
+  return tier && tier in syncTierLimits ? (tier as SubscriptionTier) : "free";
+}
+
+export type SyncQuotaResult = {
+  allowed: boolean;
+  reason?: "requests" | "notes";
+  requests?: number;
+  maxRequests?: number;
+  notes?: number;
+  maxNotes?: number;
+  retryAt?: string;
+};
+
+/**
+ * Mengambil jatah sinkronisasi. Penghitungannya atomik di dalam RPC.
+ *
+ * Kalau RPC-nya sendiri gagal, permintaannya DILOLOSKAN: rate limit adalah
+ * pelindung, bukan gerbang utama — memutus sinkronisasi pengguna karena
+ * penghitungnya bermasalah jauh lebih merugikan daripada melewatkan
+ * beberapa permintaan.
+ */
+export async function consumeSyncQuota(
+  supabase: SupabaseClient,
+  userId: string,
+  noteCount: number,
+): Promise<SyncQuotaResult> {
+  const tier = await resolveSyncTier(supabase, userId);
+  const limits = getSyncTierLimits(tier);
+
+  const { data, error } = await supabase.rpc("consume_sync_quota", {
+    p_user_id: userId,
+    p_notes: noteCount,
+    p_max_requests_hour: limits.requestsPerHour,
+    p_max_notes_day: limits.notesPerDay,
+  });
+
+  if (error) {
+    console.error("Sync quota check failed:", error);
+    return { allowed: true };
+  }
+
+  return (data ?? { allowed: true }) as SyncQuotaResult;
+}
+
+export async function refundSyncNotes(
+  supabase: SupabaseClient,
+  userId: string,
+  noteCount: number,
+) {
+  if (noteCount <= 0) {
+    return;
+  }
+
+  await supabase
+    .rpc("refund_sync_notes", { p_user_id: userId, p_notes: noteCount })
+    .then(undefined, (error) =>
+      console.error("Sync quota refund failed:", error),
+    );
+}
+
+export function rateLimitResponseBody(quota: SyncQuotaResult) {
+  return quota.reason === "notes"
+    ? {
+        error: `Batas harian sinkronisasi tercapai (${quota.maxNotes} catatan/hari untuk paketmu). Coba lagi besok atau tingkatkan paket.`,
+        retryAt: quota.retryAt,
+      }
+    : {
+        error: `Terlalu banyak permintaan sinkronisasi (${quota.maxRequests}/jam untuk paketmu). Perbesar --interval pada agen, lalu coba lagi.`,
+        retryAt: quota.retryAt,
+      };
 }
 
 /**

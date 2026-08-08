@@ -1009,3 +1009,32 @@ Ditemukan bukan lewat pengujian yang direncanakan, melainkan saat membersihkan p
 **Verifikasi (4/4):** nisan **tetap** tercatat saat catatan dihapus secara biasa (regresi terjaga); menghapus akun yang punya 2 catatan + 1 perangkat + 1 event + 1 nisan kini **berhasil tanpa error**; tidak ada baris yatim tertinggal di keenam tabel (`notes`, `note_chunks`, `note_links`, `note_deletions`, `note_sync_devices`, `note_sync_events` semuanya 0); dan akunnya benar-benar hilang.
 
 **Catatan untuk rilis:** aplikasi belum punya alur hapus akun di UI, jadi sebelum perbaikan ini dampaknya terbatas pada operasi admin — tetapi permintaan hapus akun pasti muncul setelah rilis publik, jadi ini bukan sesuatu yang boleh ditunda. Pelajaran prosesnya: bug ini lolos dari 22 pemeriksaan DB Tahap C karena semuanya menguji **jalur fitur**, tidak ada satu pun yang menguji **penghapusan akun** — padahal Tahap C menambah tiga tabel baru yang semuanya bergantung pada `auth.users`. Setiap kali menambah tabel ber-FK ke `auth.users` dengan trigger, uji juga penghapusan akunnya.
+
+### Addendum Langkah 40e: rate limit jembatan sinkronisasi, berjenjang per paket — SELESAI & TERVERIFIKASI
+
+Sebelum ini satu token perangkat bisa memanggil `/api/notes/sync/*` sesering mungkin; satu-satunya rem adalah batas 25 catatan per permintaan. Tiap catatan yang masuk memicu satu panggilan embedding, jadi agen yang salah setel atau token yang bocor bisa menguras biaya tanpa batas.
+
+**Dua sumbu, karena membatasi hal berbeda:** `requestsPerHour` menjaga server dari agen yang mengulang tiap detik (sinkronisasi tiap 5 menit hanya memakai 12 dari 60 jatah paket Gratis — nyaris tidak terasa), sementara `notesPerDay` membatasi biaya yang sebenarnya, yaitu embedding.
+
+| Paket | Catatan/hari | Permintaan/jam |
+|---|---|---|
+| Gratis | 300 | 60 |
+| Kader Pintar | 1.500 | 180 |
+| Muallim Pro | 6.000 | 600 |
+| Dakwah Digital | 20.000 | 1.200 |
+| Sinergi Ranting | 60.000 | 2.400 |
+
+Angkanya hidup di `syncTierLimits` (`lib/usage/limits.ts`) saja, tidak diduplikasi ke SQL, supaya UI bisa menampilkannya tanpa dua sumber kebenaran. Aman karena satu-satunya pemanggil RPC adalah rute server ber-service-role — klien tidak pernah bisa menyodorkan batasnya sendiri.
+
+**Migrasi `20260807020000_sync_rate_limit.sql`** (sudah di-apply user): tabel `note_sync_usage` (jendela jam & hari) + RPC `consume_sync_quota` dan `refund_sync_notes`, keduanya `revoke ... from public/anon/authenticated` dan hanya `grant ... to service_role`. Penghitungannya memakai `insert ... on conflict do update ... returning` — pola "SELECT lalu UPDATE" akan bocor saat dua permintaan datang bersamaan karena keduanya membaca angka lama.
+
+**Tiga keputusan yang tidak kentara tapi penting:**
+1. **Permintaan yang ditolak tetap dihitung.** Kalau tidak, agen yang membanjiri server justru bebas mencoba tanpa henti begitu jatahnya habis.
+2. **Batch catatan yang ditolak jatahnya DIKEMBALIKAN.** Tanpa ini, satu batch besar yang gagal akan mengunci sisa hari itu padahal tidak satu catatan pun dikerjakan.
+3. **Penolakan kuota menghapus lagi baris buku besar idempotensi.** Kuota diperiksa setelah buku besar (supaya kiriman duplikat tidak memakan jatah), jadi tanpa penghapusan ini `eventId` tersebut terkunci selamanya dan batch yang sama tidak akan pernah bisa dikirim ulang setelah kuotanya pulih.
+
+**`eventId` agen kini diturunkan dari isi batch, bukan `randomUUID`.** Versi acak membuat buku besar idempotensi tidak ada gunanya: tiap percobaan ulang membawa id baru sehingga server tidak pernah mengenalinya — persis kasus yang ingin dicegah (jaringan putus setelah server menerapkan batch tapi sebelum balasannya sampai).
+
+**Verifikasi (15/15)** di dua lapis. RPC diuji langsung dengan batas kecil yang disuntikkan supaya perilakunya terbukti tanpa harus benar-benar mengirim 300 catatan: izinkan/tolak, penolakan tetap terhitung, jatah batch yang ditolak kembali utuh (8 tetap 8), batch kecil masih muat sesudahnya, dan `refund_sync_notes` bekerja. Lalu rute HTTP sungguhan dengan batas paket Gratis asli: pull ke-61 mengembalikan **429** dengan `Retry-After: 3600` dan pesan yang menyebut angka batasnya, push saat kuota habis juga 429, dan **`eventId`-nya terbukti tidak tertinggal di buku besar**. Pengguna uji dihapus setelahnya.
+
+`tsc`/`eslint`/`next build` bersih. UI menampilkan batas paket di panel "Perangkat tersambung" supaya pengguna tahu jatahnya tanpa harus menemukannya lewat penolakan 429.

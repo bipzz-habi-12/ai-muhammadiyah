@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateDeviceToken } from "@/lib/second-brain/sync";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSyncTierLimits, normalizeUsageSnapshot } from "@/lib/usage/limits";
 
 // GET  /api/notes/devices -> daftar perangkat tersambung milik pengguna.
 // POST /api/notes/devices -> daftarkan perangkat baru, kembalikan token SEKALI.
@@ -34,7 +35,15 @@ export async function GET() {
       throw error;
     }
 
-    return NextResponse.json({ devices: data ?? [] });
+    // Batas paket ikut dikirim supaya UI bisa menyebutkan angkanya, bukan
+    // membiarkan pengguna menemukannya lewat penolakan 429.
+    const { data: snapshotRow } = await supabase.rpc("get_usage_snapshot");
+    const tier = normalizeUsageSnapshot(snapshotRow)?.tier ?? "free";
+
+    return NextResponse.json({
+      devices: data ?? [],
+      limits: { tier, ...getSyncTierLimits(tier) },
+    });
   } catch (error) {
     console.error("List sync devices failed:", error);
     return NextResponse.json(

@@ -17,9 +17,16 @@ type Device = {
   created_at: string;
 };
 
+type SyncLimits = {
+  tier: string;
+  requestsPerHour: number;
+  notesPerDay: number;
+};
+
 export default function SyncDevices() {
   const [isOpen, setIsOpen] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [limits, setLimits] = useState<SyncLimits | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +41,7 @@ export default function SyncDevices() {
 
       if (response.ok) {
         setDevices(payload.devices ?? []);
+        setLimits(payload.limits ?? null);
       } else {
         setError(payload.error ?? "Gagal memuat perangkat.");
       }
@@ -196,6 +204,15 @@ export default function SyncDevices() {
           >
             Tambah perangkat
           </button>
+
+          {limits && (
+            <p className="mt-2.5 text-[11.5px] leading-[1.6] text-[#8a9089]">
+              Batas paketmu: {limits.notesPerDay.toLocaleString("id-ID")} catatan
+              tersinkron per hari, {limits.requestsPerHour.toLocaleString("id-ID")}{" "}
+              permintaan per jam. Sinkronisasi tiap 5 menit hanya memakai 12
+              permintaan per jam.
+            </p>
+          )}
         </div>
       )}
     </div>
