@@ -150,7 +150,8 @@ export default function SyncDevices() {
                 {isCopied ? "Tersalin" : "Salin token"}
               </button>
               <p className="mt-2 text-[11.5px] leading-[1.55] text-[#7c857f]">
-                Jalankan di komputermu (Logseq tidak perlu dibuka):
+                <strong className="text-[#25302a]">Sinkron dengan Logseq</strong>{" "}
+                — jalankan di komputermu (Logseq tidak perlu dibuka):
                 <code className="mt-1 block break-all rounded bg-[#fbfaf6] px-2 py-1 text-[11px] text-[#25302a]">
                   node scripts/logseq-bridge.mjs --graph &quot;path/ke/graf&quot;
                   --interval 300
@@ -159,6 +160,21 @@ export default function SyncDevices() {
                 <code className="text-[11px]">AIMU_SYNC_TOKEN</code> — jangan
                 ditulis langsung di perintah, karena argumen perintah terlihat
                 di daftar proses.
+              </p>
+
+              <p className="mt-2.5 text-[11.5px] leading-[1.55] text-[#7c857f]">
+                <strong className="text-[#25302a]">Pakai dari Hermes Agent</strong>{" "}
+                — tambahkan ke <code className="text-[11px]">~/.hermes/config.yaml</code>{" "}
+                supaya Hermes bisa mencari, membaca, dan menulis catatanmu:
+                <code className="mt-1 block whitespace-pre rounded bg-[#fbfaf6] px-2 py-1 text-[11px] leading-[1.5] text-[#25302a]">
+                  {`mcp_servers:
+  otak_kedua:
+    command: "node"
+    args: ["path/ke/scripts/hermes-mcp-server.mjs"]
+    env:
+      AIMU_SYNC_TOKEN: "\${env:AIMU_SYNC_TOKEN}"`}
+                </code>
+                Token yang sama dipakai keduanya.
               </p>
             </div>
           )}

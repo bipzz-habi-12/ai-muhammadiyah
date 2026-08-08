@@ -1038,3 +1038,27 @@ Angkanya hidup di `syncTierLimits` (`lib/usage/limits.ts`) saja, tidak diduplika
 **Verifikasi (15/15)** di dua lapis. RPC diuji langsung dengan batas kecil yang disuntikkan supaya perilakunya terbukti tanpa harus benar-benar mengirim 300 catatan: izinkan/tolak, penolakan tetap terhitung, jatah batch yang ditolak kembali utuh (8 tetap 8), batch kecil masih muat sesudahnya, dan `refund_sync_notes` bekerja. Lalu rute HTTP sungguhan dengan batas paket Gratis asli: pull ke-61 mengembalikan **429** dengan `Retry-After: 3600` dan pesan yang menyebut angka batasnya, push saat kuota habis juga 429, dan **`eventId`-nya terbukti tidak tertinggal di buku besar**. Pengguna uji dihapus setelahnya.
 
 `tsc`/`eslint`/`next build` bersih. UI menampilkan batas paket di panel "Perangkat tersambung" supaya pengguna tahu jatahnya tanpa harus menemukannya lewat penolakan 429.
+
+## Langkah 41: Integrasi Hermes Agent sungguhan — Otak Kedua sebagai MCP server — SELESAI & TERVERIFIKASI
+
+User meminta integrasi Hermes Agent yang **sungguhan**, bukan agen buatan sendiri seperti pada Langkah 40 Tahap C.
+
+**Riset mengubah rancangan, dan hasilnya jauh lebih baik dari dugaan awal.** Dugaan semula (dicatat di Langkah 40b) adalah Hermes = orkestrator model lokal, sehingga integrasinya menuntut pengguna memasang runtime model — berat dan tidak cocok untuk target pengguna. Ternyata **Hermes Agent adalah agen CLI yang mendukung MCP** (`hermes-agent.nousresearch.com/docs`, `NousResearch/hermes-agent`), dengan konfigurasi YAML di `~/.hermes/config.yaml` di bawah kunci `mcp_servers`, mendukung stdio (`command`/`args`/`env`) maupun HTTP/SSE. Artinya integrasi yang benar adalah **mengekspos Otak Kedua sebagai MCP server yang dipanggil Hermes** — persis posisi Hermes sebagai pusat pada rancangan user, dengan Logseq di satu sisi dan AI Muhammadiyah di sisi lain. Tidak ada model lokal yang perlu dipasang.
+
+**Dipilih stdio, bukan MCP over HTTP.** Endpoint MCP publik akan menambah permukaan serangan baru tepat menjelang rilis dan menuntut implementasi transport Streamable HTTP (sesi, SSE) yang benar. Stdio memakai kembali token perangkat yang sudah ada, tidak menambah endpoint publik sama sekali, dan pengguna toh sudah menjalankan skrip bridge di mesin yang sama.
+
+**`scripts/hermes-mcp-server.mjs`** (tanpa dependensi, Node 18+) mengekspos 4 alat: `search_notes` (hybrid semantik+leksikal), `get_note` (isi + tautan keluar), `recent_notes`, dan `save_note`. Deskripsi alat sengaja memandu KAPAN dipakai ("pakai ini SEBELUM menjawab pertanyaan yang mungkin sudah pernah dicatat"), karena itulah yang dibaca model saat memilih alat.
+
+**Migrasi `20260808000000_search_notes_for_user.sql`** (sudah di-apply user): `search_notes` yang ada bersifat `security invoker` dan menyaring dengan `auth.uid()` — di jalur token tidak ada sesi, `auth.uid()` null, hasilnya SELALU kosong. Varian `_for_user` menerima `p_user_id` eksplisit, `security definer`, dan **`revoke ... from public, anon, authenticated` + `grant ... to service_role`**. Revoke ini bukan formalitas: tanpanya siapa pun yang login bisa membaca catatan pengguna lain hanya dengan menebak uuid. **Diverifikasi langsung**: service_role bisa memanggil, peran anon ditolak `42501`.
+
+**Rute `/api/notes/sync/query`** (token-auth, hanya BACA) menyatukan tiga mode (search/get/recent) dalam satu rute alih-alih tiga, supaya permukaan yang diautentikasi token tetap sekecil mungkin. Penulisan tetap lewat `/api/notes/sync/push` yang sudah punya buku besar idempotensi dan kuota berbasis embedding.
+
+**Keputusan yang mencegah drift:** `save_note` mengirim isi MENTAH dengan properti `title::` di depan dan membiarkan server yang menerjemahkan formatnya — sama seperti agen Logseq. Menyalin logika konversi ke skrip MCP akan melahirkan salinan kedua yang lambat laun menyimpang dari milik server.
+
+**Verifikasi protokol (16/16)** dengan klien MCP tiruan: handshake mengikuti `protocolVersion` klien, `capabilities.tools` diumumkan, notifikasi tanpa id **tidak** dibalas, `tools/list` mengembalikan 4 alat berskema lengkap, metode tak dikenal → `-32601`, kegagalan alat dilaporkan sebagai hasil ber-`isError` sehingga **sesi tetap hidup** (bukan error protokol yang memutus), baris non-JSON diabaikan, dan yang paling dijaga: **stdout terbukti hanya berisi JSON-RPC** sementara diagnostik ke stderr. Satu baris log nyasar ke stdout akan merusak seluruh sesi Hermes dan sangat sulit didiagnosis dari sisi pengguna.
+
+**Verifikasi end-to-end (15/15)** menjalankan server MCP sungguhan sebagai subprocess dan memanggil alat lewat protokol — jadi yang teruji adalah rantai utuh stdio → JSON-RPC → HTTP ber-token → RPC security definer → DB. Terbukti: `save_note` menyimpan dan properti `title::` tidak ikut jadi isi sementara `[[wikilink]]` dipertahankan; `search_notes`/`get_note`/`recent_notes` mengembalikan data yang benar; **pengguna B tidak menemukan, tidak bisa membaca, dan tidak melihat catatan A di ketiga alat baca**; `save_note` identik dikenali duplikat tanpa menghasilkan catatan ganda; dan token palsu ditolak. Pengguna uji dihapus setelahnya.
+
+`tsc`/`eslint`/`next build` bersih. UI panel "Perangkat tersambung" menampilkan potongan konfigurasi `~/.hermes/config.yaml` siap salin — token yang sama dipakai jembatan Logseq maupun Hermes.
+
+**Catatan pemasangan:** header migrasi kini memakai komentar blok `/* */`, bukan deretan `--`, setelah satu percobaan apply gagal karena prefiks `--` hilang saat disalin ke SQL Editor sehingga prosa penjelasannya ikut terbaca sebagai perintah SQL.
