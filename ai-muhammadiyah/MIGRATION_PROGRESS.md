@@ -1107,3 +1107,27 @@ User memasang Hermes Agent v0.20.0 sendiri (pemasangan diblokir pengaman sesi ka
 **BUG ditemukan saat verifikasi & diperbaiki:** rute push menetapkan `source: "logseq_import"` secara keras, sehingga catatan yang ditulis Hermes berlabel **"IMPOR LOGSEQ"** di Library — menyesatkan, karena rute itu melayani dua klien berbeda. Kini `PushItem` punya `source` (`ai` | `logseq_import`) dengan bawaan `logseq_import` agar perilaku jembatan Logseq tidak berubah, dan MCP server mengirim `ai`. **Diverifikasi ulang lewat Hermes sungguhan**: catatan baru → `source = ai`.
 
 **Catatan operasional:** `/api/notes/sync/*` sempat 404 di dev karena `.next` tercampur antara `npm run build` dan dev server Turbopack di direktori yang sama. Hapus `.next` lalu jalankan ulang dev server. Bukan masalah kode — tapi mudah menyesatkan saat menguji.
+
+### Addendum Langkah 41b: audit kesiapan multi-pengguna di PRODUKSI — LULUS 11/11
+
+Pengecekan terakhir sebelum rilis publik. Berbeda dari verifikasi sebelumnya yang memakai dev server, audit ini menyentuh **aimuhammadiyah.my.id langsung** dengan **dua akun independen**, menguji jalur web (sesi cookie) dan jalur token (agen/Hermes) secara bersamaan.
+
+**Kenapa fokusnya isolasi:** rute sync memakai service role yang **melewati RLS**, jadi pemisahan data sepenuhnya bergantung pada filter `user_id` yang diturunkan dari token. Kalau filter itu keliru sekali saja, kebocorannya total dan menimpa semua pengguna. Ini risiko terbesar fitur ini, karena itu diuji dari empat arah berbeda.
+
+**Hasil (11/11):**
+- Dua akun dibuat dan login ke produksi.
+- A menyimpan catatan lewat web (`POST /api/notes`, jalur chip usulan di UI).
+- **B tidak menemukan catatan A** lewat `sync/query` bertoken — hasil kosong.
+- A menemukan catatannya sendiri lewat token (membuktikan pencarian memang jalan, bukan kosong karena rusak).
+- B menulis lewat token; **A tidak melihat catatan B** di daftar webnya.
+- **A tidak bisa mencabut perangkat milik B** → 404.
+- **Rate limit tier Gratis aktif di produksi** — 429 setelah 60 permintaan/jam.
+- **Hapus akun yang punya catatan + perangkat + usage berhasil** — mengonfirmasi perbaikan Langkah 40d benar-benar hidup di produksi, bukan hanya di dev.
+
+Seluruh pengguna dan data uji dihapus setelahnya; tabel Otak Kedua kembali kosong.
+
+**Kebersihan repo:** `backup_sebelum_migrasi.sql` (0 byte, sisa lama, tidak direferensikan kode mana pun) dihapus. `.gitignore` kini menyaring `*.dump` dan `*.sql` dengan pengecualian eksplisit `supabase/migrations/**/*.sql` — dipicu oleh insiden nyata: `pg_dump` menulis `penuh.dump` (642 KB berisi hash sandi seluruh pengguna) ke dalam folder repo tanpa disadari dan **tidak tersaring** `.gitignore` saat itu. Berkasnya dipindahkan ke luar repo sebelum sempat ter-`git add`.
+
+**Backup pra-rilis tersedia** di `D:\Documents\backup-ai-muhammadiyah\20260810_110304\`: `penuh.dump` (pg_dump format Custom, 1.023 entri TOC, termasuk skema `auth` dan hash sandi) + ekspor JSON per-tabel + `BACA-DULU.md`. Catatan operasional: `supabase db dump` butuh Docker Desktop yang tidak terpasang; koneksi langsung `db.<ref>.supabase.co` gagal resolve karena IPv6-only, jadi yang berhasil adalah **Session Pooler** `aws-1-ap-southeast-1.pooler.supabase.com` dengan user `postgres.<ref>` — dan sandi dikirim lewat `$env:PGPASSWORD`, bukan di dalam URL, karena PowerShell merusak string yang mengandung `$`.
+
+**Status: Langkah 40 dan 41 lengkap, terverifikasi di produksi, siap dipakai banyak pengguna.**
