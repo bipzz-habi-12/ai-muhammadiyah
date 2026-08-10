@@ -1062,3 +1062,48 @@ User meminta integrasi Hermes Agent yang **sungguhan**, bukan agen buatan sendir
 `tsc`/`eslint`/`next build` bersih. UI panel "Perangkat tersambung" menampilkan potongan konfigurasi `~/.hermes/config.yaml` siap salin — token yang sama dipakai jembatan Logseq maupun Hermes.
 
 **Catatan pemasangan:** header migrasi kini memakai komentar blok `/* */`, bukan deretan `--`, setelah satu percobaan apply gagal karena prefiks `--` hilang saat disalin ke SQL Editor sehingga prosa penjelasannya ikut terbaca sebagai perintah SQL.
+
+## Langkah 42: Dark mode app-wide — tema "forest/emerald" — SELESAI & TERVERIFIKASI
+
+User minta dark mode dari seluruh website, dengan tema hutan/zamrud: hijau Supabase (`#3ecf8e`) di atas latar nyaris hitam (`#0f0f0f`/`#171717`), dan porsi hijau-vs-hitam yang "enak dilihat" — bukan dibanjiri hijau.
+
+**Temuan awal yang mengubah rencana:** `Settings > General` sudah punya `<select>` Theme (System/Light/Dark) terikat ke `user_memory.theme_preference`, dan `hooks/useUserMemory.ts` sudah punya efek yang menulis `document.documentElement.dataset.theme`. Jadi mekanisme toggle **sudah ada**, hanya belum benar-benar hidup: nilai "system" ditulis mentah-mentah (tidak pernah cocok dengan selector CSS `[data-theme="dark"]`/`"light"`), tidak ada fallback sebelum `user_memory` selesai di-fetch (flash tema salah), dan `globals.css` cuma py stub (`html[data-theme="dark"] body { background: #04140b }`) tanpa token lain yang ikut berubah. Diputuskan memakai ulang mekanisme yang ada, bukan membangun sistem toggle baru.
+
+**Skala masalah sebenarnya:** audit `grep` menemukan **~310 kelas Tailwind arbitrary-hex** (`bg-[#...]`, `text-[#...]`, dst) tersebar di 40 file `app/`+`components/` — hasil dari restyle Design v2 (Langkah 27 dst.) yang menulis warna final langsung sebagai hex, bukan lewat CSS variable. Dark mode tidak mungkin hidup tanpa mengonversi semuanya ke variable dulu.
+
+**Pendekatan: skrip sekali-pakai (`darkmode.mjs`, pola sama seperti `restyle.mjs` Langkah 27) yang menulis ulang setiap `PROP-[#HEX]` jadi `PROP-[var(--token)]`,** dengan tiga lapis:
+1. **Token bernama** untuk ~17 warna berfrekuensi tinggi yang sudah py nama semantik di `globals.css` (`--brand`, `--surface`, `--ink`, dst.) — nilai *light* dijaga identik piksel, nilai *dark* dirancang tangan.
+2. **Token panjang-ekor otomatis** (`--c-<hex>`) untuk ~63 warna sisa (aksen dekoratif langka, layar OTP lama) — nilai dark dihitung lewat transform HSL (teks gelap→terang, permukaan terang→gelap), bukan tebakan manual satu-satu.
+3. **Kasus khusus** (regex prioritas tinggi, jalan sebelum langkah 1-2): scrim modal, badge error, tombol solid brand.
+
+**Tiga bug peran-ganda yang HARUS ditemukan lewat pembacaan konteks, bukan cuma grep hex:** skrip mekanis awal salah kalau satu hex dipakai untuk dua maksud berbeda tergantung tempatnya.
+- **Scrim modal** (`bg-[#16211c]/40`, 5 tempat) memakai hex yang sama dengan `--ink` (teks). `--ink` HARUS membalik jadi terang di dark mode (supaya teks kebaca) — kalau scrim ikut, backdrop modal jadi putih. Di-hardcode ke `--scrim` (tetap gelap di kedua tema).
+- **Tombol solid brand** (`bg-[var(--brand)]` + `text-white`/`text-[#f5f3ec]`, ~50 tempat) — di light mode `--brand` hijau tua jadi teks putih kebaca; tapi `--brand` di dark mode SENGAJA dibuat terang (emerald Supabase), jadi teks putih di atasnya nyaris tak terbaca. Diperbaiki dengan token `--on-brand` yang membalik BERLAWANAN arah dari `--brand` (terang di light, gelap `#0d2118` di dark) — kontras diverifikasi lewat rumus WCAG: 8.43:1 (brand) dan 6.65:1 (brand-hover), jauh di atas ambang AA 4.5:1.
+- **`--brand-deep` dipakai 224× — mayoritas (187×) sebagai border/ring tipis 10% opacity** (garis kartu halus), sisanya (37×) sebagai bg panel/rail gelap. Nilai dark yang sama untuk keduanya mustahil: kalau gelap (cocok untuk rail), border 10%-opacity-gelap di atas permukaan yang juga gelap jadi tak kelihatan. Dipecah jadi `--brand-deep` (bg, tetap gelap) dan `--brand-deep-line` (border/ring, TERANG `#4b564e` di dark mode supaya garis kartu tetap kelihatan). Tiga token panjang-ekor dengan pola sama (`--c-d3e8dc`, `--c-95d6b9`, `--c-d8eadf` — ring fokus & pembatas `<hr>` pastel) juga dikoreksi manual karena transform HSL otomatis salah arah untuk peran border.
+- **Rail/Sidebar (`IconRail.tsx`, `Sidebar.tsx`) ternyata SUDAH permanen gelap** (bg hijau-tua) terlepas dari tema — jadi `bg-white/N` di situ adalah tint hover yang harus TETAP putih di kedua tema, bukan ikut membalik. Dikembalikan ke `bg-white` biasa (dikecualikan dari konversi), kecuali 2 popup mengambang (menu akun, kebab menu) yang memang kartu sungguhan dan tetap ikut membalik.
+
+**Desain palet dark ("forest/emerald"):** latar `#0f0f0f` / permukaan `#171717` / permukaan-alt `#1b1e1c` — abu-hitam netral mendominasi luas area. Hijau zamrud `#3ecf8e` dijatah HANYA untuk elemen kecil (tombol, link, ikon aktif, focus ring) supaya tetap terasa sebagai aksen, bukan banjir warna — ini yang dimaksud user soal "porsi hijau vs hitam". Permukaan besar yang tadinya hijau tua (`brand-deep`, rail/panel dalam) tetap gelap-hijau redup (`#12271d`), bukan ikut cerah. Emas (`--gold`) nyaris tak berubah (sudah kebaca di kedua tema). Error/danger memakai palet Material gelap standar (`#ffb4ab` teks, `#3a1216` latar kontainer).
+
+**Mekanisme aktivasi:** skrip bootstrap inline di `<head>` (`lib/theme.ts` → `themeBootstrapScript`, dipasang di `app/layout.tsx`) membaca `localStorage['ai-mu-theme']` sebelum render pertama (tanpa flash), fallback ke `prefers-color-scheme` kalau preferensinya "system", dan mendengarkan perubahan skema OS lewat `matchMedia(...).addEventListener('change', ...)`. Berlaku di SEMUA rute termasuk yang belum login (Landing, Login, Plans) karena tidak bergantung pada `user_memory`. `useUserMemory.ts` dipakai ulang tanpa ubah alur (masih apply setelah Save, konsisten dengan field lain di tab General) — cuma diarahkan lewat `applyTheme()` baru yang juga menulis cache `localStorage` supaya rute lain langsung konsisten.
+
+**Verifikasi:** `tsc`/`eslint` bersih. Diuji hidup lewat dev server + browser: `/home` dan `/login` dirender di kedua tema — light mode diperiksa byte-identik dengan sebelum perubahan (tombol brand tetap `rgb(15,90,61)` bg + `rgb(245,243,236)` teks, sama seperti sebelum Langkah 42), dark mode menunjukkan `--background:#0f0f0f`, tombol brand emerald+teks gelap, dan preferensi "system" terbukti mengikuti `prefers-color-scheme` OS pada saat load. Tidak ada error konsol.
+
+**Cakupan yang sengaja tidak disempurnakan:** ~60 warna dekoratif langka (ilustrasi Landing, layar `/verify-otp` lama yang sudah punya gaya sendiri sebelum Design v2) dapat nilai dark otomatis lewat transform HSL, bukan rancangan tangan — cukup baik (tidak pecah), tidak sebagus token inti yang dirancang manual. 4 warna logo Google (`text-[#4285F4]` dkk.) sengaja tidak disentuh sama sekali.
+
+### Addendum Langkah 41a: diuji dengan Hermes Agent SUNGGUHAN — SELESAI
+
+User memasang Hermes Agent v0.20.0 sendiri (pemasangan diblokir pengaman sesi karena polanya "unduh skrip lalu jalankan langsung"; tidak diakali). Model: `gpt-5.6-sol` lewat OpenAI API. Di Windows, `~/.hermes/` dari dokumentasi sebenarnya memetakan ke **`%LOCALAPPDATA%\hermes`**, dan executablenya di `hermes-agent\venv\Scripts\hermes.exe` — bukan di `bin\` yang hanya berisi `uv`.
+
+**Konfigurasi:** entri `mcp_servers.otak_kedua` DITAMBAHKAN ke `config.yaml` yang sudah ada (di-backup dulu ke `config.yaml.bak.sebelum-mcp-*`), bukan menimpanya. `AIMU_SYNC_TOKEN` sudah ada di `.env` Hermes; `AIMU_SYNC_API` diarahkan ke dev server lokal supaya kode yang diuji pasti yang terbaru.
+
+**Hasil — Hermes sungguhan, bukan simulasi:**
+- `hermes mcp list` → `otak_kedua ✓ enabled`
+- `hermes mcp test otak_kedua` → **✓ Connected (797ms), ✓ Tools discovered: 4**
+- `hermes -z "...simpan catatan..."` → catatan tersimpan
+- **Sesi BARU** `hermes -z "berapa kode verifikasi unik di catatan uji integrasi?"` → menjawab **`MERPATI-77-BIRU — catatan "Uji Integrasi Hermes"`**. Kode itu tidak pernah ada di konteks sesi kedua, jadi jawabannya hanya mungkin datang dari pemanggilan alat.
+- **Bukti independen di log server** (bukan klaim model): `POST /api/notes/sync/push 200` lalu `POST /api/notes/sync/query 200`.
+- DB: isi persis, 1 chunk ber-embedding, `[[Otak Kedua]]` terurai dan benar berstatus menggantung karena catatannya belum ada.
+
+**BUG ditemukan saat verifikasi & diperbaiki:** rute push menetapkan `source: "logseq_import"` secara keras, sehingga catatan yang ditulis Hermes berlabel **"IMPOR LOGSEQ"** di Library — menyesatkan, karena rute itu melayani dua klien berbeda. Kini `PushItem` punya `source` (`ai` | `logseq_import`) dengan bawaan `logseq_import` agar perilaku jembatan Logseq tidak berubah, dan MCP server mengirim `ai`. **Diverifikasi ulang lewat Hermes sungguhan**: catatan baru → `source = ai`.
+
+**Catatan operasional:** `/api/notes/sync/*` sempat 404 di dev karena `.next` tercampur antara `npm run build` dan dev server Turbopack di direktori yang sama. Hapus `.next` lalu jalankan ulang dev server. Bukan masalah kode — tapi mudah menyesatkan saat menguji.

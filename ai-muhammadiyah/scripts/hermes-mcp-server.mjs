@@ -207,6 +207,9 @@ async function runTool(name, args) {
           fileName: `${title.replace(/\//g, "___")}.md`,
           raw,
           clientUpdatedAt: new Date().toISOString(),
+          // Ditulis agen, bukan diimpor dari Logseq — supaya badge di Library
+          // jujur menyebut asalnya.
+          source: "ai",
         },
       ],
     });

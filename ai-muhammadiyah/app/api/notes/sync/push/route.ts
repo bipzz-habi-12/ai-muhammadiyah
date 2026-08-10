@@ -36,6 +36,10 @@ type PushItem = {
   content: string;
   deleted: boolean;
   clientUpdatedAt: number | null;
+  /** Asal catatan, untuk badge di Library. Rute ini melayani dua klien:
+   *  jembatan Logseq dan MCP server Hermes. Tanpa pembeda ini, catatan yang
+   *  ditulis Hermes akan berlabel "IMPOR LOGSEQ" dan menyesatkan pengguna. */
+  source: "ai" | "logseq_import";
 };
 
 /** Properti `title::` Logseq lebih dipercaya daripada nama berkas. */
@@ -89,6 +93,9 @@ function coerceItems(raw: unknown): PushItem[] | null {
       content: logseqToMarkdown(rawBody).slice(0, maxNoteContentLength),
       deleted: record.deleted === true,
       clientUpdatedAt: Number.isNaN(parsedDate) ? null : parsedDate,
+      // Bawaan tetap logseq_import supaya jembatan Logseq yang sudah ada
+      // tidak berubah perilakunya.
+      source: record.source === "ai" ? "ai" : "logseq_import",
     });
   }
 
@@ -284,7 +291,7 @@ export async function POST(request: Request) {
           user_id: device.userId,
           title: item.title,
           content: item.content,
-          source: "logseq_import",
+          source: item.source,
         })
         .select("id")
         .single();
