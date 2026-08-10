@@ -31,23 +31,23 @@ export default async function WorkspaceIndexPage() {
 
   if (workspaces.length === 0) {
     return (
-      <main className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
+      <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
         <AppShellRail
           active="workspaces"
           userInitials={getEmailInitials(user.email ?? "")}
         />
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="max-w-[440px] text-center">
-            <h1 className="font-serif text-[30px] font-normal tracking-[-0.01em] text-[#12211b]">
+            <h1 className="font-serif text-[30px] font-normal tracking-[-0.01em] text-[var(--ink-deep)]">
               Belum ada workspace
             </h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-[#5d6862]">
+            <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted-2)]">
               Workspace menampung banyak chat sekaligus satu instruksi permanen.
               Buat workspace pertamamu dari halaman chat.
             </p>
             <Link
               href="/"
-              className="mt-6 inline-flex items-center gap-2 rounded-[11px] bg-[#0f5a3d] px-5 py-3 text-sm font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+              className="mt-6 inline-flex items-center gap-2 rounded-[11px] bg-[var(--brand)] px-5 py-3 text-sm font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
             >
               Ke chat
             </Link>

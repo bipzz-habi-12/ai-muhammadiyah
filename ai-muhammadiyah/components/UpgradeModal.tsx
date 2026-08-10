@@ -48,9 +48,9 @@ function UpgradeAction({
   onManage: () => void;
 }) {
   const activeClassName =
-    "mt-4 h-10 w-full rounded-full bg-[#0f5a3d] text-xs font-bold text-white transition hover:bg-[#0a3d2a]";
+    "mt-4 h-10 w-full rounded-full bg-[var(--brand)] text-xs font-bold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]";
   const mutedClassName =
-    "mt-4 h-10 w-full rounded-full bg-[#0f5a3d]/10 text-xs font-bold text-[#0f5a3d] ring-1 ring-[#0b3d2a]/10 disabled:cursor-not-allowed disabled:opacity-80";
+    "mt-4 h-10 w-full rounded-full bg-[var(--brand)]/10 text-xs font-bold text-[var(--brand)] ring-1 ring-[var(--brand-deep-line)]/10 disabled:cursor-not-allowed disabled:opacity-80";
 
   if (isPending) {
     return (
@@ -134,19 +134,19 @@ export default function UpgradeModal({
     : usageSnapshot?.tier;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-[#16211c]/40 px-3 py-4 sm:items-center sm:justify-center">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-[24px] bg-[#f7f5ee] p-5 shadow-2xl ring-1 ring-[#0b3d2a]/10 sm:max-w-5xl sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end bg-[var(--scrim)]/40 px-3 py-4 sm:items-center sm:justify-center">
+      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-[24px] bg-[var(--surface-panel)] p-5 shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10 sm:max-w-5xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0f5a3d]">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--brand)]">
               Upgrade paket
             </p>
-            <h2 className="mt-2 font-serif text-[26px] font-normal text-[#12211b]">
+            <h2 className="mt-2 font-serif text-[26px] font-normal text-[var(--ink-deep)]">
               Buka {modelCatalog[upgradeTargetModel].label}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#5d6862]">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--muted-2)]">
               Paket kamu saat ini: {currentTierLabel}. Upgrade mulai dari{" "}
-              <strong className="text-[#16211c]">{upgradePlan.name}</strong>{" "}
+              <strong className="text-[var(--ink)]">{upgradePlan.name}</strong>{" "}
               untuk memakai {modelCatalog[upgradeTargetModel].description}
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function UpgradeModal({
             onClick={() => setIsUpgradeOpen(false)}
             aria-label="Tutup upgrade"
             title="Tutup"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#5d6862] transition hover:bg-[#ece9df]"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[var(--muted-2)] transition hover:bg-[var(--surface-border)]"
           >
             <span aria-hidden="true" className="text-2xl leading-none">
               x
@@ -173,30 +173,30 @@ export default function UpgradeModal({
                 key={plan.tier}
                 className={
                   unlocksTarget
-                    ? "rounded-[24px] bg-[#fbfaf6] p-4 ring-2 ring-[#0f5a3d]"
-                    : "rounded-[24px] bg-[#fbfaf6] p-4 ring-1 ring-[#0b3d2a]/10"
+                    ? "rounded-[24px] bg-[var(--surface)] p-4 ring-2 ring-[var(--brand)]"
+                    : "rounded-[24px] bg-[var(--surface)] p-4 ring-1 ring-[var(--brand-deep-line)]/10"
                 }
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-[#16211c]">{plan.name}</h3>
-                    <p className="mt-1 text-2xl font-bold text-[#16211c]">
+                    <h3 className="font-bold text-[var(--ink)]">{plan.name}</h3>
+                    <p className="mt-1 text-2xl font-bold text-[var(--ink)]">
                       {plan.price}
                     </p>
-                    <p className="text-xs font-semibold text-[#5d6862]">
+                    <p className="text-xs font-semibold text-[var(--muted-2)]">
                       per bulan
                     </p>
                   </div>
                   {isCurrentPlan && (
-                    <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-1 text-[11px] font-bold text-[#0f5a3d]">
+                    <span className="rounded-full bg-[var(--brand)]/10 px-2 py-1 text-[11px] font-bold text-[var(--brand)]">
                       Aktif
                     </span>
                   )}
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-[#5d6862]">
+                <p className="mt-3 text-sm leading-relaxed text-[var(--muted-2)]">
                   {plan.tagline}
                 </p>
-                <div className="mt-4 space-y-2 text-xs font-semibold text-[#5d6862]">
+                <div className="mt-4 space-y-2 text-xs font-semibold text-[var(--muted-2)]">
                   <p>{plan.quotas[0]}</p>
                   <p>{plan.quotas[1]}</p>
                   <p>{plan.modelNames.join(", ")}</p>
@@ -207,10 +207,10 @@ export default function UpgradeModal({
                       key={badge}
                       className={
                         badge.includes("GPT")
-                          ? "rounded-full bg-[#e7c77e] px-2 py-0.5 text-[11px] font-bold text-[#8a6a1f]"
+                          ? "rounded-full bg-[var(--gold)] px-2 py-0.5 text-[11px] font-bold text-[var(--gold-ink-2)]"
                           : badge.includes("Gemini 2.5 Pro")
-                            ? "rounded-full bg-[#e0e0ff] px-2 py-0.5 text-[11px] font-bold text-[#343d96]"
-                            : "rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 text-[11px] font-bold text-[#0f5a3d]"
+                            ? "rounded-full bg-[var(--c-e0e0ff)] px-2 py-0.5 text-[11px] font-bold text-[var(--c-343d96)]"
+                            : "rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-[11px] font-bold text-[var(--brand)]"
                       }
                     >
                       {badge}
@@ -234,13 +234,13 @@ export default function UpgradeModal({
         {billingError && (
           <div
             role="alert"
-            className="mt-5 rounded-[22px] bg-[#e7c77e]/25 p-4 text-sm font-semibold leading-relaxed text-[#8a6a1f]"
+            className="mt-5 rounded-[22px] bg-[var(--gold)]/25 p-4 text-sm font-semibold leading-relaxed text-[var(--gold-ink-2)]"
           >
             {billingError}
           </div>
         )}
 
-        <div className="mt-5 rounded-[22px] bg-[#0f5a3d]/10 p-4 text-sm leading-relaxed text-[#5d6862] ring-1 ring-[#0b3d2a]/10">
+        <div className="mt-5 rounded-[22px] bg-[var(--brand)]/10 p-4 text-sm leading-relaxed text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10">
           {billingState.isStripeConfigured
             ? "Pembayaran diproses aman oleh Stripe. Langganan berulang tiap bulan dan bisa dibatalkan kapan saja dari halaman kelola langganan."
             : "Pembayaran otomatis belum diaktifkan di server ini. Rute premium dan kuota tetap mengikuti data subscription yang ada."}

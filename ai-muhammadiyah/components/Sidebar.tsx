@@ -90,7 +90,7 @@ export default function Sidebar({
   // Collapsed rail — only the essentials remain (expand, new chat, Hub).
   if (collapsed) {
     return (
-      <aside className="hidden w-[56px] shrink-0 flex-col items-center border-r border-[#0f5a3d]/10 bg-[#0a3d2a] py-4 text-white md:flex">
+      <aside className="hidden w-[56px] shrink-0 flex-col items-center border-r border-[var(--brand)]/10 bg-[var(--brand-deep)] py-4 text-white md:flex">
         <button
           type="button"
           onClick={() => setCollapsed(false)}
@@ -105,7 +105,7 @@ export default function Sidebar({
           onClick={resetMemory}
           title="Obrolan baru"
           aria-label="Obrolan baru"
-          className="mt-4 grid h-9 w-9 place-items-center rounded-lg bg-white text-xl leading-none text-[#0f5a3d] transition hover:bg-white/90"
+          className="mt-4 grid h-9 w-9 place-items-center rounded-lg bg-white text-xl leading-none text-[var(--brand)] transition hover:bg-white/90"
         >
           +
         </button>
@@ -123,7 +123,7 @@ export default function Sidebar({
           href="/hub"
           title="Muhammadiyah Hub"
           aria-label="Muhammadiyah Hub"
-          className="grid h-9 w-9 place-items-center rounded-full bg-[#e7c77e] text-[#8a6a1f] transition hover:bg-[#e0bd6a]"
+          className="grid h-9 w-9 place-items-center rounded-full bg-[var(--gold)] text-[var(--gold-ink-2)] transition hover:bg-[var(--c-e0bd6a)]"
         >
           <Icon name="star" className="h-4 w-4" />
         </Link>
@@ -132,7 +132,7 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[#0f5a3d]/10 bg-[#0a3d2a] text-white md:flex">
+    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[var(--brand)]/10 bg-[var(--brand-deep)] text-white md:flex">
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center justify-between px-0.5">
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
@@ -169,14 +169,14 @@ export default function Sidebar({
             value={chatSearch}
             onChange={(event) => setChatSearch(event.target.value)}
             placeholder="Cari obrolan..."
-            className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-8 pr-2 text-sm text-white placeholder-white/50 outline-none transition focus:border-[#e7c77e]"
+            className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-8 pr-2 text-sm text-white placeholder-white/50 outline-none transition focus:border-[var(--gold)]"
           />
         </div>
 
         <button
           type="button"
           onClick={resetMemory}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-[#0f5a3d] transition hover:bg-white/90"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-[var(--brand)] transition hover:bg-white/90"
         >
           <span className="text-lg leading-none">+</span>
           Obrolan baru
@@ -200,7 +200,7 @@ export default function Sidebar({
         )}
 
         {historyError && (
-          <p className="mb-4 rounded-lg bg-[#ba1a1a]/20 p-3 text-sm font-semibold text-white ring-1 ring-[#ba1a1a]/40">
+          <p className="mb-4 rounded-lg bg-[var(--danger)]/20 p-3 text-sm font-semibold text-white ring-1 ring-[var(--danger)]/40">
             {historyError}
           </p>
         )}
@@ -228,7 +228,7 @@ export default function Sidebar({
                     key={conversation.id}
                     className={
                       isActive
-                        ? "group relative rounded-lg border-l-4 border-[#e7c77e] bg-black/20"
+                        ? "group relative rounded-lg border-l-4 border-[var(--gold)] bg-black/20"
                         : "group relative rounded-lg transition hover:bg-white/5"
                     }
                   >
@@ -250,7 +250,7 @@ export default function Sidebar({
                         />
                         <button
                           type="submit"
-                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-[#0a3d2a]"
+                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-[var(--brand-hover-text)]"
                           aria-label="Simpan nama"
                           title="Simpan nama"
                         >
@@ -321,7 +321,7 @@ export default function Sidebar({
                     )}
 
                     {openKebabId === conversation.id && !isRenaming && (
-                      <div className="absolute right-2 top-full z-30 mt-1 w-56 overflow-hidden rounded-xl bg-white p-1 text-sm text-[#16211c] shadow-2xl ring-1 ring-[#0b3d2a]/10">
+                      <div className="absolute right-2 top-full z-30 mt-1 w-56 overflow-hidden rounded-xl bg-[var(--pure-white)] p-1 text-sm text-[var(--ink)] shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10">
                         <button
                           type="button"
                           onClick={() => {
@@ -329,9 +329,9 @@ export default function Sidebar({
                             setRenameValue(conversation.title);
                             setOpenKebabId(null);
                           }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f0eee6]"
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[var(--surface-alt)]"
                         >
-                          <Icon name="edit" className="h-4 w-4 text-[#0f5a3d]" />
+                          <Icon name="edit" className="h-4 w-4 text-[var(--brand)]" />
                           Rename
                         </button>
                         <button
@@ -340,28 +340,28 @@ export default function Sidebar({
                             toggleConversationPin(conversation);
                             setOpenKebabId(null);
                           }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f0eee6]"
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[var(--surface-alt)]"
                         >
-                          <Icon name="pin" className="h-4 w-4 text-[#0f5a3d]" />
+                          <Icon name="pin" className="h-4 w-4 text-[var(--brand)]" />
                           {conversation.isPinned ? "Lepas pin" : "Pin"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setMoveSubmenuOpen((open) => !open)}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[#f0eee6]"
+                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[var(--surface-alt)]"
                           aria-expanded={moveSubmenuOpen}
                         >
                           <span className="flex items-center gap-3">
                             <Icon
                               name="book"
-                              className="h-4 w-4 text-[#0f5a3d]"
+                              className="h-4 w-4 text-[var(--brand)]"
                             />
                             Pindah ke workspace
                           </span>
-                          <span className="text-xs text-[#8a9089]">⌄</span>
+                          <span className="text-xs text-[var(--muted-3)]">⌄</span>
                         </button>
                         {moveSubmenuOpen && (
-                          <div className="mb-1 mt-1 max-h-44 overflow-auto border-t border-[#0b3d2a]/10 pt-1">
+                          <div className="mb-1 mt-1 max-h-44 overflow-auto border-t border-[var(--brand-deep-line)]/10 pt-1">
                             {workspaceOptions.map((option) => {
                               const isCurrent =
                                 (conversation.workspaceId ?? "") === option.id;
@@ -378,13 +378,13 @@ export default function Sidebar({
                                     setOpenKebabId(null);
                                     setMoveSubmenuOpen(false);
                                   }}
-                                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[#f0eee6]"
+                                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[var(--surface-alt)]"
                                 >
                                   <span className="truncate">{option.name}</span>
                                   {isCurrent && (
                                     <Icon
                                       name="check"
-                                      className="h-3.5 w-3.5 shrink-0 text-[#0f5a3d]"
+                                      className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]"
                                     />
                                   )}
                                 </button>
@@ -392,14 +392,14 @@ export default function Sidebar({
                             })}
                           </div>
                         )}
-                        <div className="my-1 border-t border-[#0b3d2a]/10" />
+                        <div className="my-1 border-t border-[var(--brand-deep-line)]/10" />
                         <button
                           type="button"
                           onClick={() => {
                             deleteConversation(conversation.id, resetMemory);
                             setOpenKebabId(null);
                           }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-bold text-[#ba1a1a] transition hover:bg-[#ffdad6]"
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-bold text-[var(--danger)] transition hover:bg-[var(--danger-bg)]"
                         >
                           <Icon name="trash" className="h-4 w-4" />
                           Hapus
@@ -438,7 +438,7 @@ export default function Sidebar({
         href="/hub"
         className="mt-auto flex items-center gap-2 border-t border-white/10 bg-black/10 p-4 transition hover:bg-black/20"
       >
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#e7c77e] text-[#8a6a1f]">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--gold)] text-[var(--gold-ink-2)]">
           <Icon name="star" className="h-3.5 w-3.5" />
         </span>
         <span className="text-[10px] font-bold uppercase tracking-widest text-white">

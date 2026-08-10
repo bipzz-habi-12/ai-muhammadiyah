@@ -52,7 +52,7 @@ const MarkdownMessage = memo(function MarkdownMessage({ text }: { text: string }
       elements.push(
         <h3
           key={`h-${index}`}
-          className={`${levelClass} font-bold leading-snug text-[#0f3025] first:mt-0`}
+          className={`${levelClass} font-bold leading-snug text-[var(--c-0f3025)] first:mt-0`}
         >
           {renderInlineMarkdown(heading[2])}
         </h3>,
@@ -63,7 +63,7 @@ const MarkdownMessage = memo(function MarkdownMessage({ text }: { text: string }
     if (trimmedLine === "---") {
       flushLists();
       elements.push(
-        <hr key={`hr-${index}`} className="my-4 border-[#d8eadf]" />,
+        <hr key={`hr-${index}`} className="my-4 border-[var(--c-d8eadf)]" />,
       );
       return;
     }

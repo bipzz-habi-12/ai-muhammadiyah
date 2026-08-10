@@ -26,7 +26,7 @@ type AuthStep = "email" | "otp";
 function ComingSoonBadge({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`pointer-events-none whitespace-nowrap rounded-full bg-[#e7c77e] px-2 py-0.5 text-[10px] font-semibold leading-none text-[#8a6a1f] ${className}`}
+      className={`pointer-events-none whitespace-nowrap rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-semibold leading-none text-[var(--gold-ink-2)] ${className}`}
     >
       Segera hadir
     </span>
@@ -53,8 +53,8 @@ function StatusBanner({
 }) {
   const toneClasses =
     tone === "error"
-      ? "border-[#ffb4ab] bg-[#ffdad6] text-[#93000a]"
-      : "border-[#0f5a3d]/25 bg-[#0f5a3d]/[0.08] text-[#0f5a3d]";
+      ? "border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-ink)]"
+      : "border-[var(--brand)]/25 bg-[var(--brand)]/[0.08] text-[var(--brand)]";
 
   return (
     <p className={`rounded-[10px] border px-4 py-3 text-sm font-medium leading-[20px] ${toneClasses}`}>
@@ -199,11 +199,11 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
   }
 
   const inputClass =
-    "h-[46px] w-full rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-[15px] text-[15px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]";
+    "h-[46px] w-full rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] px-[15px] text-[15px] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]";
   const labelClass =
-    "mb-[7px] block text-[13px] font-semibold text-[#3a453e]";
+    "mb-[7px] block text-[13px] font-semibold text-[var(--c-3a453e)]";
   const primaryButtonClass =
-    "flex h-12 w-full items-center justify-center rounded-[10px] bg-[#0f5a3d] text-[15px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
+    "flex h-12 w-full items-center justify-center rounded-[10px] bg-[var(--brand)] text-[15px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
 
   const subheading =
     step === "otp"
@@ -213,46 +213,46 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
         : "Mulai gratis — satu workspace, tanpa kartu.";
 
   return (
-    <div className="grid min-h-dvh bg-[#f5f3ec] text-[#16211c] lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-dvh bg-[var(--background)] text-[var(--ink)] lg:grid-cols-[1.05fr_1fr]">
       {/* BRAND PANEL */}
       <div
-        className="relative hidden flex-col justify-between overflow-hidden bg-[#0b3d2a] px-16 py-14 text-[#ede9dc] lg:flex"
+        className="relative hidden flex-col justify-between overflow-hidden bg-[var(--brand-deep)] px-16 py-14 text-[var(--c-ede9dc)] lg:flex"
         style={{ backgroundImage: brandPattern, backgroundSize: "96px 96px" }}
       >
         <Link href="/login" className="relative flex items-center gap-3">
-          <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[#e7c77e] text-[17px] font-bold text-[#0b3d2a]">
+          <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[var(--gold)] text-[17px] font-bold text-[var(--brand-deep)]">
             م
           </span>
-          <span className="text-[16.5px] font-semibold text-[#f3efe2]">
+          <span className="text-[16.5px] font-semibold text-[var(--surface-tint)]">
             AI Muhammadiyah
           </span>
         </Link>
 
         <div className="relative max-w-[460px]">
-          <div className="mb-[22px] text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#c7a560]">
+          <div className="mb-[22px] text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-accent)]">
             Islam Berkemajuan
           </div>
-          <blockquote className="font-serif text-[34px] italic leading-[1.28] tracking-[-0.01em] text-[#f3efe2]">
+          <blockquote className="font-serif text-[34px] italic leading-[1.28] tracking-[-0.01em] text-[var(--surface-tint)]">
             &ldquo;Ilmu tanpa nilai kehilangan arah. Nilai tanpa ilmu kehilangan
             daya. Platform ini dibuat untuk merangkul keduanya.&rdquo;
           </blockquote>
-          <div className="mt-[34px] flex flex-col gap-3.5 text-[14.5px] text-[#b9c3b7]">
+          <div className="mt-[34px] flex flex-col gap-3.5 text-[14.5px] text-[var(--c-b9c3b7)]">
             <div className="flex items-center gap-3">
-              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[#e7c77e]" />
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--gold)]" />
               Workspace, skill, dan artifact dalam satu tempat
             </div>
             <div className="flex items-center gap-3">
-              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[#e7c77e]" />
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--gold)]" />
               Berlandaskan Muhammadiyah Knowledge Base
             </div>
             <div className="flex items-center gap-3">
-              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[#e7c77e]" />
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--gold)]" />
               Terbuka untuk semua, gratis untuk memulai
             </div>
           </div>
         </div>
 
-        <div className="relative text-[13px] text-[#8fa091]">
+        <div className="relative text-[13px] text-[var(--c-8fa091)]">
           aimuhammadiyah.my.id
         </div>
       </div>
@@ -262,22 +262,22 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
         <div className="w-full max-w-[400px] [animation:fade_.5s_ease]">
           {/* Brand row for small screens (brand panel is desktop-only) */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[#0f5a3d] text-[17px] font-bold text-[#f5f3ec]">
+            <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[var(--brand)] text-[17px] font-bold text-[var(--on-brand)]">
               م
             </span>
-            <span className="text-[16.5px] font-semibold text-[#12211b]">
+            <span className="text-[16.5px] font-semibold text-[var(--ink-deep)]">
               AI Muhammadiyah
             </span>
           </div>
 
           {step === "email" && (
-            <div className="mb-8 flex rounded-[12px] bg-[#ece9df] p-1">
+            <div className="mb-8 flex rounded-[12px] bg-[var(--surface-border)] p-1">
               <Link
                 href="/login"
                 className={
                   isLogin
-                    ? "flex-1 rounded-[9px] bg-[#fbfaf6] py-2 text-center text-sm font-semibold text-[#0f5a3d] shadow-[0_1px_3px_rgba(11,61,42,0.12)]"
-                    : "flex-1 rounded-[9px] py-2 text-center text-sm font-semibold text-[#6b746e] transition hover:text-[#0f5a3d]"
+                    ? "flex-1 rounded-[9px] bg-[var(--surface)] py-2 text-center text-sm font-semibold text-[var(--brand)] shadow-[0_1px_3px_rgba(11,61,42,0.12)]"
+                    : "flex-1 rounded-[9px] py-2 text-center text-sm font-semibold text-[var(--c-6b746e)] transition hover:text-[var(--brand)]"
                 }
               >
                 Masuk
@@ -286,8 +286,8 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                 href="/register"
                 className={
                   !isLogin
-                    ? "flex-1 rounded-[9px] bg-[#fbfaf6] py-2 text-center text-sm font-semibold text-[#0f5a3d] shadow-[0_1px_3px_rgba(11,61,42,0.12)]"
-                    : "flex-1 rounded-[9px] py-2 text-center text-sm font-semibold text-[#6b746e] transition hover:text-[#0f5a3d]"
+                    ? "flex-1 rounded-[9px] bg-[var(--surface)] py-2 text-center text-sm font-semibold text-[var(--brand)] shadow-[0_1px_3px_rgba(11,61,42,0.12)]"
+                    : "flex-1 rounded-[9px] py-2 text-center text-sm font-semibold text-[var(--c-6b746e)] transition hover:text-[var(--brand)]"
                 }
               >
                 Buat akun
@@ -295,14 +295,14 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
             </div>
           )}
 
-          <h1 className="mb-2 font-serif text-[33px] font-normal tracking-[-0.01em] text-[#12211b]">
+          <h1 className="mb-2 font-serif text-[33px] font-normal tracking-[-0.01em] text-[var(--ink-deep)]">
             {step === "otp"
               ? "Verifikasi kode"
               : isLogin
                 ? "Selamat datang"
                 : "Buat akun"}
           </h1>
-          <p className="mb-7 text-[15px] leading-relaxed text-[#5d6862]">
+          <p className="mb-7 text-[15px] leading-relaxed text-[var(--muted-2)]">
             {subheading}
           </p>
 
@@ -350,7 +350,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   minLength={otpLength}
                   maxLength={otpLength}
                   required
-                  className="h-[54px] w-full rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-[15px] text-center text-[22px] font-bold tracking-[0.4em] text-[#16211c] outline-none transition focus:border-[#0f5a3d]"
+                  className="h-[54px] w-full rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] px-[15px] text-center text-[22px] font-bold tracking-[0.4em] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]"
                 />
               </div>
 
@@ -373,7 +373,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                 <button
                   type="button"
                   onClick={handleChangeEmail}
-                  className="text-[#5d6862] transition hover:text-[#0f5a3d]"
+                  className="text-[var(--muted-2)] transition hover:text-[var(--brand)]"
                 >
                   Ganti email
                 </button>
@@ -381,7 +381,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={isResending}
-                  className="font-semibold text-[#0f5a3d] transition hover:text-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="font-semibold text-[var(--brand)] transition hover:text-[var(--brand-hover-text)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isResending ? "Mengirim ulang…" : "Kirim ulang kode"}
                 </button>
@@ -392,11 +392,11 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
           {step === "email" && (
             <>
               <div className="my-6 flex items-center gap-3.5">
-                <span className="h-px flex-1 bg-[#0b3d2a]/10" />
-                <span className="text-[12.5px] text-[#8a9089]">
+                <span className="h-px flex-1 bg-[var(--brand-deep)]/10" />
+                <span className="text-[12.5px] text-[var(--muted-3)]">
                   atau lanjutkan dengan
                 </span>
-                <span className="h-px flex-1 bg-[#0b3d2a]/10" />
+                <span className="h-px flex-1 bg-[var(--brand-deep)]/10" />
               </div>
 
               <div className="relative">
@@ -405,7 +405,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                   disabled
                   aria-disabled="true"
                   title="Segera hadir"
-                  className="flex h-12 w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] text-[14.5px] font-semibold text-[#25302a] opacity-60"
+                  className="flex h-12 w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] text-[14.5px] font-semibold text-[var(--ink-soft)] opacity-60"
                 >
                   <GoogleIcon className="h-5 w-5" />
                   Lanjutkan dengan Google
@@ -415,13 +415,13 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
             </>
           )}
 
-          <p className="mt-8 text-center text-[13px] leading-relaxed text-[#8a9089]">
+          <p className="mt-8 text-center text-[13px] leading-relaxed text-[var(--muted-3)]">
             Dengan melanjutkan, kamu menyetujui{" "}
-            <a href="#" className="font-medium text-[#0f5a3d] hover:underline">
+            <a href="#" className="font-medium text-[var(--brand)] hover:underline">
               Syarat &amp; Ketentuan
             </a>{" "}
             dan{" "}
-            <a href="#" className="font-medium text-[#0f5a3d] hover:underline">
+            <a href="#" className="font-medium text-[var(--brand)] hover:underline">
               Kebijakan Privasi
             </a>{" "}
             AI Muhammadiyah.

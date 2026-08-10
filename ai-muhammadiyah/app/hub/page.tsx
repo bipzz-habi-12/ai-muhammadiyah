@@ -37,7 +37,7 @@ export default async function HubPage() {
   }
 
   return (
-    <main className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
+    <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="hub" userInitials={getEmailInitials(user.email ?? "")} />
       <HubDirectory resources={resources} isAdmin={isHubAdmin(user)} />
     </main>

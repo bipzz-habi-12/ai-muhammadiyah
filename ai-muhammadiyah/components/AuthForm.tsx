@@ -108,7 +108,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
       <div>
-        <label htmlFor="email" className="text-sm font-bold text-[#18392e]">
+        <label htmlFor="email" className="text-sm font-bold text-[var(--c-18392e)]">
           Email
         </label>
         <input
@@ -119,7 +119,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           placeholder="nama@email.com"
           autoComplete="email"
           required
-          className="mt-2 h-12 w-full rounded-2xl bg-white px-4 text-[#18392e] outline-none ring-1 ring-[#d3e8dc] transition focus:ring-2 focus:ring-[#95d6b9]"
+          className="mt-2 h-12 w-full rounded-2xl bg-[var(--pure-white)] px-4 text-[var(--c-18392e)] outline-none ring-1 ring-[var(--c-d3e8dc)] transition focus:ring-2 focus:ring-[var(--c-95d6b9)]"
         />
       </div>
 
@@ -130,7 +130,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       )}
 
       {successMessage && (
-        <p className="rounded-2xl bg-[#eef8f1] px-4 py-3 text-sm font-semibold text-[#008d54] ring-1 ring-[#d3e8dc]">
+        <p className="rounded-2xl bg-[var(--c-eef8f1)] px-4 py-3 text-sm font-semibold text-[var(--c-008d54)] ring-1 ring-[var(--c-d3e8dc)]">
           {successMessage}
         </p>
       )}
@@ -138,16 +138,16 @@ export default function AuthForm({ mode }: AuthFormProps) {
       <button
         type="submit"
         disabled={isLoading}
-        className="h-[52px] w-full rounded-full bg-[#009252] px-6 font-bold text-white shadow-lg shadow-emerald-900/10 transition hover:bg-[#087447] disabled:cursor-not-allowed disabled:bg-[#95d6b9]"
+        className="h-[52px] w-full rounded-full bg-[var(--c-009252)] px-6 font-bold text-white shadow-lg shadow-emerald-900/10 transition hover:bg-[var(--c-087447)] disabled:cursor-not-allowed disabled:bg-[var(--c-95d6b9)]"
       >
         {isLoading ? "Mengirim OTP..." : "Kirim OTP"}
       </button>
 
-      <p className="text-center text-sm text-[#4f665c]">
+      <p className="text-center text-sm text-[var(--c-4f665c)]">
         {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
         <Link
           href={isLogin ? "/register" : "/login"}
-          className="font-bold text-[#008d54] transition hover:text-[#06140d]"
+          className="font-bold text-[var(--c-008d54)] transition hover:text-[var(--c-06140d)]"
         >
           {isLogin ? "Daftar di sini" : "Masuk di sini"}
         </Link>

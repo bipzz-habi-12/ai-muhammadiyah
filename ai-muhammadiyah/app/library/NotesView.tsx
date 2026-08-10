@@ -134,7 +134,7 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <p className="text-[13.5px] text-[#5d6862]">
+        <p className="text-[13.5px] text-[var(--muted-2)]">
           {notes.length} catatan tersimpan
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -155,7 +155,7 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={Boolean(importProgress)}
-            className="h-10 rounded-[10px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-3.5 text-[13.5px] font-medium text-[#0f5a3d] transition hover:bg-[#f0eee5] disabled:text-[#8a9089]"
+            className="h-10 rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] font-medium text-[var(--brand)] transition hover:bg-[var(--c-f0eee5)] disabled:text-[var(--muted-3)]"
           >
             {importProgress ? "Mengimpor…" : "Impor Logseq"}
           </button>
@@ -163,8 +163,8 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
             href="/api/notes/export"
             className={
               notes.length
-                ? "flex h-10 items-center rounded-[10px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-3.5 text-[13.5px] font-medium text-[#0f5a3d] transition hover:bg-[#f0eee5]"
-                : "pointer-events-none flex h-10 items-center rounded-[10px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-3.5 text-[13.5px] font-medium text-[#8a9089]"
+                ? "flex h-10 items-center rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] font-medium text-[var(--brand)] transition hover:bg-[var(--c-f0eee5)]"
+                : "pointer-events-none flex h-10 items-center rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] font-medium text-[var(--muted-3)]"
             }
           >
             Ekspor .zip
@@ -173,7 +173,7 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cari catatan"
-            className="h-10 w-[220px] rounded-[10px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-3.5 text-[13.5px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]"
+            className="h-10 w-[220px] rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]"
           />
         </div>
       </div>
@@ -181,17 +181,17 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
       <SyncDevices />
 
       {(importProgress || importSummary || importError) && (
-        <div className="mb-5 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[#f7f5ee] px-4 py-3 text-[13px]">
-          {importProgress && <p className="text-[#5d6862]">{importProgress}</p>}
-          {importError && <p className="text-[#93000a]">{importError}</p>}
+        <div className="mb-5 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[var(--surface-panel)] px-4 py-3 text-[13px]">
+          {importProgress && <p className="text-[var(--muted-2)]">{importProgress}</p>}
+          {importError && <p className="text-[var(--danger-ink)]">{importError}</p>}
           {importSummary && (
-            <div className="text-[#25302a]">
+            <div className="text-[var(--ink-soft)]">
               <p>
                 {importSummary.created} catatan baru, {importSummary.updated}{" "}
                 diperbarui, {importSummary.indexed} terindeks untuk pencarian.
               </p>
               {importSummary.skipped.length > 0 && (
-                <p className="mt-1 text-[12px] text-[#b08833]">
+                <p className="mt-1 text-[12px] text-[var(--gold-ink)]">
                   {importSummary.skipped.length} berkas dilewati:{" "}
                   {importSummary.skipped.slice(0, 3).join(", ")}
                   {importSummary.skipped.length > 3 ? ", …" : ""}
@@ -203,7 +203,7 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
       )}
 
       {shown.length === 0 ? (
-        <div className="rounded-[15px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-12 text-center text-sm leading-relaxed text-[#6b746e]">
+        <div className="rounded-[15px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-12 text-center text-sm leading-relaxed text-[var(--c-6b746e)]">
           {notes.length === 0
             ? "Otak Kedua-mu masih kosong. Saat percakapan menghasilkan sesuatu yang layak disimpan, AI akan menawarkan catatan — kamu yang memutuskan."
             : "Tidak ada catatan yang cocok dengan pencarianmu."}
@@ -216,10 +216,10 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
             return (
               <article
                 key={note.id}
-                className={`overflow-hidden rounded-[15px] border bg-[#fbfaf6] transition duration-150 ${
+                className={`overflow-hidden rounded-[15px] border bg-[var(--surface)] transition duration-150 ${
                   isOpen
-                    ? "border-[#0f5a3d]/35 sm:col-span-2 lg:col-span-3"
-                    : "border-[#0b3d2a]/10 hover:-translate-y-[3px] hover:border-[#0f5a3d]/35 hover:shadow-[0_16px_34px_-26px_rgba(11,61,42,0.7)]"
+                    ? "border-[var(--brand)]/35 sm:col-span-2 lg:col-span-3"
+                    : "border-[var(--brand-deep-line)]/10 hover:-translate-y-[3px] hover:border-[var(--brand)]/35 hover:shadow-[0_16px_34px_-26px_rgba(11,61,42,0.7)]"
                 }`}
               >
                 <button
@@ -229,37 +229,37 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
                   className="w-full px-[17px] py-[15px] text-left"
                 >
                   <div className="mb-1.5 flex items-center gap-2">
-                    <span className="rounded-md bg-[rgba(15,90,61,0.1)] px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#0f5a3d]">
+                    <span className="rounded-md bg-[rgba(15,90,61,0.1)] px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.04em] text-[var(--brand)]">
                       {sourceLabels[note.source]}
                     </span>
                     {note.backlinks.length > 0 && (
-                      <span className="text-[11px] text-[#8a9089]">
+                      <span className="text-[11px] text-[var(--muted-3)]">
                         {note.backlinks.length} tautan masuk
                       </span>
                     )}
                   </div>
-                  <h3 className="mb-[7px] line-clamp-2 text-[14.5px] font-semibold leading-[1.35] text-[#1b2721]">
+                  <h3 className="mb-[7px] line-clamp-2 text-[14.5px] font-semibold leading-[1.35] text-[var(--c-1b2721)]">
                     {note.title}
                   </h3>
                   {!isOpen && (
-                    <p className="mb-2 line-clamp-3 text-[13px] leading-[1.55] text-[#5d6862]">
+                    <p className="mb-2 line-clamp-3 text-[13px] leading-[1.55] text-[var(--muted-2)]">
                       {note.content}
                     </p>
                   )}
-                  <div className="text-xs text-[#8a9089]">
+                  <div className="text-xs text-[var(--muted-3)]">
                     {formatRelativeTime(note.updatedAt)}
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-[#0b3d2a]/[0.07] px-[17px] py-[15px]">
-                    <p className="whitespace-pre-wrap text-[14px] leading-[1.7] text-[#242e28]">
+                  <div className="border-t border-[var(--brand-deep-line)]/[0.07] px-[17px] py-[15px]">
+                    <p className="whitespace-pre-wrap text-[14px] leading-[1.7] text-[var(--c-242e28)]">
                       {note.content}
                     </p>
 
                     {note.outgoingLinks.length > 0 && (
                       <div className="mt-4">
-                        <h4 className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#8a9089]">
+                        <h4 className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--muted-3)]">
                           Menautkan ke
                         </h4>
                         <ul className="flex flex-wrap gap-1.5">
@@ -268,8 +268,8 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
                               key={link.title}
                               className={`rounded-md px-2 py-[3px] text-[12px] ${
                                 link.noteId
-                                  ? "bg-[rgba(15,90,61,0.1)] text-[#0f5a3d]"
-                                  : "bg-[#ece9df] text-[#8a9089]"
+                                  ? "bg-[rgba(15,90,61,0.1)] text-[var(--brand)]"
+                                  : "bg-[var(--surface-border)] text-[var(--muted-3)]"
                               }`}
                               // Tautan ke catatan yang belum ada tetap
                               // ditampilkan (redup) — itu perilaku Logseq.
@@ -288,14 +288,14 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
 
                     {note.backlinks.length > 0 && (
                       <div className="mt-4">
-                        <h4 className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#8a9089]">
+                        <h4 className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--muted-3)]">
                           Ditautkan dari
                         </h4>
                         <ul className="flex flex-wrap gap-1.5">
                           {note.backlinks.map((link) => (
                             <li
                               key={link.noteId ?? link.title}
-                              className="rounded-md bg-[rgba(15,90,61,0.1)] px-2 py-[3px] text-[12px] text-[#0f5a3d]"
+                              className="rounded-md bg-[rgba(15,90,61,0.1)] px-2 py-[3px] text-[12px] text-[var(--brand)]"
                             >
                               {link.title}
                             </li>

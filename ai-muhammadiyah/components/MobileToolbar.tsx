@@ -41,18 +41,18 @@ export default function MobileToolbar({
   renderAttachmentChips,
 }: MobileToolbarProps) {
   return (
-    <div className="border-b border-[#0b3d2a]/10 px-4 py-3 md:hidden">
+    <div className="border-b border-[var(--brand-deep-line)]/10 px-4 py-3 md:hidden">
       <div className="mb-3 grid gap-2">
         <input
           value={chatSearch}
           onChange={(event) => setChatSearch(event.target.value)}
           placeholder="Cari chat"
-          className="h-11 rounded-full bg-white px-4 text-sm font-semibold text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10 placeholder:text-[#8a9089] focus:ring-[#0f5a3d]"
+          className="h-11 rounded-full bg-[var(--pure-white)] px-4 text-sm font-semibold text-[var(--ink)] outline-none ring-1 ring-[var(--brand-deep-line)]/10 placeholder:text-[var(--muted-3)] focus:ring-[var(--brand)]"
         />
         <select
           value={selectedWorkspaceId}
           onChange={(event) => setSelectedWorkspaceId(event.target.value)}
-          className="h-11 rounded-full bg-white px-4 text-sm font-bold text-[#16211c] outline-none ring-1 ring-[#0b3d2a]/10"
+          className="h-11 rounded-full bg-[var(--pure-white)] px-4 text-sm font-bold text-[var(--ink)] outline-none ring-1 ring-[var(--brand-deep-line)]/10"
         >
           <option value="">General workspace</option>
           {workspaces.map((workspace) => (
@@ -66,7 +66,7 @@ export default function MobileToolbar({
         <button
           type="button"
           onClick={resetMemory}
-          className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#16211c] shadow-sm ring-1 ring-[#0b3d2a]/10"
+          className="shrink-0 rounded-full bg-[var(--pure-white)] px-4 py-2 text-sm font-bold text-[var(--ink)] shadow-sm ring-1 ring-[var(--brand-deep-line)]/10"
         >
           + Obrolan baru
         </button>
@@ -77,8 +77,8 @@ export default function MobileToolbar({
             onClick={() => loadConversation(conversation)}
             className={
               conversation.id === activeConversationId
-                ? "max-w-[220px] shrink-0 truncate rounded-full bg-[#0f5a3d] px-4 py-2 text-sm font-bold text-white"
-                : "max-w-[220px] shrink-0 truncate rounded-full bg-white px-4 py-2 text-sm font-bold text-[#16211c] ring-1 ring-[#0b3d2a]/10"
+                ? "max-w-[220px] shrink-0 truncate rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-bold text-[var(--on-brand)]"
+                : "max-w-[220px] shrink-0 truncate rounded-full bg-[var(--pure-white)] px-4 py-2 text-sm font-bold text-[var(--ink)] ring-1 ring-[var(--brand-deep-line)]/10"
             }
           >
             {conversation.title}
@@ -90,21 +90,21 @@ export default function MobileToolbar({
           <button
             type="button"
             onClick={() => toggleConversationPin(activeConversation)}
-            className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#16211c] ring-1 ring-[#0b3d2a]/10"
+            className="shrink-0 rounded-full bg-[var(--pure-white)] px-4 py-2 text-sm font-bold text-[var(--ink)] ring-1 ring-[var(--brand-deep-line)]/10"
           >
             {activeConversation.isPinned ? "Unpin" : "Pin"}
           </button>
           <button
             type="button"
             onClick={exportActiveChatMarkdown}
-            className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#16211c] ring-1 ring-[#0b3d2a]/10"
+            className="shrink-0 rounded-full bg-[var(--pure-white)] px-4 py-2 text-sm font-bold text-[var(--ink)] ring-1 ring-[var(--brand-deep-line)]/10"
           >
             Export
           </button>
           <button
             type="button"
             onClick={openSharePreview}
-            className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#16211c] ring-1 ring-[#0b3d2a]/10"
+            className="shrink-0 rounded-full bg-[var(--pure-white)] px-4 py-2 text-sm font-bold text-[var(--ink)] ring-1 ring-[var(--brand-deep-line)]/10"
           >
             Share
           </button>
@@ -115,9 +115,9 @@ export default function MobileToolbar({
         <button
           type="button"
           onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-bold text-[#16211c] shadow-sm ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#ece9df]"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--pure-white)] px-4 py-3 text-sm font-bold text-[var(--ink)] shadow-sm ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-border)]"
         >
-          <span className="text-xl text-[#0f5a3d]">+</span>
+          <span className="text-xl text-[var(--brand)]">+</span>
           Add photos & files
         </button>
         {renderAttachMenu()}

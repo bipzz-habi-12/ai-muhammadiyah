@@ -62,21 +62,21 @@ export default function TopBar({
   const categoryLabel = selectedSkill?.category ?? selectedSkill?.name ?? "";
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[#0b3d2a]/10 px-4 sm:px-6 md:px-8">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--brand-deep-line)]/10 px-4 sm:px-6 md:px-8">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#0f5a3d] text-white md:hidden">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--brand)] text-[var(--on-brand)] md:hidden">
           <SparkIcon className="h-6 w-6" />
         </div>
         <button
           type="button"
           onClick={() => setActiveTool("chat")}
-          className="min-w-0 truncate text-lg font-bold text-[#16211c] sm:text-xl"
+          className="min-w-0 truncate text-lg font-bold text-[var(--ink)] sm:text-xl"
           title={activeConversation?.title ?? "Obrolan baru"}
         >
           {activeConversation?.title ?? "Obrolan baru"}
         </button>
         {categoryLabel && (
-          <span className="hidden shrink-0 rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#0f5a3d] sm:inline-flex">
+          <span className="hidden shrink-0 rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] sm:inline-flex">
             {categoryLabel}
           </span>
         )}
@@ -92,12 +92,12 @@ export default function TopBar({
             aria-expanded={isArtifactPanelOpen}
             className={
               isArtifactPanelOpen
-                ? "hidden items-center gap-1.5 rounded-full bg-[#0f5a3d]/10 px-3 py-1.5 text-xs font-bold text-[#0f5a3d] lg:inline-flex"
-                : "hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-[#5d6862] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#ece9df] lg:inline-flex"
+                ? "hidden items-center gap-1.5 rounded-full bg-[var(--brand)]/10 px-3 py-1.5 text-xs font-bold text-[var(--brand)] lg:inline-flex"
+                : "hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-border)] lg:inline-flex"
             }
           >
             Artifact
-            <span className="rounded-full bg-[#e7c77e] px-1.5 text-[10px] font-bold text-[#8a6a1f]">
+            <span className="rounded-full bg-[var(--gold)] px-1.5 text-[10px] font-bold text-[var(--gold-ink-2)]">
               {artifactCount}
             </span>
           </button>
@@ -109,18 +109,18 @@ export default function TopBar({
             onClick={exportActiveChatMarkdown}
             aria-label="Export markdown"
             title="Export markdown"
-            className="hidden h-9 w-9 place-items-center rounded-lg text-[#5d6862] transition hover:bg-[#ece9df] sm:grid"
+            className="hidden h-9 w-9 place-items-center rounded-lg text-[var(--muted-2)] transition hover:bg-[var(--surface-border)] sm:grid"
           >
             <Icon name="download" className="h-5 w-5" />
           </button>
         )}
 
-        <div className="mx-1 hidden h-4 w-px bg-[#0b3d2a]/10 sm:block" />
+        <div className="mx-1 hidden h-4 w-px bg-[var(--brand-deep)]/10 sm:block" />
 
         <button
           type="button"
           onClick={openSharePreview}
-          className="flex items-center gap-2 rounded-lg bg-[#0f5a3d] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#0a3d2a]"
+          className="flex items-center gap-2 rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-medium text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
         >
           <Icon name="share" className="h-4 w-4" />
           <span className="hidden sm:inline">Share</span>
@@ -131,23 +131,23 @@ export default function TopBar({
           onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
           aria-label="Menu akun"
           aria-expanded={isAccountMenuOpen}
-          className="ml-1 grid h-10 w-10 place-items-center rounded-full bg-[#e7c77e] text-base font-bold text-[#8a6a1f] transition hover:bg-[#e0bd6a] md:hidden"
+          className="ml-1 grid h-10 w-10 place-items-center rounded-full bg-[var(--gold)] text-base font-bold text-[var(--gold-ink-2)] transition hover:bg-[var(--c-e0bd6a)] md:hidden"
         >
           {userInitials}
         </button>
 
         {isAccountMenuOpen && (
-          <div className="absolute right-0 top-14 z-40 w-[min(86vw,300px)] overflow-hidden rounded-[22px] bg-white p-2 text-sm shadow-2xl ring-1 ring-[#0b3d2a]/10 md:hidden">
+          <div className="absolute right-0 top-14 z-40 w-[min(86vw,300px)] overflow-hidden rounded-[22px] bg-[var(--pure-white)] p-2 text-sm shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10 md:hidden">
             <button
               type="button"
               onClick={() => {
                 setIsAccountMenuOpen(false);
                 router.push("/plans");
               }}
-              className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+              className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
             >
-              <span className="font-bold text-[#16211c]">Upgrade plan</span>
-              <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-1 text-xs font-bold text-[#0f5a3d]">
+              <span className="font-bold text-[var(--ink)]">Upgrade plan</span>
+              <span className="rounded-full bg-[var(--brand)]/10 px-2 py-1 text-xs font-bold text-[var(--brand)]">
                 {currentTierLabel}
               </span>
             </button>
@@ -157,10 +157,10 @@ export default function TopBar({
                 setIsAccountMenuOpen(false);
                 openLearningProfile();
               }}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
             >
-              <Icon name="user" className="h-5 w-5 text-[#0f5a3d]" />
-              <span className="font-bold text-[#16211c]">Learning Profile</span>
+              <Icon name="user" className="h-5 w-5 text-[var(--brand)]" />
+              <span className="font-bold text-[var(--ink)]">Learning Profile</span>
             </button>
             <button
               type="button"
@@ -168,10 +168,10 @@ export default function TopBar({
                 setIsAccountMenuOpen(false);
                 openSettings("subscription");
               }}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
             >
-              <Icon name="book" className="h-5 w-5 text-[#0f5a3d]" />
-              <span className="font-bold text-[#16211c]">Usage / quota</span>
+              <Icon name="book" className="h-5 w-5 text-[var(--brand)]" />
+              <span className="font-bold text-[var(--ink)]">Usage / quota</span>
             </button>
             <button
               type="button"
@@ -179,16 +179,16 @@ export default function TopBar({
                 setIsAccountMenuOpen(false);
                 openSettings("general");
               }}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
             >
-              <Icon name="settings" className="h-5 w-5 text-[#0f5a3d]" />
-              <span className="font-bold text-[#16211c]">Settings</span>
+              <Icon name="settings" className="h-5 w-5 text-[var(--brand)]" />
+              <span className="font-bold text-[var(--ink)]">Settings</span>
             </button>
             <button
               type="button"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#ba1a1a] transition hover:bg-[#ffdad6] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[var(--danger)] transition hover:bg-[var(--danger-bg)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Icon name="lock" className="h-5 w-5" />
               {isLoggingOut ? "Keluar..." : "Logout"}

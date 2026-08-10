@@ -29,7 +29,7 @@ export default function LibraryTabs({
       <div
         role="tablist"
         aria-label="Isi Library"
-        className="mb-6 flex gap-1 border-b border-[#0b3d2a]/10"
+        className="mb-6 flex gap-1 border-b border-[var(--brand-deep-line)]/10"
       >
         {tabs.map((def) => {
           const isActive = def.key === tab;
@@ -43,8 +43,8 @@ export default function LibraryTabs({
               onClick={() => setTab(def.key)}
               className={
                 isActive
-                  ? "-mb-px border-b-2 border-[#0f5a3d] px-4 py-2.5 text-[14px] font-semibold text-[#0f5a3d]"
-                  : "-mb-px border-b-2 border-transparent px-4 py-2.5 text-[14px] font-semibold text-[#7c857f] transition-colors hover:text-[#25302a]"
+                  ? "-mb-px border-b-2 border-[var(--brand)] px-4 py-2.5 text-[14px] font-semibold text-[var(--brand)]"
+                  : "-mb-px border-b-2 border-transparent px-4 py-2.5 text-[14px] font-semibold text-[var(--muted)] transition-colors hover:text-[var(--ink-soft)]"
               }
             >
               {def.label}

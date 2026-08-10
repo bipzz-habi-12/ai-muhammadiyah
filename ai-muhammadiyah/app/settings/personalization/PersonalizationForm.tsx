@@ -38,8 +38,8 @@ function Pill({
       onClick={onClick}
       className={
         active
-          ? "rounded-full bg-[#0f5a3d] px-[15px] py-2 text-[13.5px] font-semibold text-[#f5f3ec]"
-          : "rounded-full bg-[#ece9df] px-[15px] py-2 text-[13.5px] font-semibold text-[#5d6862] transition hover:bg-[#e4e0d2]"
+          ? "rounded-full bg-[var(--brand)] px-[15px] py-2 text-[13.5px] font-semibold text-[var(--on-brand)]"
+          : "rounded-full bg-[var(--surface-border)] px-[15px] py-2 text-[13.5px] font-semibold text-[var(--muted-2)] transition hover:bg-[var(--c-e4e0d2)]"
       }
     >
       {children}
@@ -47,13 +47,13 @@ function Pill({
   );
 }
 
-const labelClass = "mb-2.5 block text-[13px] font-semibold text-[#3a453e]";
+const labelClass = "mb-2.5 block text-[13px] font-semibold text-[var(--c-3a453e)]";
 const fieldClass =
-  "h-11 w-full rounded-[10px] border border-[#0b3d2a]/15 bg-[#f9f7f1] px-3.5 text-[15px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]";
+  "h-11 w-full rounded-[10px] border border-[var(--brand-deep-line)]/15 bg-[var(--c-f9f7f1)] px-3.5 text-[15px] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]";
 const cardClass =
-  "rounded-[15px] border border-[#0b3d2a]/10 bg-[#fbfaf6] p-6";
+  "rounded-[15px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] p-6";
 const sectionLabel =
-  "mb-4 text-[13px] font-bold uppercase tracking-[0.05em] text-[#7c857f]";
+  "mb-4 text-[13px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]";
 
 export default function PersonalizationForm({
   initial,
@@ -138,7 +138,7 @@ export default function PersonalizationForm({
               value={draft.learningGoals}
               onChange={(event) => set("learningGoals", event.target.value)}
               placeholder="mis. Saya mengajar Studi Islam. Lebih suka jawaban evidence-based dengan referensi yang bisa dicek, dan contoh berbahasa Indonesia."
-              className="h-24 w-full resize-none rounded-[10px] border border-[#0b3d2a]/15 bg-[#f9f7f1] px-3.5 py-3 text-[14.5px] leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
+              className="h-24 w-full resize-none rounded-[10px] border border-[var(--brand-deep-line)]/15 bg-[var(--c-f9f7f1)] px-3.5 py-3 text-[14.5px] leading-relaxed text-[var(--ink-soft)] outline-none transition focus:border-[var(--brand)]"
             />
           </label>
         </div>
@@ -199,14 +199,14 @@ export default function PersonalizationForm({
           type="button"
           onClick={save}
           disabled={isSaving}
-          className="flex h-[46px] items-center rounded-[11px] bg-[#0f5a3d] px-6 text-[14.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-[46px] items-center rounded-[11px] bg-[var(--brand)] px-6 text-[14.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? "Menyimpan…" : "Simpan perubahan"}
         </button>
         <button
           type="button"
           onClick={reset}
-          className="flex h-[46px] items-center rounded-[11px] border border-[#0b3d2a]/16 px-5 text-[14.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d]"
+          className="flex h-[46px] items-center rounded-[11px] border border-[var(--brand-deep-line)]/16 px-5 text-[14.5px] font-semibold text-[var(--ink-soft)] transition hover:border-[var(--brand)]"
         >
           Reset
         </button>
@@ -214,8 +214,8 @@ export default function PersonalizationForm({
           <span
             className={
               status.tone === "ok"
-                ? "text-sm font-semibold text-[#0f5a3d]"
-                : "text-sm font-semibold text-[#ba1a1a]"
+                ? "text-sm font-semibold text-[var(--brand)]"
+                : "text-sm font-semibold text-[var(--danger)]"
             }
           >
             {status.text}

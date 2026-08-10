@@ -29,22 +29,22 @@ export default async function PersonalizationPage() {
   }
 
   return (
-    <main className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
+    <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="settings" userInitials={getEmailInitials(user.email ?? "")} />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[#f5f3ec]">
+      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[680px] px-6 pb-20 pt-12 sm:px-11">
           <div className="mb-8">
             <Link
               href="/"
-              className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[#0f5a3d] transition hover:text-[#0a3d2a]"
+              className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] transition hover:text-[var(--brand-hover-text)]"
             >
               <span aria-hidden="true">&larr;</span> Kembali ke chat
             </Link>
-            <h1 className="font-serif text-[34px] font-normal tracking-[-0.01em] text-[#12211b]">
+            <h1 className="font-serif text-[34px] font-normal tracking-[-0.01em] text-[var(--ink-deep)]">
               Personalisasi
             </h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-[#5d6862]">
+            <p className="mt-2 text-[15px] leading-relaxed text-[var(--muted-2)]">
               Cara AI menyapamu dan membentuk jawabannya, di mana pun kamu
               bekerja.
             </p>
@@ -53,7 +53,7 @@ export default async function PersonalizationPage() {
           {initial ? (
             <PersonalizationForm initial={initial} userId={user.id} />
           ) : (
-            <p className="rounded-[13px] bg-[#ffdad6] px-5 py-4 text-sm font-semibold text-[#93000a]">
+            <p className="rounded-[13px] bg-[var(--danger-bg)] px-5 py-4 text-sm font-semibold text-[var(--danger-ink)]">
               Profil belum bisa dimuat. Coba muat ulang halaman.
             </p>
           )}

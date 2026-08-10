@@ -348,9 +348,9 @@ export default function ResearchWorkbench() {
           event.preventDefault();
           void ask();
         }}
-        className="mb-6 flex items-center gap-3.5 rounded-[16px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-4 py-3.5 shadow-[0_10px_30px_-26px_rgba(11,61,42,0.6)] transition focus-within:border-[#0f5a3d]"
+        className="mb-6 flex items-center gap-3.5 rounded-[16px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-4 py-3.5 shadow-[0_10px_30px_-26px_rgba(11,61,42,0.6)] transition focus-within:border-[var(--brand)]"
       >
-        <span className="flex text-[#0f5a3d]" aria-hidden="true">
+        <span className="flex text-[var(--brand)]" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <circle cx="10.5" cy="10.5" r="6.5" />
             <line x1="15.5" y1="15.5" x2="21" y2="21" />
@@ -364,13 +364,13 @@ export default function ResearchWorkbench() {
               ? "Pertanyaan lanjutan — menelusuri lagi & menambah sumber…"
               : "Ajukan pertanyaan riset — ditelusuri ratusan sumber…"
           }
-          className="min-w-0 flex-1 bg-transparent text-[15.5px] text-[#16211c] outline-none placeholder:text-[#9aa099]"
+          className="min-w-0 flex-1 bg-transparent text-[15.5px] text-[var(--ink)] outline-none placeholder:text-[var(--c-9aa099)]"
         />
         {hasThread && (
           <button
             type="button"
             onClick={resetThread}
-            className="hidden shrink-0 rounded-lg border border-[#0b3d2a]/14 px-2.5 py-1 text-[12px] font-semibold text-[#5d6862] transition hover:border-[#0f5a3d] sm:inline"
+            className="hidden shrink-0 rounded-lg border border-[var(--brand-deep-line)]/14 px-2.5 py-1 text-[12px] font-semibold text-[var(--muted-2)] transition hover:border-[var(--brand)] sm:inline"
           >
             Riset baru
           </button>
@@ -379,18 +379,18 @@ export default function ResearchWorkbench() {
           type="submit"
           disabled={question.trim().length < 8 || status === "loading"}
           aria-label={hasThread ? "Tanya lanjutan" : "Mulai riset"}
-          className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[10px] bg-[#0f5a3d] text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-50"
+          className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[10px] bg-[var(--brand)] text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {status === "loading" ? "…" : "↑"}
         </button>
       </form>
 
       {status === "loading" && (
-        <div className="mb-6 flex items-center gap-3 rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-5 py-4 text-sm text-[#5d6862]">
+        <div className="mb-6 flex items-center gap-3 rounded-[14px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-5 py-4 text-sm text-[var(--muted-2)]">
           <span className="inline-flex gap-1" aria-hidden="true">
-            <span className="h-2 w-2 animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:-0.3s]" />
-            <span className="h-2 w-2 animate-bounce rounded-full bg-[#0f5a3d] [animation-delay:-0.15s]" />
-            <span className="h-2 w-2 animate-bounce rounded-full bg-[#0f5a3d]" />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--brand)] [animation-delay:-0.3s]" />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--brand)] [animation-delay:-0.15s]" />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--brand)]" />
           </span>
           Merencanakan sub-kueri, menyapu ratusan sumber, lalu membaca yang
           paling relevan… (butuh waktu)
@@ -398,7 +398,7 @@ export default function ResearchWorkbench() {
       )}
 
       {status === "error" && (
-        <p className="mb-6 rounded-[14px] bg-[#ffdad6] px-5 py-4 text-sm font-semibold text-[#93000a]">
+        <p className="mb-6 rounded-[14px] bg-[var(--danger-bg)] px-5 py-4 text-sm font-semibold text-[var(--danger-ink)]">
           {error}
         </p>
       )}
@@ -415,32 +415,32 @@ export default function ResearchWorkbench() {
                   className={
                     isLatest
                       ? ""
-                      : "mb-8 border-b border-[#0b3d2a]/10 pb-8 opacity-90"
+                      : "mb-8 border-b border-[var(--brand-deep-line)]/10 pb-8 opacity-90"
                   }
                 >
                   <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
-                    <span className="rounded-full bg-[#0f5a3d]/[0.09] px-[11px] py-1 text-xs font-semibold text-[#0f5a3d]">
+                    <span className="rounded-full bg-[var(--brand)]/[0.09] px-[11px] py-1 text-xs font-semibold text-[var(--brand)]">
                       {index + 1}
                     </span>
-                    <span className="text-[12.5px] text-[#8a9089]">
-                      Ditelusuri <strong className="font-semibold text-[#5d6862]">{turn.searchedCount}</strong> sumber · dibaca mendalam{" "}
-                      <strong className="font-semibold text-[#5d6862]">{turn.readCount}</strong>
+                    <span className="text-[12.5px] text-[var(--muted-3)]">
+                      Ditelusuri <strong className="font-semibold text-[var(--muted-2)]">{turn.searchedCount}</strong> sumber · dibaca mendalam{" "}
+                      <strong className="font-semibold text-[var(--muted-2)]">{turn.readCount}</strong>
                     </span>
                   </div>
-                  <h2 className="mb-4 font-serif text-[22px] font-medium leading-snug tracking-[-0.01em] text-[#12211b] sm:text-[25px]">
+                  <h2 className="mb-4 font-serif text-[22px] font-medium leading-snug tracking-[-0.01em] text-[var(--ink-deep)] sm:text-[25px]">
                     {turn.question}
                   </h2>
 
                   {turn.subQueries.length > 0 && (
-                    <details className="mb-4 rounded-[10px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-3.5 py-2">
-                      <summary className="cursor-pointer text-[12px] font-semibold text-[#5d6862]">
+                    <details className="mb-4 rounded-[10px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-3.5 py-2">
+                      <summary className="cursor-pointer text-[12px] font-semibold text-[var(--muted-2)]">
                         Sudut pencarian yang dipakai ({turn.subQueries.length})
                       </summary>
                       <ul className="mt-2 flex flex-col gap-1">
                         {turn.subQueries.map((sub) => (
                           <li
                             key={sub}
-                            className="text-[12px] text-[#7c857f] [font-family:ui-monospace,monospace]"
+                            className="text-[12px] text-[var(--muted)] [font-family:ui-monospace,monospace]"
                           >
                             › {sub}
                           </li>
@@ -454,20 +454,20 @@ export default function ResearchWorkbench() {
                       <textarea
                         value={draft}
                         onChange={(event) => setDraft(event.target.value)}
-                        className="h-64 w-full resize-y rounded-[12px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-4 py-3 text-[15px] leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
+                        className="h-64 w-full resize-y rounded-[12px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] px-4 py-3 text-[15px] leading-relaxed text-[var(--ink-soft)] outline-none transition focus:border-[var(--brand)]"
                       />
                       <div className="mt-2.5 flex gap-2.5">
                         <button
                           type="button"
                           onClick={saveEdit}
-                          className="h-9 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                          className="h-9 rounded-[10px] bg-[var(--brand)] px-4 text-[13.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
                         >
                           Simpan edit
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditing(false)}
-                          className="h-9 rounded-[10px] border border-[#0b3d2a]/16 px-4 text-[13.5px] font-semibold text-[#25302a]"
+                          className="h-9 rounded-[10px] border border-[var(--brand-deep-line)]/16 px-4 text-[13.5px] font-semibold text-[var(--ink-soft)]"
                         >
                           Batal
                         </button>
@@ -475,7 +475,7 @@ export default function ResearchWorkbench() {
                     </div>
                   ) : (
                     turn.synthesis.trim() !== "" && (
-                      <div className="text-[15.5px] leading-relaxed text-[#2a342e] [&_a]:text-[#0f5a3d] [&_strong]:font-semibold">
+                      <div className="text-[15.5px] leading-relaxed text-[var(--c-2a342e)] [&_a]:text-[var(--brand)] [&_strong]:font-semibold">
                         <MarkdownMessage text={turn.synthesis} />
                       </div>
                     )
@@ -483,14 +483,14 @@ export default function ResearchWorkbench() {
 
                   {turn.keyFindings.length > 0 && !(isLatest && editing) && (
                     <div className="mt-6">
-                      <div className="mb-3 text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+                      <div className="mb-3 text-[12.5px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]">
                         Temuan utama
                       </div>
                       <div className="flex flex-col gap-2.5">
                         {turn.keyFindings.map((finding, findingIndex) => (
                           <div
                             key={findingIndex}
-                            className="flex gap-3 rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3"
+                            className="flex gap-3 rounded-[12px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-4 py-3"
                           >
                             <span
                               className="shrink-0 font-bold"
@@ -499,7 +499,7 @@ export default function ResearchWorkbench() {
                             >
                               {signalStyles[finding.signal].glyph}
                             </span>
-                            <div className="text-[14.5px] leading-relaxed text-[#2a342e]">
+                            <div className="text-[14.5px] leading-relaxed text-[var(--c-2a342e)]">
                               {finding.text}
                             </div>
                           </div>
@@ -509,17 +509,17 @@ export default function ResearchWorkbench() {
                   )}
 
                   {turn.aiContext.trim() !== "" && !(isLatest && editing) && (
-                    <div className="mt-6 rounded-[14px] border border-[#b08833]/25 bg-[#e7c77e]/[0.09] px-5 py-4">
+                    <div className="mt-6 rounded-[14px] border border-[var(--gold-ink)]/25 bg-[var(--gold)]/[0.09] px-5 py-4">
                       <div className="mb-2 flex items-center gap-2">
                         <span className="text-[15px]" aria-hidden="true">✦</span>
-                        <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#8a6a1f]">
+                        <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[var(--gold-ink-2)]">
                           Konteks dari pengetahuan AI
                         </span>
                       </div>
-                      <div className="text-[14.5px] leading-relaxed text-[#3a342a] [&_strong]:font-semibold">
+                      <div className="text-[14.5px] leading-relaxed text-[var(--c-3a342a)] [&_strong]:font-semibold">
                         <MarkdownMessage text={turn.aiContext} />
                       </div>
-                      <p className="mt-2.5 text-[11.5px] leading-relaxed text-[#9a8250]">
+                      <p className="mt-2.5 text-[11.5px] leading-relaxed text-[var(--c-9a8250)]">
                         Bukan dari sumber terindeks — pengetahuan model yang perlu
                         kamu verifikasi sendiri.
                       </p>
@@ -535,7 +535,7 @@ export default function ResearchWorkbench() {
                   <button
                     type="button"
                     onClick={() => router.push(`/?conversationId=${savedId}`)}
-                    className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                    className="flex h-10 items-center gap-2 rounded-[10px] bg-[var(--brand)] px-4 text-[13.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
                   >
                     Buka di chat →
                   </button>
@@ -544,7 +544,7 @@ export default function ResearchWorkbench() {
                     type="button"
                     onClick={saveArtifact}
                     disabled={saving}
-                    className="flex h-10 items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-10 items-center gap-2 rounded-[10px] bg-[var(--brand)] px-4 text-[13.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     ◧ {saving ? "Menyimpan…" : `Simpan riset (${turns.length} tahap)`}
                   </button>
@@ -552,7 +552,7 @@ export default function ResearchWorkbench() {
                 <button
                   type="button"
                   onClick={startEdit}
-                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d]"
+                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[var(--brand-deep-line)]/14 bg-[var(--surface)] px-4 text-[13.5px] font-semibold text-[var(--ink-soft)] transition hover:border-[var(--brand)]"
                 >
                   Edit sintesis
                 </button>
@@ -560,12 +560,12 @@ export default function ResearchWorkbench() {
                   type="button"
                   onClick={exportCitations}
                   disabled={sources.length === 0}
-                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-[13.5px] font-semibold text-[#25302a] transition hover:border-[#0f5a3d] disabled:opacity-50"
+                  className="flex h-10 items-center gap-2 rounded-[10px] border border-[var(--brand-deep-line)]/14 bg-[var(--surface)] px-4 text-[13.5px] font-semibold text-[var(--ink-soft)] transition hover:border-[var(--brand)] disabled:opacity-50"
                 >
                   Export sitasi
                 </button>
                 {savedId && (
-                  <span className="text-[13px] font-medium text-[#0f5a3d]">
+                  <span className="text-[13px] font-medium text-[var(--brand)]">
                     Tersimpan ke Library.
                   </span>
                 )}
@@ -576,33 +576,33 @@ export default function ResearchWorkbench() {
           {/* WORKING SOURCE SET */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+              <span className="text-[12.5px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]">
                 Sumber dibaca · {sources.length}
               </span>
               <button
                 type="button"
                 onClick={() => setAddOpen((open) => !open)}
-                className="rounded-lg border border-[#0b3d2a]/14 bg-[#fbfaf6] px-2.5 py-1 text-[12px] font-semibold text-[#0f5a3d] transition hover:border-[#0f5a3d]"
+                className="rounded-lg border border-[var(--brand-deep-line)]/14 bg-[var(--surface)] px-2.5 py-1 text-[12px] font-semibold text-[var(--brand)] transition hover:border-[var(--brand)]"
               >
                 + Tambah sumber
               </button>
             </div>
-            <p className="mb-3.5 text-[11.5px] text-[#9aa099]">
+            <p className="mb-3.5 text-[11.5px] text-[var(--c-9aa099)]">
               {totalSearched} sumber ditelusuri di {turns.length} tahap ·{" "}
               {seenKeys.length} unik terkumpul
               {userAddedCount > 0 ? ` · ${userAddedCount} milikmu` : ""}
             </p>
 
             {sourcesDirty && sources.length > 0 && (
-              <div className="mb-3 flex items-center justify-between gap-2 rounded-[11px] border border-[#b08833]/30 bg-[#e7c77e]/15 px-3.5 py-2.5">
-                <span className="text-[12.5px] font-medium text-[#8a6a1f]">
+              <div className="mb-3 flex items-center justify-between gap-2 rounded-[11px] border border-[var(--gold-ink)]/30 bg-[var(--gold)]/15 px-3.5 py-2.5">
+                <span className="text-[12.5px] font-medium text-[var(--gold-ink-2)]">
                   Sumber berubah — simpulkan ulang.
                 </span>
                 <button
                   type="button"
                   onClick={resynthesize}
                   disabled={resynthesizing}
-                  className="shrink-0 rounded-lg bg-[#0f5a3d] px-3 py-1.5 text-[12.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:opacity-60"
+                  className="shrink-0 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:opacity-60"
                 >
                   {resynthesizing ? "Menyusun…" : "Simpulkan ulang"}
                 </button>
@@ -610,47 +610,47 @@ export default function ResearchWorkbench() {
             )}
 
             {addOpen && (
-              <div className="mb-3 rounded-[12px] border border-[#0b3d2a]/12 bg-[#fbfaf6] p-3.5">
+              <div className="mb-3 rounded-[12px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] p-3.5">
                 <input
                   value={aTitle}
                   onChange={(event) => setATitle(event.target.value)}
                   placeholder="Judul sumber *"
-                  className="mb-2 h-9 w-full rounded-lg border border-[#0b3d2a]/14 bg-white px-3 text-[13px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="mb-2 h-9 w-full rounded-lg border border-[var(--brand-deep-line)]/14 bg-[var(--pure-white)] px-3 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
                 <div className="mb-2 flex gap-2">
                   <input
                     value={aAuthors}
                     onChange={(event) => setAAuthors(event.target.value)}
                     placeholder="Penulis"
-                    className="h-9 min-w-0 flex-1 rounded-lg border border-[#0b3d2a]/14 bg-white px-3 text-[13px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--brand-deep-line)]/14 bg-[var(--pure-white)] px-3 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                   />
                   <input
                     value={aYear}
                     onChange={(event) => setAYear(event.target.value)}
                     placeholder="Tahun"
                     inputMode="numeric"
-                    className="h-9 w-20 shrink-0 rounded-lg border border-[#0b3d2a]/14 bg-white px-3 text-[13px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                    className="h-9 w-20 shrink-0 rounded-lg border border-[var(--brand-deep-line)]/14 bg-[var(--pure-white)] px-3 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                   />
                 </div>
                 <textarea
                   value={aContent}
                   onChange={(event) => setAContent(event.target.value)}
                   placeholder="Kutipan / abstrak / catatan yang harus dibaca AI…"
-                  className="h-24 w-full resize-none rounded-lg border border-[#0b3d2a]/14 bg-white px-3 py-2 text-[13px] leading-relaxed text-[#25302a] outline-none focus:border-[#0f5a3d]"
+                  className="h-24 w-full resize-none rounded-lg border border-[var(--brand-deep-line)]/14 bg-[var(--pure-white)] px-3 py-2 text-[13px] leading-relaxed text-[var(--ink-soft)] outline-none focus:border-[var(--brand)]"
                 />
                 <div className="mt-2 flex gap-2">
                   <button
                     type="button"
                     onClick={addSource}
                     disabled={!aTitle.trim()}
-                    className="h-8 rounded-lg bg-[#0f5a3d] px-3.5 text-[12.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:opacity-50"
+                    className="h-8 rounded-lg bg-[var(--brand)] px-3.5 text-[12.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:opacity-50"
                   >
                     Tambah
                   </button>
                   <button
                     type="button"
                     onClick={() => setAddOpen(false)}
-                    className="h-8 rounded-lg border border-[#0b3d2a]/16 px-3.5 text-[12.5px] font-semibold text-[#25302a]"
+                    className="h-8 rounded-lg border border-[var(--brand-deep-line)]/16 px-3.5 text-[12.5px] font-semibold text-[var(--ink-soft)]"
                   >
                     Batal
                   </button>
@@ -666,10 +666,10 @@ export default function ResearchWorkbench() {
                 return (
                   <div
                     key={`${source.n}-${sourceKey(source)}`}
-                    className="group relative rounded-[12px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-4 py-3"
+                    className="group relative rounded-[12px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-4 py-3"
                   >
                     <div className="flex gap-2.5">
-                      <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-md bg-[#0f5a3d]/10 text-[11px] font-bold text-[#0f5a3d]">
+                      <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-md bg-[var(--brand)]/10 text-[11px] font-bold text-[var(--brand)]">
                         {source.n}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -679,23 +679,23 @@ export default function ResearchWorkbench() {
                               href={source.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[13px] font-semibold leading-snug text-[#25302a] hover:text-[#0f5a3d]"
+                              className="text-[13px] font-semibold leading-snug text-[var(--ink-soft)] hover:text-[var(--brand)]"
                             >
                               {source.title}
                             </a>
                           ) : (
-                            <span className="text-[13px] font-semibold leading-snug text-[#25302a]">
+                            <span className="text-[13px] font-semibold leading-snug text-[var(--ink-soft)]">
                               {source.title}
                             </span>
                           )}
                           {source.userAdded && (
-                            <span className="mt-0.5 shrink-0 rounded-full bg-[#b08833]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a6a1f]">
+                            <span className="mt-0.5 shrink-0 rounded-full bg-[var(--gold-ink)]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--gold-ink-2)]">
                               Milikmu
                             </span>
                           )}
                         </div>
                         {meta && (
-                          <div className="text-[11.5px] text-[#8a9089]">{meta}</div>
+                          <div className="text-[11.5px] text-[var(--muted-3)]">{meta}</div>
                         )}
                       </div>
                       <button
@@ -703,7 +703,7 @@ export default function ResearchWorkbench() {
                         onClick={() => removeSource(source.n)}
                         aria-label={`Hapus sumber ${source.n}`}
                         title="Hapus sumber"
-                        className="shrink-0 rounded-md px-1.5 text-[#9aa099] opacity-0 transition hover:bg-[#0b3d2a]/[0.06] hover:text-[#c0553f] focus:opacity-100 group-hover:opacity-100"
+                        className="shrink-0 rounded-md px-1.5 text-[var(--c-9aa099)] opacity-0 transition hover:bg-[var(--brand-deep)]/[0.06] hover:text-[var(--c-c0553f)] focus:opacity-100 group-hover:opacity-100"
                       >
                         ✕
                       </button>
@@ -712,7 +712,7 @@ export default function ResearchWorkbench() {
                 );
               })}
               {sources.length === 0 && (
-                <p className="rounded-[12px] border border-dashed border-[#0b3d2a]/15 px-4 py-6 text-center text-[13px] text-[#8a9089]">
+                <p className="rounded-[12px] border border-dashed border-[var(--brand-deep-line)]/15 px-4 py-6 text-center text-[13px] text-[var(--muted-3)]">
                   Belum ada sumber dibaca. Tambahkan sumbermu lalu simpulkan
                   ulang.
                 </p>

@@ -32,15 +32,15 @@ export default function AuthPage({ mode, initialEmail = "" }: AuthPageProps) {
   const isOtp = mode === "otp";
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-[#f7fbf8] px-4 py-10 text-[#04140b]">
-      <section className="w-full max-w-md rounded-[34px] bg-[#fbfdfb] p-6 shadow-[0_22px_60px_rgba(27,77,50,0.08)] ring-1 ring-[#d3e8dc] sm:p-8">
+    <main className="flex min-h-dvh items-center justify-center bg-[var(--c-f7fbf8)] px-4 py-10 text-[var(--c-04140b)]">
+      <section className="w-full max-w-md rounded-[34px] bg-[var(--c-fbfdfb)] p-6 shadow-[0_22px_60px_rgba(27,77,50,0.08)] ring-1 ring-[var(--c-d3e8dc)] sm:p-8">
         <div className="flex items-center gap-3">
-          <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-[#009252] text-white shadow-xl shadow-emerald-900/10">
+          <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-[var(--c-009252)] text-white shadow-xl shadow-emerald-900/10">
             <SparkIcon />
           </div>
           <div>
-            <p className="text-sm font-bold text-[#008d54]">AI Muhammadiyah</p>
-            <h1 className="text-2xl font-bold tracking-normal text-[#05150d]">
+            <p className="text-sm font-bold text-[var(--c-008d54)]">AI Muhammadiyah</p>
+            <h1 className="text-2xl font-bold tracking-normal text-[var(--c-05150d)]">
               {isOtp
                 ? "Verifikasi OTP"
                 : isLogin
@@ -50,7 +50,7 @@ export default function AuthPage({ mode, initialEmail = "" }: AuthPageProps) {
           </div>
         </div>
 
-        <p className="mt-6 text-base leading-relaxed text-[#4f665c]">
+        <p className="mt-6 text-base leading-relaxed text-[var(--c-4f665c)]">
           {isOtp
             ? "Masukkan kode 6 digit dari email."
             : isLogin

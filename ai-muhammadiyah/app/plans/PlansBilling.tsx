@@ -131,7 +131,7 @@ export default function PlansBilling({
   return (
     <>
       {checkoutOutcome === "success" && (
-        <div className="mt-6 rounded-[16px] border border-[#0f5a3d]/25 bg-[#0f5a3d]/[0.07] px-5 py-4 text-[14px] leading-relaxed text-[#16211c]">
+        <div className="mt-6 rounded-[16px] border border-[var(--brand)]/25 bg-[var(--brand)]/[0.07] px-5 py-4 text-[14px] leading-relaxed text-[var(--ink)]">
           <p className="font-semibold">
             {isReconciling
               ? "Pembayaran diterima. Sedang mengaktifkan paket…"
@@ -140,7 +140,7 @@ export default function PlansBilling({
                 : "Pembayaran diterima."}
           </p>
           {!isReconciling && !billingState.subscription?.isEntitled && (
-            <p className="mt-1 text-[13px] text-[#5d6862]">
+            <p className="mt-1 text-[13px] text-[var(--muted-2)]">
               Aktivasi kadang butuh satu menit. Muat ulang halaman ini sebentar
               lagi — kalau masih belum berubah, hubungi kami dengan bukti
               pembayaran dari Stripe.
@@ -150,7 +150,7 @@ export default function PlansBilling({
       )}
 
       {checkoutOutcome === "cancel" && (
-        <div className="mt-6 rounded-[16px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-5 py-4 text-[14px] leading-relaxed text-[#5d6862]">
+        <div className="mt-6 rounded-[16px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-5 py-4 text-[14px] leading-relaxed text-[var(--muted-2)]">
           Pembayaran dibatalkan. Tidak ada biaya yang ditagihkan.
         </div>
       )}
@@ -158,7 +158,7 @@ export default function PlansBilling({
       {billingError && (
         <div
           role="alert"
-          className="mt-6 rounded-[16px] border border-[#b08833]/35 bg-[#e7c77e]/20 px-5 py-4 text-[14px] leading-relaxed text-[#8a6a1f]"
+          className="mt-6 rounded-[16px] border border-[var(--gold-ink)]/35 bg-[var(--gold)]/20 px-5 py-4 text-[14px] leading-relaxed text-[var(--gold-ink-2)]"
         >
           {billingError}
         </div>
@@ -181,13 +181,13 @@ export default function PlansBilling({
       </section>
 
       {billingState.isStripeConfigured && billingState.subscription && (
-        <p className="mt-6 text-center text-[13.5px] text-[#5d6862]">
+        <p className="mt-6 text-center text-[13.5px] text-[var(--muted-2)]">
           Perlu invoice, ganti kartu, atau batalkan langganan?{" "}
           <button
             type="button"
             onClick={manageBilling}
             disabled={isPortalPending}
-            className="font-semibold text-[#0f5a3d] underline underline-offset-2 transition hover:text-[#0a3d2a] disabled:opacity-60"
+            className="font-semibold text-[var(--brand)] underline underline-offset-2 transition hover:text-[var(--brand-hover-text)] disabled:opacity-60"
           >
             {isPortalPending ? "Membuka…" : "Buka kelola langganan"}
           </button>
@@ -195,14 +195,14 @@ export default function PlansBilling({
       )}
 
       {billingState.isStripeConfigured ? (
-        <p className="mt-7 text-center text-[13.5px] text-[#8a9089]">
+        <p className="mt-7 text-center text-[13.5px] text-[var(--muted-3)]">
           Semua paket mencakup Muhammadiyah Hub, respons streaming, dan upload
           dokumen. Harga dalam IDR, belum termasuk pajak. Pembayaran diproses
           aman oleh Stripe — kartu kamu tidak pernah menyentuh server kami.
           Langganan berulang tiap bulan dan bisa dibatalkan kapan saja.
         </p>
       ) : (
-        <p className="mt-7 text-center text-[13.5px] text-[#8a9089]">
+        <p className="mt-7 text-center text-[13.5px] text-[var(--muted-3)]">
           Semua paket mencakup Muhammadiyah Hub, respons streaming, dan upload
           dokumen. Harga dalam IDR, belum termasuk pajak. Pembayaran otomatis
           belum aktif di server ini.

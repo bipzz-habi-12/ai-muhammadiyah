@@ -78,11 +78,11 @@ export default function AppShellRail({
   userInitials: string;
 }) {
   return (
-    <div className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 bg-[#0b3d2a] py-4">
+    <div className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 bg-[var(--brand-deep)] py-4">
       <Link
         href="/"
         aria-label="Beranda"
-        className="mb-3.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-[#e7c77e] text-lg font-bold text-[#0b3d2a]"
+        className="mb-3.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-[var(--gold)] text-lg font-bold text-[var(--brand-deep)]"
       >
         <span aria-hidden="true">م</span>
       </Link>
@@ -92,7 +92,7 @@ export default function AppShellRail({
             key={item.key}
             title={item.title}
             aria-current="page"
-            className="grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[#f3efe2]"
+            className="grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[var(--surface-tint)]"
           >
             {item.glyph}
           </div>
@@ -102,7 +102,7 @@ export default function AppShellRail({
             href={item.href}
             title={item.title}
             aria-label={item.title}
-            className="grid h-[42px] w-[42px] place-items-center rounded-[11px] text-[#9fb3a5] transition hover:bg-white/[0.08] hover:text-[#f3efe2]"
+            className="grid h-[42px] w-[42px] place-items-center rounded-[11px] text-[var(--c-9fb3a5)] transition hover:bg-white/[0.08] hover:text-[var(--surface-tint)]"
           >
             {item.glyph}
           </Link>
@@ -113,7 +113,7 @@ export default function AppShellRail({
         href="/"
         title="Akun"
         aria-label="Akun"
-        className="grid h-[38px] w-[38px] place-items-center rounded-full bg-[#147553] text-sm font-semibold text-[#f3efe2]"
+        className="grid h-[38px] w-[38px] place-items-center rounded-full bg-[var(--c-147553)] text-sm font-semibold text-[var(--surface-tint)]"
       >
         {userInitials}
       </Link>

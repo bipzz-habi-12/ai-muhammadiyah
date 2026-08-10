@@ -41,8 +41,8 @@ export default function IconRail({
   const router = useRouter();
 
   return (
-    <aside className="relative hidden w-[66px] shrink-0 flex-col items-center bg-[#0b3d2a] py-4 md:flex">
-      <div className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#e7c77e] text-[#0b3d2a]">
+    <aside className="relative hidden w-[66px] shrink-0 flex-col items-center bg-[var(--brand-deep)] py-4 md:flex">
+      <div className="grid h-10 w-10 place-items-center rounded-[10px] bg-[var(--gold)] text-[var(--brand-deep)]">
         <SparkIcon className="h-6 w-6" />
       </div>
 
@@ -123,31 +123,31 @@ export default function IconRail({
           onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
           aria-label="Menu akun"
           aria-expanded={isAccountMenuOpen}
-          className="grid h-8 w-8 place-items-center rounded-full bg-[#e7c77e] text-xs font-bold text-[#8a6a1f] transition hover:bg-[#e0bd6a]"
+          className="grid h-8 w-8 place-items-center rounded-full bg-[var(--gold)] text-xs font-bold text-[var(--gold-ink-2)] transition hover:bg-[var(--c-e0bd6a)]"
         >
           {userInitials}
         </button>
       </div>
 
       {isAccountMenuOpen && (
-        <div className="absolute bottom-4 left-[68px] z-50 w-[260px] overflow-hidden rounded-[22px] bg-white p-2 text-sm text-[#16211c] shadow-2xl ring-1 ring-[#0b3d2a]/10">
+        <div className="absolute bottom-4 left-[68px] z-50 w-[260px] overflow-hidden rounded-[22px] bg-[var(--pure-white)] p-2 text-sm text-[var(--ink)] shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10">
           <button
             type="button"
             onClick={() => {
               setIsAccountMenuOpen(false);
               router.push("/plans");
             }}
-            className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+            className="flex w-full items-center justify-between gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
           >
             <span>
-              <span className="block font-bold text-[#16211c]">
+              <span className="block font-bold text-[var(--ink)]">
                 Upgrade plan
               </span>
-              <span className="text-xs font-semibold text-[#5d6862]">
+              <span className="text-xs font-semibold text-[var(--muted-2)]">
                 {currentTierLabel}
               </span>
             </span>
-            <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-1 text-xs font-bold text-[#0f5a3d]">
+            <span className="rounded-full bg-[var(--brand)]/10 px-2 py-1 text-xs font-bold text-[var(--brand)]">
               {usageSnapshot
                 ? `${getTightestWindow(usageSnapshot.tokens).window.percentRemaining}%`
                 : "--"}
@@ -159,14 +159,14 @@ export default function IconRail({
               setIsAccountMenuOpen(false);
               openLearningProfile();
             }}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
           >
-            <Icon name="user" className="h-5 w-5 text-[#0f5a3d]" />
+            <Icon name="user" className="h-5 w-5 text-[var(--brand)]" />
             <span>
-              <span className="block font-bold text-[#16211c]">
+              <span className="block font-bold text-[var(--ink)]">
                 Learning Profile
               </span>
-              <span className="text-xs font-semibold text-[#5d6862]">
+              <span className="text-xs font-semibold text-[var(--muted-2)]">
                 {profileLabel}
               </span>
             </span>
@@ -177,10 +177,10 @@ export default function IconRail({
               setIsAccountMenuOpen(false);
               openSettings("subscription");
             }}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
           >
-            <Icon name="book" className="h-5 w-5 text-[#0f5a3d]" />
-            <span className="font-bold text-[#16211c]">Usage / quota</span>
+            <Icon name="book" className="h-5 w-5 text-[var(--brand)]" />
+            <span className="font-bold text-[var(--ink)]">Usage / quota</span>
           </button>
           <button
             type="button"
@@ -188,14 +188,14 @@ export default function IconRail({
               setIsAccountMenuOpen(false);
               openSettings("general");
             }}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[#f0eee6]"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition hover:bg-[var(--surface-alt)]"
           >
-            <Icon name="settings" className="h-5 w-5 text-[#0f5a3d]" />
-            <span className="font-bold text-[#16211c]">Settings</span>
+            <Icon name="settings" className="h-5 w-5 text-[var(--brand)]" />
+            <span className="font-bold text-[var(--ink)]">Settings</span>
           </button>
-          <div className="my-1 border-t border-[#0b3d2a]/10" />
+          <div className="my-1 border-t border-[var(--brand-deep-line)]/10" />
           <div className="px-3 py-2">
-            <p className="truncate text-xs font-semibold text-[#5d6862]">
+            <p className="truncate text-xs font-semibold text-[var(--muted-2)]">
               {userEmail || "Memuat akun..."}
             </p>
           </div>
@@ -203,13 +203,13 @@ export default function IconRail({
             type="button"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[#ba1a1a] transition hover:bg-[#ffdad6] disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left font-bold text-[var(--danger)] transition hover:bg-[var(--danger-bg)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="lock" className="h-5 w-5" />
             {isLoggingOut ? "Keluar..." : "Logout"}
           </button>
           {usageError && (
-            <p className="px-3 py-2 text-xs font-semibold text-[#ba1a1a]">
+            <p className="px-3 py-2 text-xs font-semibold text-[var(--danger)]">
               {usageError}
             </p>
           )}

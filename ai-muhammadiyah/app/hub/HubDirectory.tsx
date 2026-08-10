@@ -289,35 +289,35 @@ export default function HubDirectory({
   }
 
   return (
-    <div className="scroll flex-1 overflow-y-auto bg-[#f5f3ec]">
+    <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
       {/* HERO BAND */}
       <div
-        className="bg-[#0b3d2a] text-[#ede9dc]"
+        className="bg-[var(--brand-deep)] text-[var(--c-ede9dc)]"
         style={{ backgroundImage: heroPattern, backgroundSize: "96px 96px" }}
       >
         <div className="mx-auto max-w-[1020px] px-6 pb-11 pt-14 sm:px-12">
           <div className="mb-4 flex items-center gap-2.5">
-            <span className="text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#c7a560]">
+            <span className="text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-accent)]">
               Muhammadiyah Hub
             </span>
-            <span className="rounded-full bg-[#e7c77e] px-2.5 py-[3px] text-[11.5px] font-semibold text-[#0b3d2a]">
+            <span className="rounded-full bg-[var(--gold)] px-2.5 py-[3px] text-[11.5px] font-semibold text-[var(--brand-deep)]">
               Selalu gratis
             </span>
             {isAdmin && (
-              <span className="rounded-full border border-[#e7c77e]/50 px-2.5 py-[3px] text-[11.5px] font-semibold text-[#e7c77e]">
+              <span className="rounded-full border border-[var(--gold)]/50 px-2.5 py-[3px] text-[11.5px] font-semibold text-[var(--gold)]">
                 Mode admin
               </span>
             )}
           </div>
-          <h1 className="max-w-[640px] font-serif text-[40px] font-normal leading-[1.14] tracking-[-0.015em] text-[#f3efe2]">
+          <h1 className="max-w-[640px] font-serif text-[40px] font-normal leading-[1.14] tracking-[-0.015em] text-[var(--surface-tint)]">
             Sumber pengetahuan resmi Muhammadiyah — terbuka untuk semua.
           </h1>
-          <p className="mt-4 max-w-[600px] text-[16.5px] leading-relaxed text-[#b9c3b7]">
+          <p className="mt-4 max-w-[600px] text-[16.5px] leading-relaxed text-[var(--c-b9c3b7)]">
             Portal putusan Tarjih, dokumen resmi, dan rujukan Persyarikatan.
             Semuanya bisa kamu buka dan jadikan referensi.
           </p>
           <div className="mt-6 flex max-w-[620px] items-center gap-2 rounded-[13px] border border-white/12 bg-white/[0.06] py-2 pl-4 pr-2">
-            <span className="text-[17px] text-[#c7a560]" aria-hidden="true">
+            <span className="text-[17px] text-[var(--gold-accent)]" aria-hidden="true">
               ⌕
             </span>
             <input
@@ -330,20 +330,20 @@ export default function HubDirectory({
                 }
               }}
               placeholder="Cari sumber, atau tanya sesuatu…"
-              className="flex-1 bg-transparent text-[15px] text-[#f3efe2] outline-none placeholder:text-[#8fa091]"
+              className="flex-1 bg-transparent text-[15px] text-[var(--surface-tint)] outline-none placeholder:text-[var(--c-8fa091)]"
             />
             <button
               type="button"
               onClick={runAsk}
               disabled={asking}
-              className="shrink-0 rounded-[9px] bg-[#e7c77e] px-3.5 py-1.5 text-[13.5px] font-semibold text-[#0b3d2a] transition hover:brightness-[1.05] disabled:opacity-60"
+              className="shrink-0 rounded-[9px] bg-[var(--gold)] px-3.5 py-1.5 text-[13.5px] font-semibold text-[var(--brand-deep)] transition hover:brightness-[1.05] disabled:opacity-60"
             >
               {asking ? "…" : "✦ Tanya"}
             </button>
           </div>
-          <p className="mt-2 max-w-[620px] text-[12.5px] text-[#8fa091]">
+          <p className="mt-2 max-w-[620px] text-[12.5px] text-[var(--c-8fa091)]">
             Ketik lalu tekan Enter untuk mencari daftar sumber, atau{" "}
-            <b className="text-[#c7a560]">✦ Tanya</b> untuk jawaban ringkas
+            <b className="text-[var(--gold-accent)]">✦ Tanya</b> untuk jawaban ringkas
             berdasar rujukan Tarjih (pandangan Muhammadiyah).
           </p>
         </div>
@@ -352,14 +352,14 @@ export default function HubDirectory({
       <div className="mx-auto max-w-[1020px] px-6 pb-20 pt-8 sm:px-12">
         {/* TANYA HUB — answer panel */}
         {(asking || askError || answer) && (
-          <div className="mb-8 rounded-[18px] border border-[#0b3d2a]/12 bg-[#fbfaf6] p-6 [animation:fade_.4s_ease]">
+          <div className="mb-8 rounded-[18px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] p-6 [animation:fade_.4s_ease]">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+                <div className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
                   ✦ Tanya Hub
                 </div>
                 {answer?.question && (
-                  <div className="mt-1 font-serif text-[19px] leading-snug text-[#16211c]">
+                  <div className="mt-1 font-serif text-[19px] leading-snug text-[var(--ink)]">
                     {answer.question}
                   </div>
                 )}
@@ -370,21 +370,21 @@ export default function HubDirectory({
                   setAnswer(null);
                   setAskError(null);
                 }}
-                className="shrink-0 rounded-full px-2.5 py-1 text-[13px] font-semibold text-[#8a9089] transition hover:bg-[#ece9df]"
+                className="shrink-0 rounded-full px-2.5 py-1 text-[13px] font-semibold text-[var(--muted-3)] transition hover:bg-[var(--surface-border)]"
               >
                 Tutup
               </button>
             </div>
 
             {asking && (
-              <div className="flex items-center gap-2 py-3 text-[14px] text-[#5d6862]">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#0f5a3d]" />
+              <div className="flex items-center gap-2 py-3 text-[14px] text-[var(--muted-2)]">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--brand)]" />
                 Menyusun jawaban dari rujukan Tarjih…
               </div>
             )}
 
             {askError && !asking && (
-              <div className="rounded-[11px] border border-[#ba1a1a]/25 bg-[#ffdad6]/50 px-4 py-3 text-[13px] text-[#93000a]">
+              <div className="rounded-[11px] border border-[var(--danger)]/25 bg-[var(--danger-bg)]/50 px-4 py-3 text-[13px] text-[var(--danger-ink)]">
                 {askError}
               </div>
             )}
@@ -394,8 +394,8 @@ export default function HubDirectory({
                 <div
                   className={
                     answer.grounded
-                      ? "mb-3 inline-flex rounded-full bg-[#0f5a3d]/10 px-2.5 py-1 text-[11.5px] font-semibold text-[#0f5a3d]"
-                      : "mb-3 inline-flex rounded-full bg-[#e7c77e]/20 px-2.5 py-1 text-[11.5px] font-semibold text-[#8a6a1f]"
+                      ? "mb-3 inline-flex rounded-full bg-[var(--brand)]/10 px-2.5 py-1 text-[11.5px] font-semibold text-[var(--brand)]"
+                      : "mb-3 inline-flex rounded-full bg-[var(--gold)]/20 px-2.5 py-1 text-[11.5px] font-semibold text-[var(--gold-ink-2)]"
                   }
                 >
                   {answer.grounded
@@ -404,18 +404,18 @@ export default function HubDirectory({
                 </div>
 
                 {answer.answer && (
-                  <div className="text-[15px] leading-relaxed text-[#25302a]">
+                  <div className="text-[15px] leading-relaxed text-[var(--ink-soft)]">
                     <MarkdownMessage text={answer.answer} />
                   </div>
                 )}
 
                 {answer.aiContext && (
-                  <div className="mt-4 rounded-[13px] border border-[#e7c77e]/40 bg-[#e7c77e]/10 p-4">
-                    <div className="mb-1.5 text-[12px] font-semibold text-[#8a6a1f]">
+                  <div className="mt-4 rounded-[13px] border border-[var(--gold)]/40 bg-[var(--gold)]/10 p-4">
+                    <div className="mb-1.5 text-[12px] font-semibold text-[var(--gold-ink-2)]">
                       ✦ Konteks dari pengetahuan AI (bukan dari sumber —
                       verifikasi mandiri)
                     </div>
-                    <div className="text-[14px] leading-relaxed text-[#3f4940]">
+                    <div className="text-[14px] leading-relaxed text-[var(--c-3f4940)]">
                       <MarkdownMessage text={answer.aiContext} />
                     </div>
                   </div>
@@ -423,7 +423,7 @@ export default function HubDirectory({
 
                 {(answer.sources.length > 0 || answer.related.length > 0) && (
                   <div className="mt-5">
-                    <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+                    <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]">
                       {answer.grounded ? "Rujukan" : "Sumber terkait"}
                     </div>
                     <div className="flex flex-col gap-2">
@@ -434,20 +434,20 @@ export default function HubDirectory({
                               href={source.url}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className="flex items-center gap-3 rounded-[11px] border border-[#0b3d2a]/10 bg-[#f7f5ee] px-4 py-2.5 transition hover:border-[#0f5a3d]/35"
+                              className="flex items-center gap-3 rounded-[11px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface-panel)] px-4 py-2.5 transition hover:border-[var(--brand)]/35"
                             >
-                              <span className="shrink-0 text-[13px] font-bold text-[#0f5a3d]">
+                              <span className="shrink-0 text-[13px] font-bold text-[var(--brand)]">
                                 [{source.n}]
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#1b2721]">
+                              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--c-1b2721)]">
                                 {source.title}
                               </span>
                               {source.tag && (
-                                <span className="hidden shrink-0 rounded-full bg-[#0f5a3d]/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f5a3d] sm:inline">
+                                <span className="hidden shrink-0 rounded-full bg-[var(--brand)]/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--brand)] sm:inline">
                                   {source.tag}
                                 </span>
                               )}
-                              <span className="shrink-0 text-[13px] font-semibold text-[#0f5a3d]">
+                              <span className="shrink-0 text-[13px] font-semibold text-[var(--brand)]">
                                 Buka →
                               </span>
                             </a>
@@ -458,20 +458,20 @@ export default function HubDirectory({
                               href={source.url}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className="flex items-center gap-3 rounded-[11px] border border-[#0b3d2a]/10 bg-[#f7f5ee] px-4 py-2.5 transition hover:border-[#0f5a3d]/35"
+                              className="flex items-center gap-3 rounded-[11px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface-panel)] px-4 py-2.5 transition hover:border-[var(--brand)]/35"
                             >
-                              <span className="shrink-0 text-[13px] text-[#0f5a3d]">
+                              <span className="shrink-0 text-[13px] text-[var(--brand)]">
                                 ◆
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#1b2721]">
+                              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--c-1b2721)]">
                                 {source.title}
                               </span>
                               {source.tag && (
-                                <span className="hidden shrink-0 rounded-full bg-[#0f5a3d]/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f5a3d] sm:inline">
+                                <span className="hidden shrink-0 rounded-full bg-[var(--brand)]/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--brand)] sm:inline">
                                   {source.tag}
                                 </span>
                               )}
-                              <span className="shrink-0 text-[13px] font-semibold text-[#0f5a3d]">
+                              <span className="shrink-0 text-[13px] font-semibold text-[var(--brand)]">
                                 Buka →
                               </span>
                             </a>
@@ -480,7 +480,7 @@ export default function HubDirectory({
                   </div>
                 )}
 
-                <p className="mt-4 text-[12px] leading-relaxed text-[#8a9089]">
+                <p className="mt-4 text-[12px] leading-relaxed text-[var(--muted-3)]">
                   Jawaban dirangkai AI dan bisa keliru — untuk keputusan
                   hukum/ibadah, rujuk langsung sumber resmi Tarjih di atas.
                 </p>
@@ -500,8 +500,8 @@ export default function HubDirectory({
                 onClick={() => setCategory(def.key)}
                 className={
                   isActive
-                    ? "rounded-full bg-[#0f5a3d] px-4 py-2 text-[13.5px] font-semibold text-[#f5f3ec]"
-                    : "rounded-full bg-[#ece9df] px-4 py-2 text-[13.5px] font-semibold text-[#5d6862] transition hover:bg-[#e4e0d2]"
+                    ? "rounded-full bg-[var(--brand)] px-4 py-2 text-[13.5px] font-semibold text-[var(--on-brand)]"
+                    : "rounded-full bg-[var(--surface-border)] px-4 py-2 text-[13.5px] font-semibold text-[var(--muted-2)] transition hover:bg-[var(--c-e4e0d2)]"
                 }
               >
                 {def.label}
@@ -523,15 +523,15 @@ export default function HubDirectory({
                   rel="noreferrer noopener"
                   className={
                     variant === "green"
-                      ? "block overflow-hidden rounded-[16px] bg-[#0f5a3d] px-7 py-6 text-[#edf2ec] transition hover:brightness-[1.06]"
-                      : "block overflow-hidden rounded-[16px] border border-[#0b3d2a]/11 bg-[#fbfaf6] px-7 py-6 transition hover:border-[#0f5a3d]/35"
+                      ? "block overflow-hidden rounded-[16px] bg-[var(--brand)] px-7 py-6 text-[var(--c-edf2ec)] transition hover:brightness-[1.06]"
+                      : "block overflow-hidden rounded-[16px] border border-[var(--brand-deep-line)]/11 bg-[var(--surface)] px-7 py-6 transition hover:border-[var(--brand)]/35"
                   }
                 >
                   <div
                     className={
                       variant === "green"
-                        ? "mb-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#a8d3be]"
-                        : "mb-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]"
+                        ? "mb-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--c-a8d3be)]"
+                        : "mb-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]"
                     }
                   >
                     {HERO_EYEBROW}
@@ -539,8 +539,8 @@ export default function HubDirectory({
                   <div
                     className={
                       variant === "green"
-                        ? "mb-2 font-serif text-[23px] leading-[1.28] text-[#f3efe2]"
-                        : "mb-2 font-serif text-[23px] leading-[1.28] text-[#12211b]"
+                        ? "mb-2 font-serif text-[23px] leading-[1.28] text-[var(--surface-tint)]"
+                        : "mb-2 font-serif text-[23px] leading-[1.28] text-[var(--ink-deep)]"
                     }
                   >
                     {item.title}
@@ -548,8 +548,8 @@ export default function HubDirectory({
                   <p
                     className={
                       variant === "green"
-                        ? "text-sm leading-relaxed text-[#c3d3c6]"
-                        : "text-sm leading-relaxed text-[#5d6862]"
+                        ? "text-sm leading-relaxed text-[var(--c-c3d3c6)]"
+                        : "text-sm leading-relaxed text-[var(--muted-2)]"
                     }
                   >
                     {item.description ?? item.meta ?? ""}
@@ -557,8 +557,8 @@ export default function HubDirectory({
                   <div
                     className={
                       variant === "green"
-                        ? "mt-4 text-[13px] font-semibold text-[#a8d3be]"
-                        : "mt-4 text-[13px] font-semibold text-[#0f5a3d]"
+                        ? "mt-4 text-[13px] font-semibold text-[var(--c-a8d3be)]"
+                        : "mt-4 text-[13px] font-semibold text-[var(--brand)]"
                     }
                   >
                     {item.featuredCta ?? "Buka →"}
@@ -571,18 +571,18 @@ export default function HubDirectory({
 
         {/* DIRECTORY LIST */}
         <div className="mb-4 flex items-center justify-between gap-3">
-          <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+          <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]">
             Portal & sumber resmi
           </span>
           <div className="flex items-center gap-3">
-            <span className="text-[13px] text-[#8a9089]">
+            <span className="text-[13px] text-[var(--muted-3)]">
               {shown.length} sumber
             </span>
             {isAdmin && (
               <button
                 type="button"
                 onClick={openAdd}
-                className="rounded-full bg-[#0f5a3d] px-3.5 py-1.5 text-[13px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                className="rounded-full bg-[var(--brand)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
               >
                 + Tambah sumber
               </button>
@@ -591,7 +591,7 @@ export default function HubDirectory({
         </div>
 
         {isAdmin && hasFallback && (
-          <div className="mb-4 rounded-[11px] border border-[#b08833]/30 bg-[#e7c77e]/12 px-4 py-3 text-[12.5px] leading-relaxed text-[#8a6a1f]">
+          <div className="mb-4 rounded-[11px] border border-[var(--gold-ink)]/30 bg-[var(--gold)]/12 px-4 py-3 text-[12.5px] leading-relaxed text-[var(--gold-ink-2)]">
             Sebagian item di bawah masih data bawaan (belum dari database).
             Jalankan migrasi <code>20260722000000_hub_resources.sql</code> +
             seed-nya agar semua sumber bisa dikelola dari sini.
@@ -599,13 +599,13 @@ export default function HubDirectory({
         )}
 
         {rowError && (
-          <div className="mb-4 rounded-[11px] border border-[#ba1a1a]/25 bg-[#ffdad6]/50 px-4 py-3 text-[12.5px] text-[#93000a]">
+          <div className="mb-4 rounded-[11px] border border-[var(--danger)]/25 bg-[var(--danger-bg)]/50 px-4 py-3 text-[12.5px] text-[var(--danger-ink)]">
             {rowError}
           </div>
         )}
 
         {shown.length === 0 ? (
-          <div className="rounded-[13px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-10 text-center text-sm leading-relaxed text-[#6b746e]">
+          <div className="rounded-[13px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-10 text-center text-sm leading-relaxed text-[var(--c-6b746e)]">
             Tidak ada sumber yang cocok dengan pencarianmu.
           </div>
         ) : (
@@ -615,7 +615,7 @@ export default function HubDirectory({
               return (
                 <div
                   key={resource.id}
-                  className="flex items-center gap-4 rounded-[13px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-5 py-[17px] transition duration-150 hover:border-[#0f5a3d]/35"
+                  className="flex items-center gap-4 rounded-[13px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-5 py-[17px] transition duration-150 hover:border-[var(--brand)]/35"
                 >
                   <span
                     className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[11px] text-lg"
@@ -632,15 +632,15 @@ export default function HubDirectory({
                     rel="noreferrer noopener"
                     className="min-w-0 flex-1"
                   >
-                    <div className="mb-0.5 text-[15.5px] font-semibold text-[#1b2721]">
+                    <div className="mb-0.5 text-[15.5px] font-semibold text-[var(--c-1b2721)]">
                       {resource.title}
                     </div>
-                    <div className="truncate text-[13px] text-[#8a9089]">
+                    <div className="truncate text-[13px] text-[var(--muted-3)]">
                       {resource.meta ?? resource.url}
                     </div>
                   </a>
                   {resource.tag && (
-                    <span className="hidden shrink-0 rounded-full bg-[#0f5a3d]/[0.08] px-[11px] py-1 text-[11.5px] font-semibold text-[#0f5a3d] sm:inline">
+                    <span className="hidden shrink-0 rounded-full bg-[var(--brand)]/[0.08] px-[11px] py-1 text-[11.5px] font-semibold text-[var(--brand)] sm:inline">
                       {resource.tag}
                     </span>
                   )}
@@ -648,21 +648,21 @@ export default function HubDirectory({
                   {editable ? (
                     pendingDeleteId === resource.id ? (
                       <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="hidden text-[12px] text-[#8a9089] sm:inline">
+                        <span className="hidden text-[12px] text-[var(--muted-3)] sm:inline">
                           Hapus?
                         </span>
                         <button
                           type="button"
                           disabled={busy}
                           onClick={() => confirmDelete(resource)}
-                          className="rounded-full bg-[#ba1a1a] px-2.5 py-1 text-[12px] font-semibold text-white transition hover:bg-[#93000a] disabled:opacity-50"
+                          className="rounded-full bg-[var(--danger-solid)] px-2.5 py-1 text-[12px] font-semibold text-white transition hover:bg-[var(--danger-solid-hover)] disabled:opacity-50"
                         >
                           Ya
                         </button>
                         <button
                           type="button"
                           onClick={() => setPendingDeleteId(null)}
-                          className="rounded-full bg-[#ece9df] px-2.5 py-1 text-[12px] font-semibold text-[#5d6862] transition hover:bg-[#e4e0d2]"
+                          className="rounded-full bg-[var(--surface-border)] px-2.5 py-1 text-[12px] font-semibold text-[var(--muted-2)] transition hover:bg-[var(--c-e4e0d2)]"
                         >
                           Batal
                         </button>
@@ -672,7 +672,7 @@ export default function HubDirectory({
                         <button
                           type="button"
                           onClick={() => openEdit(resource)}
-                          className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-[#0f5a3d] transition hover:bg-[#0f5a3d]/10"
+                          className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-[var(--brand)] transition hover:bg-[var(--brand)]/10"
                         >
                           Edit
                         </button>
@@ -682,7 +682,7 @@ export default function HubDirectory({
                             setRowError(null);
                             setPendingDeleteId(resource.id);
                           }}
-                          className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-[#93000a] transition hover:bg-[#ba1a1a]/10"
+                          className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-[var(--danger-ink)] transition hover:bg-[var(--danger-solid)]/10"
                         >
                           Hapus
                         </button>
@@ -693,7 +693,7 @@ export default function HubDirectory({
                       href={resource.url}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="shrink-0 text-sm font-semibold text-[#0f5a3d]"
+                      className="shrink-0 text-sm font-semibold text-[var(--brand)]"
                     >
                       Buka →
                     </a>
@@ -704,7 +704,7 @@ export default function HubDirectory({
           </div>
         )}
 
-        <p className="mt-8 text-[12.5px] leading-relaxed text-[#8a9089]">
+        <p className="mt-8 text-[12.5px] leading-relaxed text-[var(--muted-3)]">
           Hub pengetahuan terindeks yang bisa dicari penuh dan dilampirkan
           langsung ke chat masih dalam pengembangan. Untuk sekarang, ini
           direktori portal resmi Muhammadiyah.
@@ -714,25 +714,25 @@ export default function HubDirectory({
       {/* ADMIN FORM MODAL */}
       {isAdmin && formOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#16211c]/40 px-4 py-10"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[var(--scrim)]/40 px-4 py-10"
           onClick={() => !busy && setFormOpen(false)}
         >
           <form
             onClick={(event) => event.stopPropagation()}
             onSubmit={submitForm}
-            className="w-full max-w-[520px] rounded-[20px] border border-[#0b3d2a]/12 bg-[#f7f5ee] p-6 shadow-[0_16px_48px_rgba(20,40,30,0.18)]"
+            className="w-full max-w-[520px] rounded-[20px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface-panel)] p-6 shadow-[0_16px_48px_rgba(20,40,30,0.18)]"
           >
-            <div className="mb-1 font-serif text-[22px] text-[#16211c]">
+            <div className="mb-1 font-serif text-[22px] text-[var(--ink)]">
               {editingId ? "Edit sumber Hub" : "Tambah sumber Hub"}
             </div>
-            <p className="mb-5 text-[13px] text-[#8a9089]">
+            <p className="mb-5 text-[13px] text-[var(--muted-3)]">
               Sumber tersimpan ke direktori publik Muhammadiyah Hub.
             </p>
 
             <div className="flex flex-col gap-3.5">
               <label className="flex flex-col gap-1">
-                <span className="text-[12.5px] font-semibold text-[#5d6862]">
-                  Judul <span className="text-[#ba1a1a]">*</span>
+                <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
+                  Judul <span className="text-[var(--danger)]">*</span>
                 </span>
                 <input
                   value={form.title}
@@ -741,13 +741,13 @@ export default function HubDirectory({
                   }
                   required
                   placeholder="Majelis Tarjih & Tajdid"
-                  className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12.5px] font-semibold text-[#5d6862]">
-                  URL <span className="text-[#ba1a1a]">*</span>
+                <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
+                  URL <span className="text-[var(--danger)]">*</span>
                 </span>
                 <input
                   value={form.url}
@@ -757,13 +757,13 @@ export default function HubDirectory({
                   required
                   inputMode="url"
                   placeholder="https://tarjih.or.id"
-                  className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
 
               <div className="grid grid-cols-2 gap-3.5">
                 <label className="flex flex-col gap-1">
-                  <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                  <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                     Kategori
                   </span>
                   <select
@@ -774,7 +774,7 @@ export default function HubDirectory({
                         category: event.target.value,
                       }))
                     }
-                    className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                    className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                   >
                     {Object.keys(HUB_CATEGORY_LABELS).map((key) => (
                       <option key={key} value={key}>
@@ -785,7 +785,7 @@ export default function HubDirectory({
                 </label>
 
                 <label className="flex flex-col gap-1">
-                  <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                  <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                     Label (tag)
                   </span>
                   <input
@@ -794,13 +794,13 @@ export default function HubDirectory({
                       setForm((prev) => ({ ...prev, tag: event.target.value }))
                     }
                     placeholder="Tarjih"
-                    className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                    className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                   />
                 </label>
               </div>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                   Subjudul kecil (meta)
                 </span>
                 <input
@@ -809,12 +809,12 @@ export default function HubDirectory({
                     setForm((prev) => ({ ...prev, meta: event.target.value }))
                   }
                   placeholder="tarjih.or.id · Putusan & fatwa resmi"
-                  className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                   Deskripsi
                 </span>
                 <textarea
@@ -827,12 +827,12 @@ export default function HubDirectory({
                   }
                   rows={2}
                   placeholder="Ringkasan singkat isi portal ini…"
-                  className="resize-none rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="resize-none rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                   Ikon (1 karakter, opsional)
                 </span>
                 <input
@@ -842,12 +842,12 @@ export default function HubDirectory({
                   }
                   maxLength={4}
                   placeholder="۩"
-                  className="w-24 rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="w-24 rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                   Kata kunci pencarian (pisahkan koma)
                 </span>
                 <input
@@ -859,9 +859,9 @@ export default function HubDirectory({
                     }))
                   }
                   placeholder="sholat, salat, gerhana, kusufain"
-                  className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                  className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
-                <span className="text-[11.5px] text-[#8a9089]">
+                <span className="text-[11.5px] text-[var(--muted-3)]">
                   Bantu sumber ini muncul walau ejaannya beda (sholat/salat/shalat).
                 </span>
               </label>
@@ -876,17 +876,17 @@ export default function HubDirectory({
                       isFeatured: event.target.checked,
                     }))
                   }
-                  className="h-4 w-4 accent-[#0f5a3d]"
+                  className="h-4 w-4 accent-[var(--brand)]"
                 />
-                <span className="text-[13px] font-semibold text-[#5d6862]">
+                <span className="text-[13px] font-semibold text-[var(--muted-2)]">
                   Tampilkan sebagai kartu unggulan
                 </span>
               </label>
 
               {form.isFeatured && (
-                <div className="grid grid-cols-2 gap-3.5 rounded-[11px] bg-[#0f5a3d]/[0.05] p-3">
+                <div className="grid grid-cols-2 gap-3.5 rounded-[11px] bg-[var(--brand)]/[0.05] p-3">
                   <label className="flex flex-col gap-1">
-                    <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                    <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                       Warna kartu
                     </span>
                     <select
@@ -899,14 +899,14 @@ export default function HubDirectory({
                             | "cream",
                         }))
                       }
-                      className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                      className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                     >
                       <option value="cream">Krem</option>
                       <option value="green">Hijau</option>
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-[12.5px] font-semibold text-[#5d6862]">
+                    <span className="text-[12.5px] font-semibold text-[var(--muted-2)]">
                       Teks tombol
                     </span>
                     <input
@@ -918,7 +918,7 @@ export default function HubDirectory({
                         }))
                       }
                       placeholder="Buka portal →"
-                      className="rounded-[10px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 py-2 text-[14px] text-[#16211c] outline-none focus:border-[#0f5a3d]"
+                      className="rounded-[10px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                     />
                   </label>
                 </div>
@@ -926,7 +926,7 @@ export default function HubDirectory({
             </div>
 
             {formError && (
-              <div className="mt-4 rounded-[10px] border border-[#ba1a1a]/25 bg-[#ffdad6]/50 px-3 py-2 text-[12.5px] text-[#93000a]">
+              <div className="mt-4 rounded-[10px] border border-[var(--danger)]/25 bg-[var(--danger-bg)]/50 px-3 py-2 text-[12.5px] text-[var(--danger-ink)]">
                 {formError}
               </div>
             )}
@@ -936,14 +936,14 @@ export default function HubDirectory({
                 type="button"
                 onClick={() => setFormOpen(false)}
                 disabled={busy}
-                className="rounded-full px-4 py-2 text-[13.5px] font-semibold text-[#5d6862] transition hover:bg-[#ece9df] disabled:opacity-50"
+                className="rounded-full px-4 py-2 text-[13.5px] font-semibold text-[var(--muted-2)] transition hover:bg-[var(--surface-border)] disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-full bg-[#0f5a3d] px-5 py-2 text-[13.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:opacity-50"
+                className="rounded-full bg-[var(--brand)] px-5 py-2 text-[13.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:opacity-50"
               >
                 {busy ? "Menyimpan…" : editingId ? "Simpan perubahan" : "Tambah"}
               </button>

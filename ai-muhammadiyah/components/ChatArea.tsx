@@ -133,19 +133,19 @@ export default function ChatArea({
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
       {messages.length <= 1 && (
         <div className="mx-auto flex min-h-full w-full max-w-[746px] flex-col items-center justify-center gap-8 pb-3 pt-1 md:justify-start">
-          <div className="grid h-[76px] w-[76px] place-items-center rounded-[22px] bg-[#0f5a3d] text-[#f5f3ec] shadow-[0_12px_32px_-18px_rgba(11,61,42,0.85)]">
+          <div className="grid h-[76px] w-[76px] place-items-center rounded-[22px] bg-[var(--brand)] text-[var(--on-brand)] shadow-[0_12px_32px_-18px_rgba(11,61,42,0.85)]">
             <SparkIcon className="h-11 w-11" />
           </div>
 
           <section className="text-center">
-            <h2 className="font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[#12211b] sm:text-[44px]">
+            <h2 className="font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)] sm:text-[44px]">
               Assalamu&apos;alaikum, ada yang bisa AI-mu bantu?
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-[#5d6862] sm:text-xl">
+            <p className="mt-6 text-lg leading-relaxed text-[var(--muted-2)] sm:text-xl">
               Belajar, meneliti, dan berkarya dalam satu ruang cerdas —
               berpijak pada{" "}
-              <strong className="text-[#16211c]">Muhammadiyah Knowledge Base</strong>{" "}
-              dan nilai <strong className="text-[#16211c]">Islam berkemajuan</strong>.
+              <strong className="text-[var(--ink)]">Muhammadiyah Knowledge Base</strong>{" "}
+              dan nilai <strong className="text-[var(--ink)]">Islam berkemajuan</strong>.
             </p>
           </section>
 
@@ -192,16 +192,16 @@ export default function ChatArea({
                 key={prompt.title}
                 type="button"
                 onClick={() => setInput(prompt.title)}
-                className="flex min-h-[104px] items-center gap-5 rounded-[20px] bg-[#fbfaf6] px-6 text-left ring-1 ring-[#0b3d2a]/10 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-24px_rgba(11,61,42,0.7)]"
+                className="flex min-h-[104px] items-center gap-5 rounded-[20px] bg-[var(--surface)] px-6 text-left ring-1 ring-[var(--brand-deep-line)]/10 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-24px_rgba(11,61,42,0.7)]"
               >
-                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#0f5a3d]/10 text-[#0f5a3d]">
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[var(--brand)]/10 text-[var(--brand)]">
                   <Icon name={prompt.icon} className="h-7 w-7" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-lg font-bold text-[#16211c]">
+                  <span className="block text-lg font-bold text-[var(--ink)]">
                     {prompt.title}
                   </span>
-                  <span className="mt-1 block text-base leading-snug text-[#5d6862]">
+                  <span className="mt-1 block text-base leading-snug text-[var(--muted-2)]">
                     {prompt.description}
                   </span>
                 </span>
@@ -209,7 +209,7 @@ export default function ChatArea({
             ))}
           </div>
 
-          <p className="max-w-2xl text-center text-base leading-relaxed text-[#5d6862]">
+          <p className="max-w-2xl text-center text-base leading-relaxed text-[var(--muted-2)]">
             {CHAT_DISCLAIMER}
           </p>
         </div>
@@ -232,7 +232,7 @@ export default function ChatArea({
                 key={index}
                 className="flex flex-col items-end gap-1 animate-[messageIn_0.25s_ease-out]"
               >
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-[16px] rounded-br-[4px] bg-[#0f5a3d] px-[17px] py-[13px] text-sm leading-relaxed text-[#f1f4ef] sm:max-w-xl sm:text-[15px]">
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-[16px] rounded-br-[4px] bg-[var(--brand)] px-[17px] py-[13px] text-sm leading-relaxed text-[var(--c-f1f4ef)] sm:max-w-xl sm:text-[15px]">
                   {message.text}
                 </div>
               </div>
@@ -242,7 +242,7 @@ export default function ChatArea({
                 className="animate-[messageIn_0.25s_ease-out]"
               >
                 <div className="mb-3 flex items-center gap-2.5">
-                  <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[#0f5a3d] text-[#f5f3ec]">
+                  <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
                     <SparkIcon
                       className={
                         isStreamingMessage
@@ -251,12 +251,12 @@ export default function ChatArea({
                       }
                     />
                   </span>
-                  <span className="text-[13px] font-semibold text-[#3a453e]">
+                  <span className="text-[13px] font-semibold text-[var(--c-3a453e)]">
                     AI Muhammadiyah
                   </span>
                 </div>
                 <div
-                  className={`min-w-0 space-y-4 text-[15px] leading-[1.72] text-[#242e28] sm:text-[15.5px]${
+                  className={`min-w-0 space-y-4 text-[15px] leading-[1.72] text-[var(--c-242e28)] sm:text-[15.5px]${
                     isStreamingMessage ? " ai-stream-in" : ""
                   }`}
                 >
@@ -285,10 +285,10 @@ export default function ChatArea({
           {isSending && isAwaitingFirstChunk && (
             <div className="animate-[messageIn_0.25s_ease-out]">
               <div className="mb-3 flex items-center gap-2.5">
-                <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[#0f5a3d] text-[#f5f3ec]">
+                <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
                   <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
                 </span>
-                <span className="text-[13px] font-semibold text-[#3a453e]">
+                <span className="text-[13px] font-semibold text-[var(--c-3a453e)]">
                   AI Muhammadiyah
                 </span>
               </div>
@@ -296,7 +296,7 @@ export default function ChatArea({
                   "Sedang menjawab…" — label tetap ada untuk screen reader. */}
               <SparkIcon
                 aria-hidden
-                className="h-6 w-6 text-[#0f5a3d] animate-[sparkPulse_1.4s_ease-in-out_infinite]"
+                className="h-6 w-6 text-[var(--brand)] animate-[sparkPulse_1.4s_ease-in-out_infinite]"
               />
               <span className="sr-only" role="status">
                 Sedang menjawab…

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { themeBootstrapScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "AI Muhammadiyah",
@@ -12,8 +13,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className="h-full antialiased">
+    <html lang="id" className="h-full antialiased" suppressHydrationWarning>
       <head>
+        {/* Applies the cached theme (light/dark/system) before first paint so
+            there's no flash of the wrong theme; keeps every route in sync
+            (including logged-out pages that never touch user_memory). */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
         {/* Design v2 typeface pair: Hanken Grotesk (UI) + Newsreader (serif
             voice for formal headings/quotes). Loaded via <link> rather than
             next/font so the production build has no build-time font fetch. */}
@@ -31,7 +36,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

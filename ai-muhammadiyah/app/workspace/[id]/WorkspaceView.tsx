@@ -145,8 +145,8 @@ function RailIcon({
       aria-label={title}
       className={
         active
-          ? "grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[#f3efe2]"
-          : "grid h-[42px] w-[42px] place-items-center rounded-[11px] text-[#9fb3a5] transition hover:bg-white/[0.08] hover:text-[#f3efe2]"
+          ? "grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[var(--surface-tint)]"
+          : "grid h-[42px] w-[42px] place-items-center rounded-[11px] text-[var(--c-9fb3a5)] transition hover:bg-white/[0.08] hover:text-[var(--surface-tint)]"
       }
     >
       {children}
@@ -270,20 +270,20 @@ export default function WorkspaceView({
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
+    <div className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       {/* ICON RAIL */}
-      <div className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 bg-[#0b3d2a] py-4">
+      <div className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 bg-[var(--brand-deep)] py-4">
         <Link
           href="/"
           aria-label="Beranda"
-          className="mb-3.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-[#e7c77e] text-lg font-bold text-[#0b3d2a]"
+          className="mb-3.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-[var(--gold)] text-lg font-bold text-[var(--brand-deep)]"
         >
           <span aria-hidden="true">م</span>
         </Link>
         <div
           title="Workspaces"
           aria-current="page"
-          className="grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[#f3efe2]"
+          className="grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[var(--surface-tint)]"
         >
           <WorkspaceGlyph />
         </div>
@@ -345,23 +345,23 @@ export default function WorkspaceView({
           href="/"
           title="Akun"
           aria-label="Akun"
-          className="grid h-[38px] w-[38px] place-items-center rounded-full bg-[#147553] text-sm font-semibold text-[#f3efe2]"
+          className="grid h-[38px] w-[38px] place-items-center rounded-full bg-[var(--c-147553)] text-sm font-semibold text-[var(--surface-tint)]"
         >
           {userInitials}
         </Link>
       </div>
 
       {/* WORKSPACE SIDEBAR */}
-      <div className="scroll hidden w-[284px] shrink-0 overflow-y-auto border-r border-[#0b3d2a]/10 bg-[#f0eee6] px-4 py-6 md:block">
+      <div className="scroll hidden w-[284px] shrink-0 overflow-y-auto border-r border-[var(--brand-deep-line)]/10 bg-[var(--surface-alt)] px-4 py-6 md:block">
         <div className="mb-4 flex items-center justify-between px-1.5">
-          <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#7c857f]">
+          <span className="text-xs font-bold uppercase tracking-[0.06em] text-[var(--muted)]">
             Workspace
           </span>
           <button
             type="button"
             onClick={() => setCreatingOpen((open) => !open)}
             aria-label="Buat workspace baru"
-            className="grid h-6 w-6 place-items-center rounded-[7px] text-lg text-[#5d6862] transition hover:bg-[#0b3d2a]/[0.07]"
+            className="grid h-6 w-6 place-items-center rounded-[7px] text-lg text-[var(--muted-2)] transition hover:bg-[var(--brand-deep)]/[0.07]"
           >
             +
           </button>
@@ -372,7 +372,7 @@ export default function WorkspaceView({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cari workspace"
-            className="h-[38px] w-full rounded-[9px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-3 text-[13.5px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]"
+            className="h-[38px] w-full rounded-[9px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-3 text-[13.5px] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]"
           />
         </div>
 
@@ -387,8 +387,8 @@ export default function WorkspaceView({
                 href={`/workspace/${item.id}`}
                 className={
                   isActive
-                    ? "mb-0.5 flex items-center gap-3 rounded-[10px] bg-[#fbfaf6] px-2.5 py-2.5 shadow-[0_1px_3px_rgba(11,61,42,0.1)]"
-                    : "mb-0.5 flex items-center gap-3 rounded-[10px] px-2.5 py-2.5 transition hover:bg-[#0b3d2a]/[0.05]"
+                    ? "mb-0.5 flex items-center gap-3 rounded-[10px] bg-[var(--surface)] px-2.5 py-2.5 shadow-[0_1px_3px_rgba(11,61,42,0.1)]"
+                    : "mb-0.5 flex items-center gap-3 rounded-[10px] px-2.5 py-2.5 transition hover:bg-[var(--brand-deep)]/[0.05]"
                 }
               >
                 <span
@@ -401,13 +401,13 @@ export default function WorkspaceView({
                   <span
                     className={
                       isActive
-                        ? "block truncate text-sm font-bold text-[#25302a]"
-                        : "block truncate text-sm font-medium text-[#25302a]"
+                        ? "block truncate text-sm font-bold text-[var(--ink-soft)]"
+                        : "block truncate text-sm font-medium text-[var(--ink-soft)]"
                     }
                   >
                     {item.name}
                   </span>
-                  <span className="block text-xs text-[#8a9089]">
+                  <span className="block text-xs text-[var(--muted-3)]">
                     {item.count} chat
                   </span>
                 </span>
@@ -428,12 +428,12 @@ export default function WorkspaceView({
                 onChange={(event) => setNewName(event.target.value)}
                 autoFocus
                 placeholder="Nama workspace"
-                className="h-[38px] min-w-0 flex-1 rounded-[10px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-3 text-[13.5px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]"
+                className="h-[38px] min-w-0 flex-1 rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] px-3 text-[13.5px] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]"
               />
               <button
                 type="submit"
                 disabled={!newName.trim() || isCreating}
-                className="shrink-0 rounded-[10px] bg-[#0f5a3d] px-3 text-[13px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-50"
+                className="shrink-0 rounded-[10px] bg-[var(--brand)] px-3 text-[13px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isCreating ? "…" : "Buat"}
               </button>
@@ -442,7 +442,7 @@ export default function WorkspaceView({
             <button
               type="button"
               onClick={() => setCreatingOpen(true)}
-              className="mt-2.5 flex items-center gap-2.5 rounded-[10px] border border-dashed border-[#0b3d2a]/[0.18] px-3 py-2.5 text-[13.5px] text-[#5d6862] transition hover:border-[#0f5a3d]"
+              className="mt-2.5 flex items-center gap-2.5 rounded-[10px] border border-dashed border-[var(--brand-deep-line)]/[0.18] px-3 py-2.5 text-[13.5px] text-[var(--muted-2)] transition hover:border-[var(--brand)]"
             >
               <span className="text-base">+</span> Workspace baru
             </button>
@@ -451,7 +451,7 @@ export default function WorkspaceView({
       </div>
 
       {/* MAIN */}
-      <div className="scroll flex-1 overflow-y-auto bg-[#f5f3ec]">
+      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[860px] px-6 pb-20 pt-11 sm:px-11">
           {/* HEADER */}
           <div className="mb-3 flex items-start justify-between gap-6">
@@ -463,10 +463,10 @@ export default function WorkspaceView({
                 <WorkspaceGlyph size={26} />
               </span>
               <div className="min-w-0">
-                <h1 className="truncate font-serif text-[32px] font-normal leading-tight tracking-[-0.01em] text-[#12211b]">
+                <h1 className="truncate font-serif text-[32px] font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)]">
                   {workspace.name}
                 </h1>
-                <div className="mt-0.5 text-[13.5px] text-[#7c857f]">
+                <div className="mt-0.5 text-[13.5px] text-[var(--muted)]">
                   {subtitle}
                 </div>
               </div>
@@ -475,14 +475,14 @@ export default function WorkspaceView({
               <button
                 type="button"
                 onClick={openSystem}
-                className="flex h-[42px] items-center gap-2 rounded-[10px] border border-[#0b3d2a]/14 bg-[#fbfaf6] px-4 text-sm font-semibold text-[#25302a] transition hover:border-[#0f5a3d]"
+                className="flex h-[42px] items-center gap-2 rounded-[10px] border border-[var(--brand-deep-line)]/14 bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--ink-soft)] transition hover:border-[var(--brand)]"
               >
-                <span className="text-[#0f5a3d]">⚙</span>
+                <span className="text-[var(--brand)]">⚙</span>
                 <span className="hidden sm:inline">Workspace System</span>
               </button>
               <Link
                 href={`/?workspaceId=${workspace.id}`}
-                className="flex h-[42px] items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-[18px] text-sm font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                className="flex h-[42px] items-center gap-2 rounded-[10px] bg-[var(--brand)] px-[18px] text-sm font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
               >
                 <span className="text-base">+</span> Chat baru
               </Link>
@@ -493,39 +493,39 @@ export default function WorkspaceView({
           <button
             type="button"
             onClick={openSystem}
-            className="relative mb-8 mt-6 block w-full overflow-hidden rounded-[14px] bg-[#0b3d2a] px-[22px] py-5 text-left text-[#e4e0d2]"
+            className="relative mb-8 mt-6 block w-full overflow-hidden rounded-[14px] bg-[var(--brand-deep)] px-[22px] py-5 text-left text-[var(--c-e4e0d2)]"
           >
-            <div className="mb-2.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#c7a560]">
+            <div className="mb-2.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-accent)]">
               Workspace System · berlaku untuk semua chat di sini
             </div>
             {instructions ? (
-              <div className="max-w-[640px] font-serif text-[17px] italic leading-normal text-[#f0ecdf]">
+              <div className="max-w-[640px] font-serif text-[17px] italic leading-normal text-[var(--c-f0ecdf)]">
                 &ldquo;{instructions}&rdquo;
               </div>
             ) : (
-              <div className="max-w-[640px] font-serif text-[17px] italic leading-normal text-[#f0ecdf]/70">
+              <div className="max-w-[640px] font-serif text-[17px] italic leading-normal text-[var(--c-f0ecdf)]/70">
                 Belum ada instruksi permanen. Tambahkan panduan yang berlaku ke
                 seluruh chat di workspace ini.
               </div>
             )}
-            <div className="mt-3 text-[13px] text-[#9fb3a5]">
+            <div className="mt-3 text-[13px] text-[var(--c-9fb3a5)]">
               Klik untuk mengedit →
             </div>
           </button>
 
           {/* CHAT LIST */}
           <div className="mb-3.5 flex items-center justify-between">
-            <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+            <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]">
               Percakapan
             </span>
-            <div className="flex gap-1 rounded-[9px] bg-[#ece9df] p-[3px]">
+            <div className="flex gap-1 rounded-[9px] bg-[var(--surface-border)] p-[3px]">
               <button
                 type="button"
                 onClick={() => setFilter("recent")}
                 className={
                   filter === "recent"
-                    ? "rounded-[7px] bg-[#fbfaf6] px-3 py-[5px] text-[12.5px] font-semibold text-[#0f5a3d]"
-                    : "rounded-[7px] px-3 py-[5px] text-[12.5px] font-medium text-[#7c857f]"
+                    ? "rounded-[7px] bg-[var(--surface)] px-3 py-[5px] text-[12.5px] font-semibold text-[var(--brand)]"
+                    : "rounded-[7px] px-3 py-[5px] text-[12.5px] font-medium text-[var(--muted)]"
                 }
               >
                 Terbaru
@@ -535,8 +535,8 @@ export default function WorkspaceView({
                 onClick={() => setFilter("all")}
                 className={
                   filter === "all"
-                    ? "rounded-[7px] bg-[#fbfaf6] px-3 py-[5px] text-[12.5px] font-semibold text-[#0f5a3d]"
-                    : "rounded-[7px] px-3 py-[5px] text-[12.5px] font-medium text-[#7c857f]"
+                    ? "rounded-[7px] bg-[var(--surface)] px-3 py-[5px] text-[12.5px] font-semibold text-[var(--brand)]"
+                    : "rounded-[7px] px-3 py-[5px] text-[12.5px] font-medium text-[var(--muted)]"
                 }
               >
                 Semua
@@ -545,17 +545,17 @@ export default function WorkspaceView({
           </div>
 
           {hasError ? (
-            <p className="rounded-[14px] bg-[#ffdad6] px-5 py-4 text-sm font-semibold text-[#93000a]">
+            <p className="rounded-[14px] bg-[var(--danger-bg)] px-5 py-4 text-sm font-semibold text-[var(--danger-ink)]">
               Daftar chat belum bisa dimuat. Coba muat ulang halaman.
             </p>
           ) : visibleChats.length === 0 ? (
-            <div className="rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-10 text-center">
-              <p className="text-sm leading-relaxed text-[#6b746e]">
+            <div className="rounded-[14px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-10 text-center">
+              <p className="text-sm leading-relaxed text-[var(--c-6b746e)]">
                 Belum ada chat di workspace ini.
               </p>
               <Link
                 href={`/?workspaceId=${workspace.id}`}
-                className="mt-4 inline-flex items-center gap-2 rounded-[10px] bg-[#0f5a3d] px-4 py-2.5 text-sm font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+                className="mt-4 inline-flex items-center gap-2 rounded-[10px] bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
               >
                 <span className="text-base">+</span> Mulai chat baru
               </Link>
@@ -566,35 +566,35 @@ export default function WorkspaceView({
                 <Link
                   key={chat.id}
                   href={`/?conversationId=${chat.id}`}
-                  className="block rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-[22px] py-[19px] transition duration-150 hover:-translate-y-0.5 hover:border-[#0f5a3d]/35 hover:shadow-[0_14px_30px_-24px_rgba(11,61,42,0.7)]"
+                  className="block rounded-[14px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-[22px] py-[19px] transition duration-150 hover:-translate-y-0.5 hover:border-[var(--brand)]/35 hover:shadow-[0_14px_30px_-24px_rgba(11,61,42,0.7)]"
                 >
                   <div className="mb-[7px] flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="truncate text-base font-semibold text-[#1b2721]">
+                      <span className="truncate text-base font-semibold text-[var(--c-1b2721)]">
                         {chat.title}
                       </span>
                       {chat.isPinned && (
-                        <span className="shrink-0 rounded-full bg-[#e7c77e]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a6a1f]">
+                        <span className="shrink-0 rounded-full bg-[var(--gold)]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--gold-ink-2)]">
                           Pin
                         </span>
                       )}
                       {chat.skill && (
-                        <span className="shrink-0 rounded-full bg-[#0f5a3d]/[0.09] px-2.5 py-[3px] text-[11.5px] font-semibold text-[#0f5a3d] [font-family:ui-monospace,SFMono-Regular,monospace]">
+                        <span className="shrink-0 rounded-full bg-[var(--brand)]/[0.09] px-2.5 py-[3px] text-[11.5px] font-semibold text-[var(--brand)] [font-family:ui-monospace,SFMono-Regular,monospace]">
                           {chat.skill}
                         </span>
                       )}
                     </div>
-                    <span className="shrink-0 text-[12.5px] text-[#9aa099]">
+                    <span className="shrink-0 text-[12.5px] text-[var(--c-9aa099)]">
                       {formatRelativeTime(chat.updatedAt)}
                     </span>
                   </div>
                   {chat.preview && (
-                    <div className="truncate text-sm leading-normal text-[#6b746e]">
+                    <div className="truncate text-sm leading-normal text-[var(--c-6b746e)]">
                       {chat.preview}
                     </div>
                   )}
                   {chat.artifact && (
-                    <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[#b08833]/10 px-2.5 py-1 text-xs text-[#b08833]">
+                    <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[var(--gold-ink)]/10 px-2.5 py-1 text-xs text-[var(--gold-ink)]">
                       <span aria-hidden="true">◧</span> {chat.artifact}
                     </div>
                   )}
@@ -612,22 +612,22 @@ export default function WorkspaceView({
             type="button"
             aria-label="Tutup"
             onClick={() => setSystemOpen(false)}
-            className="fixed inset-0 z-[60] bg-[#0b1e16]/40 [animation:fade_.2s_ease]"
+            className="fixed inset-0 z-[60] bg-[var(--c-0b1e16)]/40 [animation:fade_.2s_ease]"
           />
-          <div className="fixed inset-y-0 right-0 z-[61] flex w-full max-w-[480px] flex-col bg-[#f7f5ee] shadow-[-30px_0_60px_-30px_rgba(11,61,42,0.5)] [animation:slideIn_.28s_cubic-bezier(.22,.9,.3,1)]">
-            <div className="flex items-start justify-between border-b border-[#0b3d2a]/10 px-[30px] py-6">
+          <div className="fixed inset-y-0 right-0 z-[61] flex w-full max-w-[480px] flex-col bg-[var(--surface-panel)] shadow-[-30px_0_60px_-30px_rgba(11,61,42,0.5)] [animation:slideIn_.28s_cubic-bezier(.22,.9,.3,1)]">
+            <div className="flex items-start justify-between border-b border-[var(--brand-deep-line)]/10 px-[30px] py-6">
               <div>
-                <div className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+                <div className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
                   Instruksi permanen
                 </div>
-                <h2 className="font-serif text-[26px] font-normal text-[#12211b]">
+                <h2 className="font-serif text-[26px] font-normal text-[var(--ink-deep)]">
                   Workspace System
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setSystemOpen(false)}
-                className="grid h-[34px] w-[34px] place-items-center rounded-[9px] border border-[#0b3d2a]/14 bg-[#fbfaf6] text-base text-[#5d6862]"
+                className="grid h-[34px] w-[34px] place-items-center rounded-[9px] border border-[var(--brand-deep-line)]/14 bg-[var(--surface)] text-base text-[var(--muted-2)]"
                 aria-label="Tutup"
               >
                 ✕
@@ -635,7 +635,7 @@ export default function WorkspaceView({
             </div>
 
             <div className="scroll flex-1 overflow-y-auto px-[30px] py-6">
-              <p className="mb-4 text-sm leading-relaxed text-[#5d6862]">
+              <p className="mb-4 text-sm leading-relaxed text-[var(--muted-2)]">
                 Instruksi ini digabungkan ke setiap chat di workspace ini,
                 bersama skill aktif dan riwayat chat itu sendiri.
               </p>
@@ -643,28 +643,28 @@ export default function WorkspaceView({
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Tulis instruksi permanen untuk workspace ini…"
-                className="h-[220px] w-full resize-none rounded-[12px] border border-[#0b3d2a]/16 bg-[#fbfaf6] px-[18px] py-4 font-serif text-base leading-relaxed text-[#25302a] outline-none transition focus:border-[#0f5a3d]"
+                className="h-[220px] w-full resize-none rounded-[12px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] px-[18px] py-4 font-serif text-base leading-relaxed text-[var(--ink-soft)] outline-none transition focus:border-[var(--brand)]"
               />
               {saveError && (
-                <p className="mt-3 text-sm font-semibold text-[#ba1a1a]">
+                <p className="mt-3 text-sm font-semibold text-[var(--danger)]">
                   {saveError}
                 </p>
               )}
             </div>
 
-            <div className="flex gap-3 border-t border-[#0b3d2a]/10 px-[30px] py-5">
+            <div className="flex gap-3 border-t border-[var(--brand-deep-line)]/10 px-[30px] py-5">
               <button
                 type="button"
                 onClick={saveSystem}
                 disabled={isSaving}
-                className="h-[46px] flex-1 rounded-[11px] bg-[#0f5a3d] text-[14.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-[46px] flex-1 rounded-[11px] bg-[var(--brand)] text-[14.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? "Menyimpan…" : "Simpan instruksi"}
               </button>
               <button
                 type="button"
                 onClick={() => setSystemOpen(false)}
-                className="h-[46px] rounded-[11px] border border-[#0b3d2a]/16 bg-transparent px-5 text-[14.5px] font-semibold text-[#25302a]"
+                className="h-[46px] rounded-[11px] border border-[var(--brand-deep-line)]/16 bg-transparent px-5 text-[14.5px] font-semibold text-[var(--ink-soft)]"
               >
                 Batal
               </button>

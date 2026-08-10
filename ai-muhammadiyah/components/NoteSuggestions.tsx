@@ -70,23 +70,23 @@ export default function NoteSuggestions({
   ).length;
 
   return (
-    <div className="mt-3 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[#f7f5ee]">
+    <div className="mt-3 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[var(--surface-panel)]">
       <div className="flex items-center gap-2 px-3 py-2">
         <Icon
           name="book"
-          className="h-3.5 w-3.5 shrink-0 text-[#7c857f]"
+          className="h-3.5 w-3.5 shrink-0 text-[var(--muted)]"
           aria-hidden
         />
         <button
           type="button"
           onClick={() => setIsOpen((previous) => !previous)}
           aria-expanded={isOpen}
-          className="min-w-0 flex-1 text-left text-[12.5px] text-[#7c857f] transition-colors hover:text-[#25302a]"
+          className="min-w-0 flex-1 text-left text-[12.5px] text-[var(--muted)] transition-colors hover:text-[var(--ink-soft)]"
         >
           {savedCount > 0
             ? `${savedCount} dari ${drafts.length} catatan tersimpan`
             : `${drafts.length} catatan diusulkan`}
-          <span className="ml-1.5 text-[#0f5a3d]">
+          <span className="ml-1.5 text-[var(--brand)]">
             {isOpen ? "Tutup" : "Tinjau"}
           </span>
         </button>
@@ -94,7 +94,7 @@ export default function NoteSuggestions({
           type="button"
           onClick={() => setIsDismissed(true)}
           aria-label="Abaikan usulan catatan"
-          className="shrink-0 rounded p-0.5 text-[#8a9089] transition-colors hover:text-[#25302a]"
+          className="shrink-0 rounded p-0.5 text-[var(--muted-3)] transition-colors hover:text-[var(--ink-soft)]"
         >
           <Icon name="close" className="h-3.5 w-3.5" aria-hidden />
         </button>
@@ -111,19 +111,19 @@ export default function NoteSuggestions({
                 className="flex items-start gap-2.5 py-1.5 text-[13px]"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-[#16211c]">
+                  <p className="truncate font-medium text-[var(--ink)]">
                     {draft.title}
                   </p>
-                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.5] text-[#7c857f]">
+                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.5] text-[var(--muted)]">
                     {draft.content}
                   </p>
                   {state === "exists" && (
-                    <p className="mt-1 text-[11.5px] text-[#b08833]">
+                    <p className="mt-1 text-[11.5px] text-[var(--gold-ink)]">
                       Judul ini sudah ada di catatanmu.
                     </p>
                   )}
                   {state === "error" && (
-                    <p className="mt-1 text-[11.5px] text-[#b08833]">
+                    <p className="mt-1 text-[11.5px] text-[var(--gold-ink)]">
                       Gagal menyimpan. Coba lagi.
                     </p>
                   )}
@@ -132,7 +132,7 @@ export default function NoteSuggestions({
                   type="button"
                   onClick={() => saveNote(draft)}
                   disabled={state === "saving" || state === "saved"}
-                  className="shrink-0 rounded-[6px] border border-[rgba(20,40,30,0.12)] px-2.5 py-1 text-[12px] font-medium text-[#0f5a3d] transition-colors hover:bg-[#f5f3ec] disabled:cursor-default disabled:border-transparent disabled:text-[#7c857f]"
+                  className="shrink-0 rounded-[6px] border border-[rgba(20,40,30,0.12)] px-2.5 py-1 text-[12px] font-medium text-[var(--brand)] transition-colors hover:bg-[var(--background)] disabled:cursor-default disabled:border-transparent disabled:text-[var(--muted)]"
                 >
                   {state === "saved"
                     ? "Tersimpan"

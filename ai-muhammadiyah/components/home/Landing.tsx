@@ -65,7 +65,7 @@ const audiences = [
 function Logo({ size = 34 }: { size?: number }) {
   return (
     <span
-      className="grid place-items-center rounded-[9px] bg-[#0f5a3d] font-bold text-[#f5f3ec]"
+      className="grid place-items-center rounded-[9px] bg-[var(--brand)] font-bold text-[var(--on-brand)]"
       style={{ width: size, height: size, fontSize: size * 0.5 }}
     >
       م
@@ -75,9 +75,9 @@ function Logo({ size = 34 }: { size?: number }) {
 
 export default function Landing() {
   return (
-    <div className="min-h-dvh bg-[#f5f3ec] text-[#16211c]">
+    <div className="min-h-dvh bg-[var(--background)] text-[var(--ink)]">
       {/* NAV */}
-      <header className="sticky top-0 z-50 border-b border-[#0b3d2a]/[0.09] bg-[#f5f3ec]/85 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-[var(--brand-deep-line)]/[0.09] bg-[var(--background)]/85 backdrop-blur-md">
         <div className="mx-auto flex h-[72px] max-w-[1180px] items-center justify-between px-6 sm:px-8">
           <Link href="/" className="flex items-center gap-3">
             <Logo />
@@ -85,18 +85,18 @@ export default function Landing() {
               AI Muhammadiyah
             </span>
           </Link>
-          <nav className="hidden items-center gap-8 text-[14.5px] text-[#4a554f] md:flex">
-            <a href="#platform" className="transition hover:text-[#0f5a3d]">Platform</a>
-            <a href="#hub" className="transition hover:text-[#0f5a3d]">Knowledge Base</a>
-            <a href="#audience" className="transition hover:text-[#0f5a3d]">Untuk semua</a>
+          <nav className="hidden items-center gap-8 text-[14.5px] text-[var(--c-4a554f)] md:flex">
+            <a href="#platform" className="transition hover:text-[var(--brand)]">Platform</a>
+            <a href="#hub" className="transition hover:text-[var(--brand)]">Knowledge Base</a>
+            <a href="#audience" className="transition hover:text-[var(--brand)]">Untuk semua</a>
           </nav>
           <div className="flex items-center gap-3.5">
-            <Link href="/login" className="text-[14.5px] font-medium text-[#2b362f] transition hover:text-[#0f5a3d]">
+            <Link href="/login" className="text-[14.5px] font-medium text-[var(--c-2b362f)] transition hover:text-[var(--brand)]">
               Masuk
             </Link>
             <Link
               href="/register"
-              className="rounded-[10px] bg-[#0f5a3d] px-[18px] py-2.5 text-[14.5px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+              className="rounded-[10px] bg-[var(--brand)] px-[18px] py-2.5 text-[14.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
             >
               Mulai
             </Link>
@@ -110,15 +110,15 @@ export default function Landing() {
         style={{ backgroundImage: greenPattern, backgroundSize: "96px 96px" }}
       >
         <div className="relative max-w-[860px]">
-          <div className="mb-7 inline-flex items-center gap-2.5 rounded-full bg-[#0f5a3d]/[0.08] px-3.5 py-1.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-[#0f5a3d]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#b08833]" />
+          <div className="mb-7 inline-flex items-center gap-2.5 rounded-full bg-[var(--brand)]/[0.08] px-3.5 py-1.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-[var(--brand)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--gold-ink)]" />
             Islam Berkemajuan · ditopang Knowledge Base yang hidup
           </div>
-          <h1 className="font-serif text-[44px] font-normal leading-[1.05] tracking-[-0.02em] text-[#12211b] sm:text-[64px]">
+          <h1 className="font-serif text-[44px] font-normal leading-[1.05] tracking-[-0.02em] text-[var(--ink-deep)] sm:text-[64px]">
             AI yang bisa dikustomisasi, berpijak pada{" "}
-            <em className="italic text-[#0f5a3d]">ilmu dan nilai yang abadi.</em>
+            <em className="italic text-[var(--brand)]">ilmu dan nilai yang abadi.</em>
           </h1>
-          <p className="mt-6 max-w-[640px] text-[18px] leading-relaxed text-[#465049] sm:text-[19px]">
+          <p className="mt-6 max-w-[640px] text-[18px] leading-relaxed text-[var(--c-465049)] sm:text-[19px]">
             Belajar, bekerja, meneliti, dan membangun dalam satu platform — dengan
             Muhammadiyah Knowledge Base di balik setiap jawaban. Terbuka untuk
             semua, bukan hanya warga Muhammadiyah.
@@ -126,19 +126,19 @@ export default function Landing() {
           <div className="mt-9 flex flex-wrap items-center gap-3.5">
             <Link
               href="/login"
-              className="rounded-[11px] bg-[#0f5a3d] px-6 py-3.5 text-[15px] font-semibold text-[#f5f3ec] transition hover:-translate-y-px hover:bg-[#0a3d2a]"
+              className="rounded-[11px] bg-[var(--brand)] px-6 py-3.5 text-[15px] font-semibold text-[var(--on-brand)] transition hover:-translate-y-px hover:bg-[var(--brand-hover)]"
             >
               Buka workspace
             </Link>
             <Link
               href="/login"
-              className="rounded-[11px] border border-[#0b3d2a]/16 px-6 py-3.5 text-[15px] font-semibold text-[#16211c] transition hover:border-[#0f5a3d]"
+              className="rounded-[11px] border border-[var(--brand-deep-line)]/16 px-6 py-3.5 text-[15px] font-semibold text-[var(--ink)] transition hover:border-[var(--brand)]"
             >
               Lihat langsung di chat →
             </Link>
           </div>
-          <p className="mt-5 flex items-center gap-2 text-[13.5px] text-[#7c857f]">
-            <span className="text-[#0f5a3d]" aria-hidden="true">
+          <p className="mt-5 flex items-center gap-2 text-[13.5px] text-[var(--muted)]">
+            <span className="text-[var(--brand)]" aria-hidden="true">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-2px]">
                 <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
                 <path d="M7.5 10.5V7.2a4.5 4.5 0 0 1 9 0v3.3" />
@@ -149,7 +149,7 @@ export default function Landing() {
 
           {/* STARTER PROMPTS */}
           <div className="mt-9">
-            <div className="mb-3 text-[12.5px] font-semibold text-[#8a9089]">
+            <div className="mb-3 text-[12.5px] font-semibold text-[var(--muted-3)]">
               Contoh yang bisa kamu tanyakan
             </div>
             <div className="flex max-w-[720px] flex-wrap gap-2.5">
@@ -157,7 +157,7 @@ export default function Landing() {
                 <Link
                   key={prompt.text}
                   href="/login"
-                  className="inline-flex items-center gap-2.5 rounded-[12px] border border-[#0b3d2a]/12 bg-[#fbfaf6] px-4 py-3 text-sm text-[#25302a] transition hover:-translate-y-px hover:border-[#0f5a3d]"
+                  className="inline-flex items-center gap-2.5 rounded-[12px] border border-[var(--brand-deep-line)]/12 bg-[var(--surface)] px-4 py-3 text-sm text-[var(--ink-soft)] transition hover:-translate-y-px hover:border-[var(--brand)]"
                 >
                   <span style={{ color: prompt.tint }}>{prompt.icon}</span>
                   {prompt.text}
@@ -168,47 +168,47 @@ export default function Landing() {
         </div>
 
         {/* PRODUCT PREVIEW */}
-        <div className="mt-16 overflow-hidden rounded-[18px] border border-[#0b3d2a]/11 bg-[#fbfaf6] shadow-[0_24px_60px_-40px_rgba(11,61,42,0.5)]">
-          <div className="flex h-11 items-center gap-2 border-b border-[#0b3d2a]/[0.08] bg-[#f3f1e9] px-5">
-            <span className="h-[11px] w-[11px] rounded-full bg-[#d6d2c4]" />
-            <span className="h-[11px] w-[11px] rounded-full bg-[#d6d2c4]" />
-            <span className="h-[11px] w-[11px] rounded-full bg-[#d6d2c4]" />
-            <span className="ml-4 text-[12.5px] text-[#8a9089]">
+        <div className="mt-16 overflow-hidden rounded-[18px] border border-[var(--brand-deep-line)]/11 bg-[var(--surface)] shadow-[0_24px_60px_-40px_rgba(11,61,42,0.5)]">
+          <div className="flex h-11 items-center gap-2 border-b border-[var(--brand-deep-line)]/[0.08] bg-[var(--c-f3f1e9)] px-5">
+            <span className="h-[11px] w-[11px] rounded-full bg-[var(--c-d6d2c4)]" />
+            <span className="h-[11px] w-[11px] rounded-full bg-[var(--c-d6d2c4)]" />
+            <span className="h-[11px] w-[11px] rounded-full bg-[var(--c-d6d2c4)]" />
+            <span className="ml-4 text-[12.5px] text-[var(--muted-3)]">
               aimuhammadiyah.my.id / workspace / riset
             </span>
           </div>
           <div className="grid min-h-[340px] md:grid-cols-[1.5fr_1fr]">
-            <div className="border-b border-[#0b3d2a]/[0.07] px-8 py-9 md:border-b-0 md:border-r">
-              <div className="mb-3.5 text-xs font-semibold uppercase tracking-[0.05em] text-[#0f5a3d]">
+            <div className="border-b border-[var(--brand-deep-line)]/[0.07] px-8 py-9 md:border-b-0 md:border-r">
+              <div className="mb-3.5 text-xs font-semibold uppercase tracking-[0.05em] text-[var(--brand)]">
                 Chat
               </div>
-              <p className="max-w-[440px] font-serif text-[20px] leading-relaxed text-[#25302a]">
+              <p className="max-w-[440px] font-serif text-[20px] leading-relaxed text-[var(--ink-soft)]">
                 &ldquo;Susun RPP tentang <em className="italic">Al-Ma&apos;un</em> untuk kelas 8, evidence-based, dengan aktivitas refleksi singkat.&rdquo;
               </p>
-              <div className="mt-5 max-w-[460px] rounded-[12px] border border-[#0b3d2a]/[0.06] bg-[#f3f1e9] px-5 py-4">
+              <div className="mt-5 max-w-[460px] rounded-[12px] border border-[var(--brand-deep-line)]/[0.06] bg-[var(--c-f3f1e9)] px-5 py-4">
                 <div className="mb-2.5 flex items-center gap-2">
                   <Logo size={22} />
-                  <span className="text-[12.5px] text-[#7c857f]">membuat artifact dokumen…</span>
+                  <span className="text-[12.5px] text-[var(--muted)]">membuat artifact dokumen…</span>
                 </div>
-                <div className="mb-2 h-2 w-[92%] rounded bg-[#0b3d2a]/[0.09]" />
-                <div className="mb-2 h-2 w-[76%] rounded bg-[#0b3d2a]/[0.09]" />
-                <div className="h-2 w-[84%] rounded bg-[#0b3d2a]/[0.09]" />
+                <div className="mb-2 h-2 w-[92%] rounded bg-[var(--brand-deep)]/[0.09]" />
+                <div className="mb-2 h-2 w-[76%] rounded bg-[var(--brand-deep)]/[0.09]" />
+                <div className="h-2 w-[84%] rounded bg-[var(--brand-deep)]/[0.09]" />
               </div>
-              <div className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0f5a3d]/[0.07] px-3 py-1.5 text-[13px] font-semibold text-[#0f5a3d]">
+              <div className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[var(--brand)]/[0.07] px-3 py-1.5 text-[13px] font-semibold text-[var(--brand)]">
                 <span>/</span> tarjih · skill Islamic Studies aktif
               </div>
             </div>
-            <div className="bg-[#f7f5ee] px-7 py-6">
-              <div className="mb-4 text-xs font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+            <div className="bg-[var(--surface-panel)] px-7 py-6">
+              <div className="mb-4 text-xs font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
                 Artifact · Dokumen
               </div>
-              <div className="font-serif text-[#25302a]">
+              <div className="font-serif text-[var(--ink-soft)]">
                 <div className="mb-3 text-[18px] font-medium">RPP — Surah Al-Ma&apos;un</div>
-                <div className="mb-2.5 h-[7px] w-[88%] rounded bg-[#0b3d2a]/[0.08]" />
-                <div className="mb-2.5 h-[7px] w-[70%] rounded bg-[#0b3d2a]/[0.08]" />
-                <div className="mb-4 h-[7px] w-[80%] rounded bg-[#0b3d2a]/[0.08]" />
-                <div className="mb-2.5 h-[7px] w-[64%] rounded bg-[#0b3d2a]/[0.08]" />
-                <div className="h-[7px] w-[74%] rounded bg-[#0b3d2a]/[0.08]" />
+                <div className="mb-2.5 h-[7px] w-[88%] rounded bg-[var(--brand-deep)]/[0.08]" />
+                <div className="mb-2.5 h-[7px] w-[70%] rounded bg-[var(--brand-deep)]/[0.08]" />
+                <div className="mb-4 h-[7px] w-[80%] rounded bg-[var(--brand-deep)]/[0.08]" />
+                <div className="mb-2.5 h-[7px] w-[64%] rounded bg-[var(--brand-deep)]/[0.08]" />
+                <div className="h-[7px] w-[74%] rounded bg-[var(--brand-deep)]/[0.08]" />
               </div>
             </div>
           </div>
@@ -216,12 +216,12 @@ export default function Landing() {
       </section>
 
       {/* TRUST STRIP */}
-      <section className="mx-auto max-w-[1180px] border-b border-[#0b3d2a]/[0.08] px-6 py-14 sm:px-8">
+      <section className="mx-auto max-w-[1180px] border-b border-[var(--brand-deep-line)]/[0.08] px-6 py-14 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-6">
-          <span className="text-[13px] tracking-[0.02em] text-[#8a9089]">
+          <span className="text-[13px] tracking-[0.02em] text-[var(--muted-3)]">
             Dibangun di atas model yang sudah dipercaya
           </span>
-          <div className="flex flex-wrap items-center gap-x-9 gap-y-3 text-[15px] font-semibold text-[#9aa099]">
+          <div className="flex flex-wrap items-center gap-x-9 gap-y-3 text-[15px] font-semibold text-[var(--c-9aa099)]">
             <span>GPT-5.6 Terra</span>
             <span>Gemini 2.5</span>
             <span>OpenRouter</span>
@@ -234,13 +234,13 @@ export default function Landing() {
       {/* PILLARS */}
       <section id="platform" className="mx-auto max-w-[1180px] px-6 pb-10 pt-24 sm:px-8">
         <div className="mb-14 max-w-[620px]">
-          <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+          <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
             Platform
           </div>
-          <h2 className="font-serif text-[36px] font-normal leading-[1.1] tracking-[-0.015em] text-[#12211b] sm:text-[42px]">
+          <h2 className="font-serif text-[36px] font-normal leading-[1.1] tracking-[-0.015em] text-[var(--ink-deep)] sm:text-[42px]">
             Satu bidang kerja yang fleksibel. Bukan SaaS kaku lainnya.
           </h2>
-          <p className="mt-4 text-[17px] leading-relaxed text-[#4a554f]">
+          <p className="mt-4 text-[17px] leading-relaxed text-[var(--c-4a554f)]">
             Empat gagasan yang menyatukan semuanya — workspace yang mengingat,
             skill yang dipanggil inline, artifact yang dibentuk AI, dan basis
             pengetahuan yang bisa dipercaya.
@@ -250,7 +250,7 @@ export default function Landing() {
           {pillars.map((pillar) => (
             <div
               key={pillar.n}
-              className="rounded-[16px] border border-[#0b3d2a]/11 bg-[#fbfaf6] p-8 transition hover:-translate-y-[3px] hover:border-[#0f5a3d]/40"
+              className="rounded-[16px] border border-[var(--brand-deep-line)]/11 bg-[var(--surface)] p-8 transition hover:-translate-y-[3px] hover:border-[var(--brand)]/40"
             >
               <div className="mb-5 flex items-start justify-between">
                 <div
@@ -259,12 +259,12 @@ export default function Landing() {
                 >
                   {pillar.icon}
                 </div>
-                <span className="font-serif text-base italic text-[#b08833]">{pillar.n}</span>
+                <span className="font-serif text-base italic text-[var(--gold-ink)]">{pillar.n}</span>
               </div>
               <h3 className="mb-2.5 text-[20px] font-semibold tracking-[-0.01em]">
                 {pillar.title}
               </h3>
-              <p className="text-[15px] leading-relaxed text-[#4a554f]">{pillar.body}</p>
+              <p className="text-[15px] leading-relaxed text-[var(--c-4a554f)]">{pillar.body}</p>
             </div>
           ))}
         </div>
@@ -273,51 +273,51 @@ export default function Landing() {
       {/* KNOWLEDGE BAND */}
       <section
         id="hub"
-        className="mt-16 bg-[#0b3d2a] text-[#ede9dc]"
+        className="mt-16 bg-[var(--brand-deep)] text-[var(--c-ede9dc)]"
         style={{ backgroundImage: whitePattern, backgroundSize: "96px 96px" }}
       >
         <div className="mx-auto grid max-w-[1180px] items-center gap-12 px-6 py-20 sm:px-8 md:grid-cols-2 md:gap-16">
           <div>
-            <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#c7a560]">
+            <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-accent)]">
               Berpijak, bukan menebak
             </div>
-            <h2 className="font-serif text-[34px] font-normal leading-[1.12] tracking-[-0.015em] text-[#f3efe2] sm:text-[40px]">
+            <h2 className="font-serif text-[34px] font-normal leading-[1.12] tracking-[-0.015em] text-[var(--surface-tint)] sm:text-[40px]">
               Setiap jawaban berdiri di atas basis pengetahuan yang bisa kamu sebut namanya.
             </h2>
-            <p className="mt-5 text-[17px] leading-relaxed text-[#b9c3b7]">
+            <p className="mt-5 text-[17px] leading-relaxed text-[var(--c-b9c3b7)]">
               Workspace System, skill aktif, dan Muhammadiyah Hub bergabung di
               setiap pesan — agar panduan tetap evidence-based, bersitasi, dan
               setia pada Islam berkemajuan.
             </p>
             <Link
               href="/login"
-              className="mt-8 inline-flex rounded-[11px] bg-[#e7c77e] px-6 py-3.5 text-[15px] font-semibold text-[#0b3d2a] transition hover:brightness-[1.05]"
+              className="mt-8 inline-flex rounded-[11px] bg-[var(--gold)] px-6 py-3.5 text-[15px] font-semibold text-[var(--brand-deep)] transition hover:brightness-[1.05]"
             >
               Jelajahi chat langsung →
             </Link>
           </div>
           <div className="flex flex-col gap-3.5">
             <div className="rounded-[13px] border border-white/10 bg-white/[0.05] px-5 py-5">
-              <div className="mb-1.5 text-[12.5px] font-semibold text-[#c7a560]">
+              <div className="mb-1.5 text-[12.5px] font-semibold text-[var(--gold-accent)]">
                 Workspace System · permanen
               </div>
-              <div className="font-serif text-base italic text-[#e4e0d2]">
+              <div className="font-serif text-base italic text-[var(--c-e4e0d2)]">
                 &ldquo;Selalu jawab evidence-based dan sertakan referensi jurnal.&rdquo;
               </div>
             </div>
             <div className="rounded-[13px] border border-white/10 bg-white/[0.05] px-5 py-5">
-              <div className="mb-1.5 text-[12.5px] font-semibold text-[#c7a560]">
+              <div className="mb-1.5 text-[12.5px] font-semibold text-[var(--gold-accent)]">
                 Skill aktif · pesan ini
               </div>
-              <div className="text-[15px] text-[#e4e0d2]">
+              <div className="text-[15px] text-[var(--c-e4e0d2)]">
                 /tarjih — Islamic Studies, metodologi Majelis Tarjih
               </div>
             </div>
             <div className="rounded-[13px] border border-white/10 bg-white/[0.05] px-5 py-5">
-              <div className="mb-1.5 text-[12.5px] font-semibold text-[#c7a560]">
+              <div className="mb-1.5 text-[12.5px] font-semibold text-[var(--gold-accent)]">
                 Muhammadiyah Hub · bersitasi
               </div>
-              <div className="text-[15px] text-[#e4e0d2]">
+              <div className="text-[15px] text-[var(--c-e4e0d2)]">
                 3 rujukan dilampirkan ke jawaban
               </div>
             </div>
@@ -328,10 +328,10 @@ export default function Landing() {
       {/* AUDIENCE */}
       <section id="audience" className="mx-auto max-w-[1180px] px-6 pb-10 pt-24 sm:px-8">
         <div className="mb-12 max-w-[620px]">
-          <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+          <div className="mb-4 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
             Untuk semua
           </div>
-          <h2 className="font-serif text-[36px] font-normal leading-[1.1] tracking-[-0.015em] text-[#12211b] sm:text-[42px]">
+          <h2 className="font-serif text-[36px] font-normal leading-[1.1] tracking-[-0.015em] text-[var(--ink-deep)] sm:text-[42px]">
             Satu platform, banyak panggilan.
           </h2>
         </div>
@@ -339,10 +339,10 @@ export default function Landing() {
           {audiences.map((audience) => (
             <div
               key={audience.title}
-              className="rounded-[14px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-6"
+              className="rounded-[14px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-6"
             >
               <div className="mb-1.5 text-base font-semibold">{audience.title}</div>
-              <div className="text-sm leading-relaxed text-[#5d6862]">{audience.body}</div>
+              <div className="text-sm leading-relaxed text-[var(--muted-2)]">{audience.body}</div>
             </div>
           ))}
         </div>
@@ -351,22 +351,22 @@ export default function Landing() {
       {/* CTA */}
       <section className="mx-auto max-w-[1180px] px-6 pb-24 pt-14 sm:px-8">
         <div
-          className="rounded-[20px] border border-[#0b3d2a]/11 bg-[#fbfaf6] px-8 py-16 text-center sm:px-14"
+          className="rounded-[20px] border border-[var(--brand-deep-line)]/11 bg-[var(--surface)] px-8 py-16 text-center sm:px-14"
           style={{ backgroundImage: greenPattern, backgroundSize: "96px 96px" }}
         >
-          <h2 className="mx-auto max-w-[640px] font-serif text-[34px] font-normal leading-[1.12] tracking-[-0.015em] text-[#12211b] sm:text-[40px]">
+          <h2 className="mx-auto max-w-[640px] font-serif text-[34px] font-normal leading-[1.12] tracking-[-0.015em] text-[var(--ink-deep)] sm:text-[40px]">
             Mulai dari sebuah workspace. Biarkan pekerjaan menemukan bentuknya sendiri.
           </h2>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
             <Link
               href="/register"
-              className="rounded-[11px] bg-[#0f5a3d] px-7 py-3.5 text-[15px] font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a]"
+              className="rounded-[11px] bg-[var(--brand)] px-7 py-3.5 text-[15px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
             >
               Mulai gratis
             </Link>
             <Link
               href="/login"
-              className="rounded-[11px] border border-[#0b3d2a]/16 px-6 py-3.5 text-[15px] font-semibold text-[#16211c] transition hover:border-[#0f5a3d]"
+              className="rounded-[11px] border border-[var(--brand-deep-line)]/16 px-6 py-3.5 text-[15px] font-semibold text-[var(--ink)] transition hover:border-[var(--brand)]"
             >
               Masuk
             </Link>
@@ -375,19 +375,19 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-[#0b3d2a]/[0.08] bg-[#f1efe7]">
+      <footer className="border-t border-[var(--brand-deep-line)]/[0.08] bg-[var(--c-f1efe7)]">
         <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-5 px-6 py-11 sm:px-8">
           <div className="flex items-center gap-3">
             <Logo size={30} />
             <span className="text-[15px] font-semibold">AI Muhammadiyah</span>
           </div>
-          <div className="flex flex-wrap gap-7 text-sm text-[#5d6862]">
-            <a href="#platform" className="transition hover:text-[#0f5a3d]">Platform</a>
-            <a href="#hub" className="transition hover:text-[#0f5a3d]">Knowledge Base</a>
-            <Link href="/plans" className="transition hover:text-[#0f5a3d]">Harga</Link>
-            <Link href="/login" className="transition hover:text-[#0f5a3d]">Masuk</Link>
+          <div className="flex flex-wrap gap-7 text-sm text-[var(--muted-2)]">
+            <a href="#platform" className="transition hover:text-[var(--brand)]">Platform</a>
+            <a href="#hub" className="transition hover:text-[var(--brand)]">Knowledge Base</a>
+            <Link href="/plans" className="transition hover:text-[var(--brand)]">Harga</Link>
+            <Link href="/login" className="transition hover:text-[var(--brand)]">Masuk</Link>
           </div>
-          <span className="text-[13px] text-[#8a9089]">
+          <span className="text-[13px] text-[var(--muted-3)]">
             Islam Berkemajuan · aimuhammadiyah.my.id
           </span>
         </div>

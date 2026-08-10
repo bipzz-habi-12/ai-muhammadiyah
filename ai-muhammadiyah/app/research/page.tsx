@@ -41,22 +41,22 @@ export default async function ResearchPage() {
   const artifacts = (data ?? []) as ArtifactRow[];
 
   return (
-    <main className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
+    <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="research" userInitials={getEmailInitials(user.email ?? "")} />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[#f5f3ec]">
+      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[1060px] px-6 pb-20 pt-11 sm:px-12">
           <header className="mb-6">
-            <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+            <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
               Research
             </div>
-            <h1 className="font-serif text-[38px] font-normal leading-tight tracking-[-0.015em] text-[#12211b]">
+            <h1 className="font-serif text-[38px] font-normal leading-tight tracking-[-0.015em] text-[var(--ink-deep)]">
               Bukti, disintesis dan bisa ditelusuri.
             </h1>
-            <p className="mt-3 max-w-[600px] text-base leading-relaxed text-[#5d6862]">
+            <p className="mt-3 max-w-[600px] text-base leading-relaxed text-[var(--muted-2)]">
               Ajukan pertanyaan riset — sistem menarik literatur nyata dari
               katalog terbuka{" "}
-              <span className="font-semibold text-[#0f5a3d]">OpenAlex</span> lalu
+              <span className="font-semibold text-[var(--brand)]">OpenAlex</span> lalu
               menyusun sintesis bersitasi yang bisa kamu simpan sebagai artifact.
             </p>
           </header>
@@ -64,16 +64,16 @@ export default async function ResearchPage() {
           <ResearchWorkbench />
 
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[#7c857f]">
+            <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-[var(--muted)]">
               Riset tersimpan
             </span>
-            <span className="text-[13px] text-[#8a9089]">
+            <span className="text-[13px] text-[var(--muted-3)]">
               {artifacts.length} artifact
             </span>
           </div>
 
           {artifacts.length === 0 ? (
-            <div className="rounded-[13px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-10 text-center text-sm leading-relaxed text-[#6b746e]">
+            <div className="rounded-[13px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-10 text-center text-sm leading-relaxed text-[var(--c-6b746e)]">
               Belum ada riset tersimpan. Ajukan pertanyaan di atas, lalu simpan
               hasil sintesisnya sebagai artifact — akan muncul di sini dan di
               Library.
@@ -84,16 +84,16 @@ export default async function ResearchPage() {
                 <Link
                   key={artifact.id}
                   href={`/?conversationId=${artifact.conversation_id}`}
-                  className="flex items-center gap-4 rounded-[13px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-5 py-4 transition duration-150 hover:-translate-y-0.5 hover:border-[#0f5a3d]/35"
+                  className="flex items-center gap-4 rounded-[13px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-5 py-4 transition duration-150 hover:-translate-y-0.5 hover:border-[var(--brand)]/35"
                 >
-                  <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[11px] bg-[#0f5a3d]/10 text-lg text-[#0f5a3d]">
+                  <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[11px] bg-[var(--brand)]/10 text-lg text-[var(--brand)]">
                     ◧
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="mb-0.5 truncate text-[15px] font-semibold text-[#1b2721]">
+                    <div className="mb-0.5 truncate text-[15px] font-semibold text-[var(--c-1b2721)]">
                       {artifact.title}
                     </div>
-                    <div className="text-[13px] text-[#8a9089]">
+                    <div className="text-[13px] text-[var(--muted-3)]">
                       {artifactTypeLabels[artifact.type as ArtifactType] ??
                         "Artifact"}{" "}
                       · {formatRelativeTime(artifact.updated_at)}

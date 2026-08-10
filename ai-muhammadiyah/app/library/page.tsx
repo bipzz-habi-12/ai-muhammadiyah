@@ -162,19 +162,19 @@ export default async function LibraryPage() {
   }));
 
   return (
-    <main className="flex h-dvh overflow-hidden bg-[#f5f3ec] text-[#16211c]">
+    <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="library" userInitials={getEmailInitials(user.email ?? "")} />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[#f5f3ec]">
+      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[1080px] px-6 pb-20 pt-11 sm:px-12">
           <header className="mb-7">
-            <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[#b08833]">
+            <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
               Library
             </div>
-            <h1 className="font-serif text-[38px] font-normal leading-tight tracking-[-0.015em] text-[#12211b]">
+            <h1 className="font-serif text-[38px] font-normal leading-tight tracking-[-0.015em] text-[var(--ink-deep)]">
               Semua yang dibuat AI untukmu.
             </h1>
-            <p className="mt-3 max-w-[560px] text-base leading-relaxed text-[#5d6862]">
+            <p className="mt-3 max-w-[560px] text-base leading-relaxed text-[var(--muted-2)]">
               Artifact tersimpan otomatis dari setiap workspace — dokumen,
               visual, kode, dan mini app. Catatan adalah Otak Kedua-mu:
               pengetahuan yang kamu simpan sendiri dan dipakai AI di percakapan
@@ -183,7 +183,7 @@ export default async function LibraryPage() {
           </header>
 
           {error ? (
-            <p className="rounded-[15px] bg-[#ffdad6] px-5 py-4 text-sm font-semibold text-[#93000a]">
+            <p className="rounded-[15px] bg-[var(--danger-bg)] px-5 py-4 text-sm font-semibold text-[var(--danger-ink)]">
               Artifact belum bisa dimuat. Coba muat ulang halaman.
             </p>
           ) : (

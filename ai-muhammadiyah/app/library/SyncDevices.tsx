@@ -109,34 +109,34 @@ export default function SyncDevices() {
   };
 
   return (
-    <div className="mb-6 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[#f7f5ee]">
+    <div className="mb-6 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[var(--surface-panel)]">
       <button
         type="button"
         onClick={togglePanel}
         aria-expanded={isOpen}
-        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] text-[#5d6862] transition-colors hover:text-[#25302a]"
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] text-[var(--muted-2)] transition-colors hover:text-[var(--ink-soft)]"
       >
         <span className="flex-1">
           Perangkat tersambung
-          <span className="ml-1.5 text-[#8a9089]">
+          <span className="ml-1.5 text-[var(--muted-3)]">
             — sinkronkan otomatis dengan Logseq di komputermu
           </span>
         </span>
-        <span className="text-[#0f5a3d]">{isOpen ? "Tutup" : "Atur"}</span>
+        <span className="text-[var(--brand)]">{isOpen ? "Tutup" : "Atur"}</span>
       </button>
 
       {isOpen && (
         <div className="border-t border-[rgba(20,40,30,0.1)] px-4 py-3">
           {error && (
-            <p className="mb-2 text-[12.5px] text-[#93000a]">{error}</p>
+            <p className="mb-2 text-[12.5px] text-[var(--danger-ink)]">{error}</p>
           )}
 
           {newToken && (
-            <div className="mb-3 rounded-[8px] border border-[#b08833]/40 bg-[#f6efdd] px-3 py-2.5">
-              <p className="text-[12.5px] font-semibold text-[#8a6a20]">
+            <div className="mb-3 rounded-[8px] border border-[var(--gold-ink)]/40 bg-[var(--c-f6efdd)] px-3 py-2.5">
+              <p className="text-[12.5px] font-semibold text-[var(--c-8a6a20)]">
                 Salin token ini sekarang — tidak bisa dilihat lagi.
               </p>
-              <code className="mt-1.5 block break-all rounded bg-[#fbfaf6] px-2 py-1.5 text-[11.5px] text-[#16211c]">
+              <code className="mt-1.5 block break-all rounded bg-[var(--surface)] px-2 py-1.5 text-[11.5px] text-[var(--ink)]">
                 {newToken}
               </code>
               <button
@@ -145,14 +145,14 @@ export default function SyncDevices() {
                   void navigator.clipboard.writeText(newToken);
                   setIsCopied(true);
                 }}
-                className="mt-2 rounded-[6px] border border-[rgba(20,40,30,0.12)] bg-[#fbfaf6] px-2.5 py-1 text-[12px] font-medium text-[#0f5a3d]"
+                className="mt-2 rounded-[6px] border border-[rgba(20,40,30,0.12)] bg-[var(--surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--brand)]"
               >
                 {isCopied ? "Tersalin" : "Salin token"}
               </button>
-              <p className="mt-2 text-[11.5px] leading-[1.55] text-[#7c857f]">
-                <strong className="text-[#25302a]">Sinkron dengan Logseq</strong>{" "}
+              <p className="mt-2 text-[11.5px] leading-[1.55] text-[var(--muted)]">
+                <strong className="text-[var(--ink-soft)]">Sinkron dengan Logseq</strong>{" "}
                 — jalankan di komputermu (Logseq tidak perlu dibuka):
-                <code className="mt-1 block break-all rounded bg-[#fbfaf6] px-2 py-1 text-[11px] text-[#25302a]">
+                <code className="mt-1 block break-all rounded bg-[var(--surface)] px-2 py-1 text-[11px] text-[var(--ink-soft)]">
                   node scripts/logseq-bridge.mjs --graph &quot;path/ke/graf&quot;
                   --interval 300
                 </code>
@@ -162,11 +162,11 @@ export default function SyncDevices() {
                 di daftar proses.
               </p>
 
-              <p className="mt-2.5 text-[11.5px] leading-[1.55] text-[#7c857f]">
-                <strong className="text-[#25302a]">Pakai dari Hermes Agent</strong>{" "}
+              <p className="mt-2.5 text-[11.5px] leading-[1.55] text-[var(--muted)]">
+                <strong className="text-[var(--ink-soft)]">Pakai dari Hermes Agent</strong>{" "}
                 — tambahkan ke <code className="text-[11px]">~/.hermes/config.yaml</code>{" "}
                 supaya Hermes bisa mencari, membaca, dan menulis catatanmu:
-                <code className="mt-1 block whitespace-pre rounded bg-[#fbfaf6] px-2 py-1 text-[11px] leading-[1.5] text-[#25302a]">
+                <code className="mt-1 block whitespace-pre rounded bg-[var(--surface)] px-2 py-1 text-[11px] leading-[1.5] text-[var(--ink-soft)]">
                   {`mcp_servers:
   otak_kedua:
     command: "node"
@@ -180,9 +180,9 @@ export default function SyncDevices() {
           )}
 
           {isLoading ? (
-            <p className="text-[12.5px] text-[#7c857f]">Memuat…</p>
+            <p className="text-[12.5px] text-[var(--muted)]">Memuat…</p>
           ) : devices.length === 0 ? (
-            <p className="text-[12.5px] leading-[1.6] text-[#7c857f]">
+            <p className="text-[12.5px] leading-[1.6] text-[var(--muted)]">
               Belum ada perangkat. Tambahkan satu untuk menyinkronkan catatan
               dua arah dengan folder graf Logseq di komputermu.
             </p>
@@ -194,8 +194,8 @@ export default function SyncDevices() {
                   className="flex items-center gap-2.5 py-1.5 text-[13px]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[#16211c]">{device.name}</p>
-                    <p className="text-[11.5px] text-[#8a9089]">
+                    <p className="truncate text-[var(--ink)]">{device.name}</p>
+                    <p className="text-[11.5px] text-[var(--muted-3)]">
                       {device.last_seen_at
                         ? `Aktif ${formatRelativeTime(device.last_seen_at)}`
                         : "Belum pernah tersambung"}
@@ -204,7 +204,7 @@ export default function SyncDevices() {
                   <button
                     type="button"
                     onClick={() => revokeDevice(device.id)}
-                    className="shrink-0 rounded-[6px] border border-[rgba(20,40,30,0.12)] px-2.5 py-1 text-[12px] font-medium text-[#93000a] transition-colors hover:bg-[#f5f3ec]"
+                    className="shrink-0 rounded-[6px] border border-[rgba(20,40,30,0.12)] px-2.5 py-1 text-[12px] font-medium text-[var(--danger-ink)] transition-colors hover:bg-[var(--background)]"
                   >
                     Cabut
                   </button>
@@ -216,13 +216,13 @@ export default function SyncDevices() {
           <button
             type="button"
             onClick={addDevice}
-            className="mt-1 rounded-[6px] border border-[rgba(20,40,30,0.12)] bg-[#fbfaf6] px-2.5 py-1.5 text-[12.5px] font-medium text-[#0f5a3d] transition-colors hover:bg-[#f0eee5]"
+            className="mt-1 rounded-[6px] border border-[rgba(20,40,30,0.12)] bg-[var(--surface)] px-2.5 py-1.5 text-[12.5px] font-medium text-[var(--brand)] transition-colors hover:bg-[var(--c-f0eee5)]"
           >
             Tambah perangkat
           </button>
 
           {limits && (
-            <p className="mt-2.5 text-[11.5px] leading-[1.6] text-[#8a9089]">
+            <p className="mt-2.5 text-[11.5px] leading-[1.6] text-[var(--muted-3)]">
               Batas paketmu: {limits.notesPerDay.toLocaleString("id-ID")} catatan
               tersinkron per hari, {limits.requestsPerHour.toLocaleString("id-ID")}{" "}
               permintaan per jam. Sinkronisasi tiap 5 menit hanya memakai 12

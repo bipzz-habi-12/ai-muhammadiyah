@@ -20,7 +20,7 @@ const cardPattern =
 function Check({ popular }: { popular: boolean }) {
   return (
     <span
-      className={`shrink-0 ${popular ? "text-[#e7c77e]" : "text-[#0f5a3d]"}`}
+      className={`shrink-0 ${popular ? "text-[var(--gold)]" : "text-[var(--brand)]"}`}
       aria-hidden="true"
     >
       ✓
@@ -114,41 +114,41 @@ export default function PlanCard({
   if (isPopular) {
     return (
       <article
-        className="relative flex flex-col overflow-hidden rounded-[18px] bg-[#0b3d2a] px-6 py-8 text-[#ede9dc] shadow-[0_30px_60px_-40px_rgba(11,61,42,0.9)]"
+        className="relative flex flex-col overflow-hidden rounded-[18px] bg-[var(--brand-deep)] px-6 py-8 text-[var(--c-ede9dc)] shadow-[0_30px_60px_-40px_rgba(11,61,42,0.9)]"
         style={{ backgroundImage: cardPattern, backgroundSize: "96px 96px" }}
       >
-        <span className="absolute left-1/2 top-[-11px] -translate-x-1/2 rounded-full bg-[#e7c77e] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.04em] text-[#0b3d2a]">
+        <span className="absolute left-1/2 top-[-11px] -translate-x-1/2 rounded-full bg-[var(--gold)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.04em] text-[var(--brand-deep)]">
           Paling populer
         </span>
         <div className="mb-1.5 flex items-center gap-2">
-          <span className="text-[15px] font-bold text-[#f3efe2]">{plan.name}</span>
+          <span className="text-[15px] font-bold text-[var(--surface-tint)]">{plan.name}</span>
           {isCurrent && (
-            <span className="rounded-full bg-[#e7c77e]/20 px-2 py-0.5 text-[10px] font-bold uppercase text-[#e7c77e]">
+            <span className="rounded-full bg-[var(--gold)]/20 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--gold)]">
               Aktif
             </span>
           )}
         </div>
-        <div className="mb-5 min-h-[36px] text-[13px] text-[#9fb3a5]">
+        <div className="mb-5 min-h-[36px] text-[13px] text-[var(--c-9fb3a5)]">
           {plan.tagline}
         </div>
         <div className="mb-[22px] flex items-baseline gap-1.5">
-          <span className="font-serif text-[40px] text-[#f3efe2]">{plan.price}</span>
-          <span className="text-[13px] text-[#9fb3a5]">/bulan</span>
+          <span className="font-serif text-[40px] text-[var(--surface-tint)]">{plan.price}</span>
+          <span className="text-[13px] text-[var(--c-9fb3a5)]">/bulan</span>
         </div>
         <button
           type="button"
           disabled={action.disabled}
           onClick={action.onClick}
-          className="mb-2 h-11 rounded-[11px] bg-[#e7c77e] text-sm font-bold text-[#0b3d2a] transition hover:bg-[#f0d69a] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-[#e7c77e]"
+          className="mb-2 h-11 rounded-[11px] bg-[var(--gold)] text-sm font-bold text-[var(--brand-deep)] transition hover:bg-[var(--c-f0d69a)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-[var(--gold)]"
         >
           {action.label}
         </button>
         {statusNote && (
-          <p className="mb-4 text-[12px] leading-relaxed text-[#9fb3a5]">
+          <p className="mb-4 text-[12px] leading-relaxed text-[var(--c-9fb3a5)]">
             {statusNote}
           </p>
         )}
-        <div className={`flex flex-col gap-2.5 text-[13.5px] text-[#dce4db] ${statusNote ? "" : "mt-4"}`}>
+        <div className={`flex flex-col gap-2.5 text-[13.5px] text-[var(--c-dce4db)] ${statusNote ? "" : "mt-4"}`}>
           {checklist.map((item) => (
             <div key={item} className="flex gap-2.5">
               <Check popular /> {item}
@@ -160,22 +160,22 @@ export default function PlanCard({
   }
 
   return (
-    <article className="flex flex-col rounded-[18px] border border-[#0b3d2a]/11 bg-[#fbfaf6] px-6 py-8">
+    <article className="flex flex-col rounded-[18px] border border-[var(--brand-deep-line)]/11 bg-[var(--surface)] px-6 py-8">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="text-[15px] font-bold text-[#25302a]">{plan.name}</span>
+        <span className="text-[15px] font-bold text-[var(--ink-soft)]">{plan.name}</span>
         {isCurrent && (
-          <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0f5a3d]">
+          <span className="rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--brand)]">
             Aktif
           </span>
         )}
       </div>
-      <div className="mb-5 min-h-[36px] text-[13px] text-[#8a9089]">
+      <div className="mb-5 min-h-[36px] text-[13px] text-[var(--muted-3)]">
         {plan.tagline}
       </div>
       <div className="mb-[22px] flex items-baseline gap-1.5">
-        <span className="font-serif text-[40px] text-[#12211b]">{plan.price}</span>
+        <span className="font-serif text-[40px] text-[var(--ink-deep)]">{plan.price}</span>
         {plan.priceIdr > 0 && (
-          <span className="text-[13px] text-[#8a9089]">/bulan</span>
+          <span className="text-[13px] text-[var(--muted-3)]">/bulan</span>
         )}
       </div>
       <button
@@ -184,18 +184,18 @@ export default function PlanCard({
         onClick={action.onClick}
         className={
           isCurrent
-            ? "mb-2 h-11 rounded-[11px] bg-[#0f5a3d] text-sm font-semibold text-[#f5f3ec] transition hover:bg-[#0a3d2a] disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-[#0f5a3d]"
-            : "mb-2 h-11 rounded-[11px] border border-[#0b3d2a]/16 text-sm font-semibold text-[#25302a] transition hover:border-[#0f5a3d] hover:bg-[#0f5a3d]/[0.06] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-[#0b3d2a]/16 disabled:hover:bg-transparent"
+            ? "mb-2 h-11 rounded-[11px] bg-[var(--brand)] text-sm font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-[var(--brand)]"
+            : "mb-2 h-11 rounded-[11px] border border-[var(--brand-deep-line)]/16 text-sm font-semibold text-[var(--ink-soft)] transition hover:border-[var(--brand)] hover:bg-[var(--brand)]/[0.06] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-[var(--brand-deep-line)]/16 disabled:hover:bg-transparent"
         }
       >
         {action.label}
       </button>
       {statusNote && (
-        <p className="mb-4 text-[12px] leading-relaxed text-[#7c857f]">
+        <p className="mb-4 text-[12px] leading-relaxed text-[var(--muted)]">
           {statusNote}
         </p>
       )}
-      <div className={`flex flex-col gap-2.5 text-[13.5px] text-[#3a453e] ${statusNote ? "" : "mt-4"}`}>
+      <div className={`flex flex-col gap-2.5 text-[13.5px] text-[var(--c-3a453e)] ${statusNote ? "" : "mt-4"}`}>
         {checklist.map((item) => (
           <div key={item} className="flex gap-2.5">
             <Check popular={false} /> {item}

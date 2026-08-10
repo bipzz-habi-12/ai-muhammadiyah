@@ -11,17 +11,111 @@
   /* Brand palette (mirrors Workspace.dc.html) */
   --brand: #0f5a3d;
   --brand-deep: #0b3d2a;
+  --brand-deep-line: #0b3d2a;
   --brand-hover: #0a3d2a;
+  --brand-hover-text: #0a3d2a;
   --brand-soft: rgba(15, 90, 61, 0.1);
   --surface: #fbfaf6;
   --surface-alt: #f0eee6;
+  --surface-panel: #f7f5ee;
+  --surface-tint: #f3efe2;
+  --surface-border: #ece9df;
   --gold: #e7c77e;
   --gold-ink: #b08833;
+  --gold-ink-2: #8a6a1f;
   --gold-accent: #c7a560;
   --ink: #16211c;
+  --ink-deep: #12211b;
   --ink-soft: #25302a;
   --muted: #7c857f;
+  --muted-2: #5d6862;
+  --muted-3: #8a9089;
   --hairline: rgba(20, 40, 30, 0.1);
+
+  /* --scrim is deliberately theme-invariant (a dark modal backdrop is correct
+     in both themes). --on-brand and --pure-white DO flip — see the dark block
+     below — they just start pinned to their light-mode value here so plain
+     `bg-white`/cream-on-brand usages stay pixel-identical in light mode.
+     --on-brand exists because --brand itself flips from a dark green (light
+     mode, wants light text) to a bright emerald (dark mode, wants dark text
+     for contrast) — see the dark override. */
+  --on-brand: #f5f3ec;
+  --scrim: rgba(22, 33, 28, 0.4);
+  --pure-white: #ffffff;
+
+  /* Error / danger */
+  --danger: #ba1a1a;
+  --danger-bg: #ffdad6;
+  --danger-ink: #93000a;
+  --danger-border: #ffb4ab;
+  --danger-solid: #ba1a1a;
+  --danger-solid-hover: #93000a;
+}
+
+/* Long-tail one-off colors (legacy OTP screen, decorative landing accents,
+   rare badges) — kept as individual tokens so each gets its own considered
+   dark-mode value without disturbing light mode. See darkmode.mjs history. */
+:root {
+  --c-004d27: #004d27;
+  --c-006837: #006837;
+  --c-008d54: #008d54;
+  --c-009252: #009252;
+  --c-04140b: #04140b;
+  --c-05150d: #05150d;
+  --c-06140d: #06140d;
+  --c-087447: #087447;
+  --c-0b1e16: #0b1e16;
+  --c-0f3025: #0f3025;
+  --c-147553: #147553;
+  --c-18392e: #18392e;
+  --c-191c1d: #191c1d;
+  --c-1b2721: #1b2721;
+  --c-242e28: #242e28;
+  --c-2a342e: #2a342e;
+  --c-2b362f: #2b362f;
+  --c-343d96: #343d96;
+  --c-3a342a: #3a342a;
+  --c-3a453e: #3a453e;
+  --c-3f4940: #3f4940;
+  --c-465049: #465049;
+  --c-4a554f: #4a554f;
+  --c-4f665c: #4f665c;
+  --c-6b746e: #6b746e;
+  --c-6d8178: #6d8178;
+  --c-6f7a70: #6f7a70;
+  --c-8a6a20: #8a6a20;
+  --c-8fa091: #8fa091;
+  --c-95d6b9: #95d6b9;
+  --c-9a8250: #9a8250;
+  --c-9aa099: #9aa099;
+  --c-9fb3a5: #9fb3a5;
+  --c-a8d3be: #a8d3be;
+  --c-b9c3b7: #b9c3b7;
+  --c-c0553f: #c0553f;
+  --c-c3d3c6: #c3d3c6;
+  --c-c7ccc8: #c7ccc8;
+  --c-d3e8dc: #d3e8dc;
+  --c-d6d2c4: #d6d2c4;
+  --c-d8eadf: #d8eadf;
+  --c-dce4db: #dce4db;
+  --c-e0bd6a: #e0bd6a;
+  --c-e0e0ff: #e0e0ff;
+  --c-e4e0d2: #e4e0d2;
+  --c-ede9dc: #ede9dc;
+  --c-edf2ec: #edf2ec;
+  --c-eef8f1: #eef8f1;
+  --c-f0d69a: #f0d69a;
+  --c-f0ecdf: #f0ecdf;
+  --c-f0eee5: #f0eee5;
+  --c-f1efe7: #f1efe7;
+  --c-f1f4ef: #f1f4ef;
+  --c-f3f1e9: #f3f1e9;
+  --c-f3f4f5: #f3f4f5;
+  --c-f6efdd: #f6efdd;
+  --c-f7fbf8: #f7fbf8;
+  --c-f8f9fa: #f8f9fa;
+  --c-f9f7f1: #f9f7f1;
+  --c-fbfdfb: #fbfdfb;
 }
 
 /* Font families (fed by the Google Fonts <link> in app/layout.tsx). A plain
@@ -61,12 +155,109 @@ body {
   border-radius: 6px;
 }
 
-html[data-theme="dark"] body {
-  background: #04140b;
+/* ------------------------------------------------------------------ */
+/* Dark theme — "forest / emerald": near-black neutrals (per spec:     */
+/* #0f0f0f page / #171717 surface) with the Supabase-green accent      */
+/* (#3ecf8e) reserved for buttons, links, active states and focus      */
+/* rings. Large areas (rail, panels, borders) stay muted dark green-   */
+/* black rather than flooding the UI with saturated green, so the      */
+/* accent still reads as an accent. Gold + error tones are nudged for  */
+/* contrast; on-brand/scrim/pure-white are intentionally theme-fixed.  */
+/* ------------------------------------------------------------------ */
+html[data-theme="dark"] {
+  --background: #0f0f0f;
+  --foreground: #e9ece8;
+
+  --brand: #3ecf8e;
+  --brand-deep: #12271d;
+  --brand-deep-line: #4b564e;
+  --brand-hover: #34b87d;
+  --brand-hover-text: #6be3ac;
+  --brand-soft: rgba(62, 207, 142, 0.14);
+  --surface: #171717;
+  --surface-alt: #1b1e1c;
+  --surface-panel: #1a1d1a;
+  --surface-tint: #171b18;
+  --surface-border: #232722;
+  --gold: #e7c77e;
+  --gold-ink: #d8b567;
+  --gold-ink-2: #c9a55e;
+  --gold-accent: #d2b378;
+  --ink: #e9ece8;
+  --ink-deep: #dde3de;
+  --ink-soft: #c3ccc6;
+  --muted: #8b958d;
+  --muted-2: #a2aca5;
+  --muted-3: #8f988f;
+  --hairline: rgba(255, 255, 255, 0.08);
+
+  --danger: #ffb4ab;
+  --danger-bg: #3a1216;
+  --danger-ink: #ffdad6;
+  --danger-border: #7d2b26;
+  --danger-solid: #a8281f;
+  --danger-solid-hover: #7d1e17;
+
+  --on-brand: #0d2118;
+
+  --c-004d27: #0c1711;
+  --c-006837: #101e18;
+  --c-008d54: #c5d3cd;
+  --c-009252: #172b22;
+  --c-04140b: #e8edea;
+  --c-05150d: #e8edeb;
+  --c-06140d: #e8edeb;
+  --c-087447: #14241d;
+  --c-0b1e16: #0b1410;
+  --c-0f3025: #dbe4e1;
+  --c-147553: #162822;
+  --c-18392e: #d1dcd8;
+  --c-191c1d: #e2e5e6;
+  --c-1b2721: #d9e3de;
+  --c-242e28: #d1dbd5;
+  --c-2a342e: #cbd5cf;
+  --c-2b362f: #c9d4cd;
+  --c-343d96: #c5c6d3;
+  --c-3a342a: #d4cfc6;
+  --c-3a453e: #c8d0cb;
+  --c-3f4940: #c8d0c9;
+  --c-465049: #c9cfcb;
+  --c-4a554f: #c8d0cc;
+  --c-4f665c: #c6d2cd;
+  --c-6b746e: #cacecb;
+  --c-6d8178: #c8d0cc;
+  --c-6f7a70: #caceca;
+  --c-8a6a20: #d3cfc5;
+  --c-95d6b9: #3f6b57;
+  --c-9a8250: #d3cfc5;
+  --c-c0553f: #d3c7c5;
+  --c-c7ccc8: #161816;
+  --c-d3e8dc: #445049;
+  --c-d6d2c4: #1a1814;
+  --c-d8eadf: #3a453e;
+  --c-e0bd6a: #1a1814;
+  --c-e0e0ff: #24242d;
+  --c-e4e0d2: #1a1814;
+  --c-eef8f1: #242e27;
+  --c-f0d69a: #1a1814;
+  --c-f0eee5: #28261f;
+  --c-f1efe7: #2a2821;
+  --c-f3f1e9: #2c2a22;
+  --c-f3f4f5: #25292d;
+  --c-f6efdd: #27241e;
+  --c-f7fbf8: #242e26;
+  --c-f8f9fa: #24292e;
+  --c-f9f7f1: #2e2b24;
+  --c-fbfdfb: #242e24;
+
+  --pure-white: #171717;
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
 }
 
-html[data-theme="light"] body {
-  background: var(--background);
+html[data-theme="dark"] .scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 html,

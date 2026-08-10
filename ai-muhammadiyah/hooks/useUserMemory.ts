@@ -20,6 +20,7 @@ import { resolveAllowedSkill, type Skill } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { PlanModelId } from "@/lib/subscriptions/plans";
 import type { SubscriptionTier } from "@/lib/usage/limits";
+import { applyTheme } from "@/lib/theme";
 
 export function useUserMemory(
   userId: string,
@@ -130,7 +131,7 @@ export function useUserMemory(
   );
 
   useEffect(() => {
-    document.documentElement.dataset.theme = learningProfile.themePreference;
+    applyTheme(learningProfile.themePreference);
   }, [learningProfile.themePreference]);
 
   return {

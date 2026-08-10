@@ -99,8 +99,8 @@ export default function LibraryView({ items }: { items: LibraryItem[] }) {
                 onClick={() => setFilter(def.key)}
                 className={
                   isActive
-                    ? "inline-flex items-center gap-1.5 rounded-full bg-[#0f5a3d] px-[15px] py-2 text-[13.5px] font-semibold text-[#f5f3ec]"
-                    : "inline-flex items-center gap-1.5 rounded-full bg-[#ece9df] px-[15px] py-2 text-[13.5px] font-semibold text-[#5d6862] transition hover:bg-[#e4e0d2]"
+                    ? "inline-flex items-center gap-1.5 rounded-full bg-[var(--brand)] px-[15px] py-2 text-[13.5px] font-semibold text-[var(--on-brand)]"
+                    : "inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-border)] px-[15px] py-2 text-[13.5px] font-semibold text-[var(--muted-2)] transition hover:bg-[var(--c-e4e0d2)]"
                 }
               >
                 {def.label}
@@ -114,14 +114,14 @@ export default function LibraryView({ items }: { items: LibraryItem[] }) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cari artifact"
-            className="h-10 w-[220px] rounded-[10px] border border-[#0b3d2a]/13 bg-[#fbfaf6] px-3.5 text-[13.5px] text-[#16211c] outline-none transition focus:border-[#0f5a3d]"
+            className="h-10 w-[220px] rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] text-[var(--ink)] outline-none transition focus:border-[var(--brand)]"
           />
         </div>
       </div>
 
       {/* GRID */}
       {shown.length === 0 ? (
-        <div className="rounded-[15px] border border-[#0b3d2a]/10 bg-[#fbfaf6] px-6 py-12 text-center text-sm leading-relaxed text-[#6b746e]">
+        <div className="rounded-[15px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-12 text-center text-sm leading-relaxed text-[var(--c-6b746e)]">
           {items.length === 0
             ? "Belum ada artifact. Minta AI membuat dokumen, tabel, diagram, atau kode di chat — hasilnya otomatis tersimpan di sini."
             : "Tidak ada artifact yang cocok dengan filter atau pencarianmu."}
@@ -134,10 +134,10 @@ export default function LibraryView({ items }: { items: LibraryItem[] }) {
               <Link
                 key={item.id}
                 href={`/?conversationId=${item.conversationId}`}
-                className="group overflow-hidden rounded-[15px] border border-[#0b3d2a]/10 bg-[#fbfaf6] transition duration-150 hover:-translate-y-[3px] hover:border-[#0f5a3d]/35 hover:shadow-[0_16px_34px_-26px_rgba(11,61,42,0.7)]"
+                className="group overflow-hidden rounded-[15px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] transition duration-150 hover:-translate-y-[3px] hover:border-[var(--brand)]/35 hover:shadow-[0_16px_34px_-26px_rgba(11,61,42,0.7)]"
               >
                 <div
-                  className="relative flex h-[120px] items-center justify-center border-b border-[#0b3d2a]/[0.07]"
+                  className="relative flex h-[120px] items-center justify-center border-b border-[var(--brand-deep-line)]/[0.07]"
                   style={{ background: style.thumbBg }}
                 >
                   <span className="text-[30px]" style={{ color: style.tint }}>
@@ -151,10 +151,10 @@ export default function LibraryView({ items }: { items: LibraryItem[] }) {
                   </span>
                 </div>
                 <div className="px-[17px] py-[15px]">
-                  <div className="mb-[7px] line-clamp-2 text-[14.5px] font-semibold leading-[1.35] text-[#1b2721]">
+                  <div className="mb-[7px] line-clamp-2 text-[14.5px] font-semibold leading-[1.35] text-[var(--c-1b2721)]">
                     {item.title}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-[#8a9089]">
+                  <div className="flex items-center gap-1.5 text-xs text-[var(--muted-3)]">
                     <span className="truncate">{item.workspace}</span>
                     <span>·</span>
                     <span className="shrink-0">

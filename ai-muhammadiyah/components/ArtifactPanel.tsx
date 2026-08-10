@@ -58,7 +58,7 @@ function renderMarkdownTable(text: string) {
 
   if (bodyRows.length < 2) {
     return (
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-[16px] bg-[#f0eee6] p-4 text-xs leading-relaxed text-[#16211c]">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-[16px] bg-[var(--surface-alt)] p-4 text-xs leading-relaxed text-[var(--ink)]">
         {text}
       </pre>
     );
@@ -67,14 +67,14 @@ function renderMarkdownTable(text: string) {
   const [headerCells, ...dataRows] = bodyRows;
 
   return (
-    <div className="overflow-x-auto rounded-[16px] ring-1 ring-[#0b3d2a]/10">
+    <div className="overflow-x-auto rounded-[16px] ring-1 ring-[var(--brand-deep-line)]/10">
       <table className="w-full border-collapse text-left text-sm">
         <thead>
-          <tr className="bg-[#0f5a3d]/10">
+          <tr className="bg-[var(--brand)]/10">
             {headerCells.map((cell, index) => (
               <th
                 key={index}
-                className="px-3 py-2 font-bold text-[#0f5a3d]"
+                className="px-3 py-2 font-bold text-[var(--brand)]"
               >
                 {cell}
               </th>
@@ -85,10 +85,10 @@ function renderMarkdownTable(text: string) {
           {dataRows.map((cells, rowIndex) => (
             <tr
               key={rowIndex}
-              className="border-t border-[#0b3d2a]/10 odd:bg-white even:bg-[#f5f3ec]"
+              className="border-t border-[var(--brand-deep-line)]/10 odd:bg-[var(--pure-white)] even:bg-[var(--background)]"
             >
               {cells.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-3 py-2 text-[#16211c]">
+                <td key={cellIndex} className="px-3 py-2 text-[var(--ink)]">
                   {cell}
                 </td>
               ))}
@@ -153,7 +153,7 @@ export default function ArtifactPanel({
   function renderActiveContent() {
     if (!activeArtifact) {
       return (
-        <p className="p-4 text-sm leading-relaxed text-[#8a9089]">
+        <p className="p-4 text-sm leading-relaxed text-[var(--muted-3)]">
           {isLoadingArtifacts
             ? "Memuat artifact..."
             : "Belum ada artifact di percakapan ini."}
@@ -163,7 +163,7 @@ export default function ArtifactPanel({
 
     if (activeArtifact.type === "document") {
       return (
-        <div className="p-4 text-sm leading-relaxed text-[#16211c]">
+        <div className="p-4 text-sm leading-relaxed text-[var(--ink)]">
           <MarkdownMessage text={activeArtifact.content.text} />
         </div>
       );
@@ -175,16 +175,16 @@ export default function ArtifactPanel({
 
     // diagram (Mermaid source, rendered as mono text in v1) + code
     return (
-      <pre className="overflow-x-auto p-4 text-xs leading-relaxed text-[#16211c]">
+      <pre className="overflow-x-auto p-4 text-xs leading-relaxed text-[var(--ink)]">
         <code>{activeArtifact.content.text}</code>
       </pre>
     );
   }
 
   return (
-    <aside className="hidden w-[420px] shrink-0 flex-col border-l border-[#0b3d2a]/10 bg-[#f7f5ee] lg:flex">
-      <div className="flex shrink-0 items-center justify-between border-b border-[#0b3d2a]/10 px-4 py-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-[#0f5a3d]">
+    <aside className="hidden w-[420px] shrink-0 flex-col border-l border-[var(--brand-deep-line)]/10 bg-[var(--surface-panel)] lg:flex">
+      <div className="flex shrink-0 items-center justify-between border-b border-[var(--brand-deep-line)]/10 px-4 py-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--brand)]">
           Artifact
         </h2>
         <button
@@ -192,14 +192,14 @@ export default function ArtifactPanel({
           onClick={onClose}
           aria-label="Tutup panel artifact"
           title="Tutup panel artifact"
-          className="grid h-8 w-8 place-items-center rounded-full text-[#5d6862] transition hover:bg-[#ece9df]"
+          className="grid h-8 w-8 place-items-center rounded-full text-[var(--muted-2)] transition hover:bg-[var(--surface-border)]"
         >
           <Icon name="close" className="h-4 w-4" />
         </button>
       </div>
 
       {artifacts.length > 1 && (
-        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-[#0b3d2a]/10 px-4 py-2">
+        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-[var(--brand-deep-line)]/10 px-4 py-2">
           {artifacts.map((artifact) => (
             <button
               key={artifact.id}
@@ -207,8 +207,8 @@ export default function ArtifactPanel({
               onClick={() => setActiveArtifactId(artifact.id)}
               className={
                 artifact.id === activeArtifact?.id
-                  ? "shrink-0 rounded-full bg-[#0f5a3d]/10 px-3 py-1 text-xs font-bold text-[#0f5a3d]"
-                  : "shrink-0 rounded-full px-3 py-1 text-xs font-bold text-[#5d6862] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#f0eee6]"
+                  ? "shrink-0 rounded-full bg-[var(--brand)]/10 px-3 py-1 text-xs font-bold text-[var(--brand)]"
+                  : "shrink-0 rounded-full px-3 py-1 text-xs font-bold text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-alt)]"
               }
             >
               <span className="block max-w-[140px] truncate">
@@ -220,21 +220,21 @@ export default function ArtifactPanel({
       )}
 
       {activeArtifact && (
-        <div className="shrink-0 border-b border-[#0b3d2a]/10 px-4 py-3">
+        <div className="shrink-0 border-b border-[var(--brand-deep-line)]/10 px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#0f5a3d]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#0f5a3d]">
+            <span className="rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
               {artifactTypeLabels[activeArtifact.type]}
             </span>
             {activeArtifact.content.language && (
-              <span className="rounded-full bg-[#e0e0ff] px-2 py-0.5 text-[10px] font-bold text-[#343d96]">
+              <span className="rounded-full bg-[var(--c-e0e0ff)] px-2 py-0.5 text-[10px] font-bold text-[var(--c-343d96)]">
                 {activeArtifact.content.language}
               </span>
             )}
-            <span className="ml-auto text-[10px] font-semibold text-[#8a9089]">
+            <span className="ml-auto text-[10px] font-semibold text-[var(--muted-3)]">
               {formatRelativeTime(activeArtifact.updatedAt)}
             </span>
           </div>
-          <h3 className="mt-1 break-words text-base font-bold text-[#16211c]">
+          <h3 className="mt-1 break-words text-base font-bold text-[var(--ink)]">
             {activeArtifact.title}
           </h3>
         </div>
@@ -243,18 +243,18 @@ export default function ArtifactPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">{renderActiveContent()}</div>
 
       {activeArtifact && (
-        <div className="flex shrink-0 items-center gap-2 border-t border-[#0b3d2a]/10 px-4 py-3">
+        <div className="flex shrink-0 items-center gap-2 border-t border-[var(--brand-deep-line)]/10 px-4 py-3">
           <button
             type="button"
             onClick={copyActiveContent}
-            className="rounded-full bg-[#0f5a3d] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0a3d2a]"
+            className="rounded-full bg-[var(--brand)] px-4 py-2 text-xs font-bold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
           >
             {copyNotice || "Salin"}
           </button>
           <button
             type="button"
             onClick={downloadActiveContent}
-            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-[#5d6862] ring-1 ring-[#0b3d2a]/10 transition hover:bg-[#ece9df]"
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-border)]"
           >
             <Icon name="download" className="h-4 w-4" />
             Unduh
@@ -262,7 +262,7 @@ export default function ArtifactPanel({
           <button
             type="button"
             onClick={() => void deleteArtifact(activeArtifact.id)}
-            className="ml-auto rounded-full px-3 py-2 text-xs font-bold text-[#ba1a1a] transition hover:bg-[#ffdad6]"
+            className="ml-auto rounded-full px-3 py-2 text-xs font-bold text-[var(--danger)] transition hover:bg-[var(--danger-bg)]"
           >
             Hapus
           </button>
