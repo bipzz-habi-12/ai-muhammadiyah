@@ -1,10 +1,10 @@
-# AI Muhammadiyah Project Status
+# M-Agent Project Status
 
 Last updated: June 4, 2026
 
 ## Project Overview
 
-AI Muhammadiyah is a modern Islamic education AI platform built for Muhammadiyah learning communities, schools, teachers, students, and organizational teams. The product combines authenticated AI chat, persistent learning history, document analysis, study-mode personalization, subscription-based usage limits, and an early internal knowledge base for Muhammadiyah/education content.
+M-Agent (formerly "AI Muhammadiyah", renamed in Langkah 44) is a modern AI platform for learning, work, and research, grounded in Islamic values — built for schools, teachers, students, researchers, and organizational teams. It is an independent product, not an official channel of Persyarikatan Muhammadiyah; it answers with reference to Muhammadiyah scholarship without speaking on its behalf. The product combines authenticated AI chat, persistent learning history, document analysis, study-mode personalization, subscription-based usage limits, and an early internal knowledge base for Muhammadiyah/education content.
 
 The current product direction is a premium learning assistant with a balanced Muhammadiyah educational tone: practical, adab-aware, academically useful, and suitable for Islamic studies, Cambridge-style learning, OSN/STEM preparation, coding mentorship, research, writing, and productivity support.
 

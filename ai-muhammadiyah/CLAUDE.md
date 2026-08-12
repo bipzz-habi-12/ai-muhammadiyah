@@ -1,4 +1,9 @@
-# AI Muhammadiyah — Konteks Proyek untuk Claude Code
+# M-Agent — Konteks Proyek untuk Claude Code
+
+> **Nama produk = M-Agent** (sejak Langkah 44, Agustus 2026). Nama lama "AI Muhammadiyah" **tidak boleh dipakai lagi** untuk menyebut produk. Aturan yang mengikat setiap perubahan berikutnya:
+> - **"Muhammadiyah" = rujukan isi, bukan nama produk dan bukan klaim afiliasi.** Tetap dipakai untuk Muhammadiyah Hub, Muhammadiyah Knowledge Base, manhaj/Tarjih, dan "otoritas Muhammadiyah tepercaya" di prompt.
+> - **Jangan pernah menulis copy yang menyiratkan produk ini kanal resmi Persyarikatan.** M-Agent adalah produk independen yang *menjawab berdasarkan* rujukan Muhammadiyah. Kalimat non-afiliasi wajib tetap ada di footer landing dan halaman `/hub`.
+> - Identifier internal **sengaja masih memakai nama lama** dan bukan bug: `package.json` name, folder repo, domain `aimuhammadiyah.my.id`, env `AIMU_SYNC_TOKEN`/`AIMU_SYNC_API`, prefix token `aimu_sync_`, id produk Stripe `aimu_plan_*`, dan key `localStorage` `ai-mu-*`. Jangan diganti tanpa permintaan eksplisit user.
 
 > **Mengikuti Master Plan v2 (Juli 2026).** v2 menggantikan rencana lama "4 tools kaku" (Docs/Tasks/Sheets/Canvas) dengan sistem **Artifacts + Skill via slash command + banyak chat per workspace**. Kalau ada dokumen/kode lama yang masih menyebut Docs/Tasks/Sheets/Canvas sebagai arah pengembangan, itu **sudah usang** — lihat bagian "Status v1 yang Deprecated" di bawah.
 
@@ -13,7 +18,7 @@ Target pengguna: Pelajar, Mahasiswa, Guru, Dosen, Peneliti, Developer, Organisas
 - **Frontend:** Next.js + Tailwind, deploy ke Vercel
 - **Database:** Supabase (Auth, Chat history, Knowledge Base, Workspaces, Subscription, Memory)
 - **AI Providers:** OpenAI **GPT-5.6 Terra** (model utama, `OPENAI_MODEL`), Gemini 2.5, OpenRouter (fallback). **Urutan routing: GPT-5.6 Terra dulu → Gemini → OpenRouter, untuk SEMUA rute (`fast`/`smart`/`document`) dan SEMUA tier termasuk Free** (lihat `lib/ai/chat.ts`, Langkah 35 di `MIGRATION_PROGRESS.md`). Streaming, auto-fallback, vision, multimodal.
-- **Auth:** Email/Password + OTP email
+- **Auth:** Email OTP (6 digit) + OAuth Google & GitHub lewat Supabase (`supabase.auth.signInWithOAuth`, callback di `app/auth/callback/route.ts`). Password belum dibangun.
 
 ## Fitur yang Sudah Ada (jangan dirusak saat refactor)
 Chat AI, Streaming Response, Markdown, Math Rendering, Upload (PDF/DOCX/PPTX/XLSX/Images), Vision, Knowledge Base (RAG), Workspace, Pinned Chat, Search Chat, Recent Files, Study Modes, Memory, History, Subscription, Usage Tracking, Sidebar, Export Markdown, Share Preview, Continue Answer, Multi Upload, Image Analysis.

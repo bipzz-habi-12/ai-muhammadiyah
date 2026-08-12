@@ -1,7 +1,12 @@
-# AI Muhammadiyah
+# M-Agent
 
 Platform AI untuk belajar, meneliti, dan bekerja, dengan fondasi nilai Islam
 Berkemajuan. Live di [aimuhammadiyah.my.id](https://aimuhammadiyah.my.id).
+
+M-Agent adalah produk independen — bukan situs atau kanal resmi Persyarikatan
+Muhammadiyah. Jawaban keislamannya merujuk manhaj Muhammadiyah, tanpa
+mengatasnamakan Persyarikatan. Nama repo, domain, dan env (`AIMU_*`) masih
+memakai nama lama secara sengaja; lihat `MIGRATION_PROGRESS.md` Langkah 44.
 
 Next.js + Supabase. Untuk konteks arsitektur lengkap lihat `CLAUDE.md`;
 riwayat keputusan teknis ada di `MIGRATION_PROGRESS.md`.

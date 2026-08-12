@@ -879,8 +879,8 @@ export default function SettingsModal({
                   </p>
                 </div>
                 <div className="rounded-[24px] bg-[var(--brand)]/10 p-4 text-sm leading-relaxed text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10">
-                  Login memakai OTP email. AI Muhammadiyah tidak menyimpan
-                  password di aplikasi ini.
+                  Login memakai OTP email. M-Agent tidak menyimpan password di
+                  aplikasi ini.
                 </div>
                 <button
                   type="button"

@@ -3,8 +3,9 @@ import "./globals.css";
 import { themeBootstrapScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
-  title: "AI Muhammadiyah",
-  description: "Asisten edukasi Islami modern.",
+  title: "M-Agent",
+  description:
+    "Platform AI untuk belajar, bekerja, dan meneliti — berpijak pada nilai Islam Berkemajuan.",
 };
 
 export default function RootLayout({

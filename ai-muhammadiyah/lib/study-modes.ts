@@ -164,7 +164,7 @@ export function createStudyModeSystemPrompt(
   const common = [
     "STUDY MODE:",
     `Active mode: ${modeName}.`,
-    "Apply this mode as a lightweight teaching style while preserving the AI Muhammadiyah identity, user memory, and document priority rules.",
+    "Apply this mode as a lightweight teaching style while preserving the M-Agent identity, user memory, and document priority rules.",
   ];
 
   if (mode === "quick_explain") {

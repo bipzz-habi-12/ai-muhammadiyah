@@ -39,7 +39,7 @@ export default function AuthPage({ mode, initialEmail = "" }: AuthPageProps) {
             <SparkIcon />
           </div>
           <div>
-            <p className="text-sm font-bold text-[var(--c-008d54)]">AI Muhammadiyah</p>
+            <p className="text-sm font-bold text-[var(--c-008d54)]">M-Agent</p>
             <h1 className="text-2xl font-bold tracking-normal text-[var(--c-05150d)]">
               {isOtp
                 ? "Verifikasi OTP"

@@ -41,7 +41,11 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname === "/register" ||
     request.nextUrl.pathname === "/verify-otp";
 
-  if (request.nextUrl.pathname === "/auth/callback") {
+  const isOAuthCodeExchange =
+    request.nextUrl.pathname === "/auth/callback" &&
+    request.nextUrl.searchParams.has("code");
+
+  if (request.nextUrl.pathname === "/auth/callback" && !isOAuthCodeExchange) {
     const url = request.nextUrl.clone();
     url.pathname = user ? "/" : "/login";
     url.search = "";
@@ -53,6 +57,10 @@ export async function proxy(request: NextRequest) {
 
     return NextResponse.redirect(url);
   }
+
+  // isOAuthCodeExchange: biarkan lolos ke app/auth/callback/route.ts, yang
+  // menukar `code` jadi sesi (exchangeCodeForSession). response di bawah
+  // sudah bawa cookie sesi ter-refresh dari supabase.auth.getUser() di atas.
 
   if (!user && request.nextUrl.pathname === "/") {
     // Tanpa sesi: tampilkan halaman Home/marketing (bukan langsung dorong ke

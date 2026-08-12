@@ -82,7 +82,7 @@ export default function Landing() {
           <Link href="/" className="flex items-center gap-3">
             <Logo />
             <span className="text-[16.5px] font-semibold tracking-[-0.01em]">
-              AI Muhammadiyah
+              M-Agent
             </span>
           </Link>
           <nav className="hidden items-center gap-8 text-[14.5px] text-[var(--c-4a554f)] md:flex">
@@ -379,7 +379,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-5 px-6 py-11 sm:px-8">
           <div className="flex items-center gap-3">
             <Logo size={30} />
-            <span className="text-[15px] font-semibold">AI Muhammadiyah</span>
+            <span className="text-[15px] font-semibold">M-Agent</span>
           </div>
           <div className="flex flex-wrap gap-7 text-sm text-[var(--muted-2)]">
             <a href="#platform" className="transition hover:text-[var(--brand)]">Platform</a>
@@ -390,6 +390,13 @@ export default function Landing() {
           <span className="text-[13px] text-[var(--muted-3)]">
             Islam Berkemajuan · aimuhammadiyah.my.id
           </span>
+        </div>
+        {/* Status afiliasi ditulis eksplisit: produk ini merujuk pemikiran
+            Muhammadiyah, tapi bukan kanal resmi Persyarikatan. */}
+        <div className="mx-auto max-w-[1180px] border-t border-[var(--brand-deep-line)]/[0.06] px-6 pb-9 pt-6 text-[12.5px] leading-relaxed text-[var(--muted-3)] sm:px-8">
+          M-Agent adalah produk independen. Bukan situs, kanal, atau juru bicara
+          resmi Persyarikatan Muhammadiyah — jawaban keislamannya merujuk pada
+          manhaj dan rujukan Muhammadiyah, tanpa mengatasnamakannya.
         </div>
       </footer>
     </div>

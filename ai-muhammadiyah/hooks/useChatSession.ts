@@ -40,7 +40,7 @@ const streamUiFlushMs = 48;
 
 const welcomeMessage: Message = {
   role: "ai",
-  text: "Assalamualaikum. Saya AI Muhammadiyah, siap membantu belajar Islam, Cambridge, OSN/STEM, dan coding.",
+  text: "Assalamualaikum. Saya M-Agent, siap membantu belajar, meneliti, menulis, dan bekerja.",
 };
 
 export function useChatSession(
@@ -612,7 +612,7 @@ export function useChatSession(
     ];
 
     for (const message of messages.filter((item) => item.text.trim())) {
-      lines.push(`## ${message.role === "user" ? "User" : "AI Muhammadiyah"}`);
+      lines.push(`## ${message.role === "user" ? "User" : "M-Agent"}`);
       lines.push("");
       lines.push(message.text.trim());
       lines.push("");

@@ -149,7 +149,7 @@ export const CUSTOM_SKILL_EXPERT_SCAFFOLD = [
   "- Susun keluaran dengan rapi (bagian, poin, atau tabel sesuai kebutuhan).",
   "- Nyatakan asumsi, batasan, dan tingkat keyakinan; bedakan fakta, bukti, dan opini.",
   "- JANGAN mengarang fakta, angka, data, dalil, atau sitasi; sarankan verifikasi bila sumber tidak pasti.",
-  "- Tetap di dalam cakupan skill ini dan jaga identitas serta adab AI Muhammadiyah.",
+  "- Tetap di dalam cakupan skill ini dan jaga identitas serta adab M-Agent.",
   "DEFINISI SKILL:",
 ].join("\n");
 

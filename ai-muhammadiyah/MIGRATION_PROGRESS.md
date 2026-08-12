@@ -1131,3 +1131,54 @@ Seluruh pengguna dan data uji dihapus setelahnya; tabel Otak Kedua kembali koson
 **Backup pra-rilis tersedia** di `D:\Documents\backup-ai-muhammadiyah\20260810_110304\`: `penuh.dump` (pg_dump format Custom, 1.023 entri TOC, termasuk skema `auth` dan hash sandi) + ekspor JSON per-tabel + `BACA-DULU.md`. Catatan operasional: `supabase db dump` butuh Docker Desktop yang tidak terpasang; koneksi langsung `db.<ref>.supabase.co` gagal resolve karena IPv6-only, jadi yang berhasil adalah **Session Pooler** `aws-1-ap-southeast-1.pooler.supabase.com` dengan user `postgres.<ref>` — dan sandi dikirim lewat `$env:PGPASSWORD`, bukan di dalam URL, karena PowerShell merusak string yang mengandung `$`.
 
 **Status: Langkah 40 dan 41 lengkap, terverifikasi di produksi, siap dipakai banyak pengguna.**
+
+## Langkah 43: Login dengan Google & GitHub (OAuth via Supabase) — SELESAI & DIKONFIRMASI JALAN
+
+Tombol Google di `AuthCardPreview.tsx` sebelumnya cuma dekorasi mati berlabel "Segera hadir" (lihat Langkah 27/42). Diganti jadi OAuth sungguhan, plus tombol GitHub baru — memakai `supabase.auth.signInWithOAuth`, bukan flow custom.
+
+**Perubahan kode:**
+- `components/auth/AuthCardPreview.tsx`: `handleOAuthSignIn(provider)` memanggil `supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/auth/callback` } })`. Tombol Google jadi aktif (`ComingSoonBadge` dihapus, sudah tidak dipakai di mana pun), tombol GitHub baru ditambah dengan ikon SVG sendiri (`GitHubIcon`). State `oauthLoading` mengunci kedua tombol saat salah satu diklik supaya tidak double-submit.
+- `app/auth/callback/route.ts` (**route handler BARU**): tujuan redirect Supabase setelah user menyetujui di provider. Menukar query `code` (alur PKCE) jadi sesi lewat `exchangeCodeForSession` — dipakai lewat `createSupabaseAuthServerClient()` yang sudah ada (route handler boleh menulis cookie, beda dari Server Component). Sukses → redirect `/`; gagal/`error_description` dari provider → redirect `/login?error=oauth`.
+- `proxy.ts`: sebelum ini `/auth/callback` selalu ditangkap middleware dan langsung di-redirect berdasarkan cookie user yang ADA (logika lama, ditandai "legacy auth callback route" — dari alur OTP lama yang tidak pernah benar-benar butuh exchange code). Itu akan mencegat request OAuth sebelum sempat sampai ke route handler baru. Diperbaiki: middleware sekarang cuma menjalankan redirect lama itu kalau path `/auth/callback` **tidak** punya query `code`; kalau ada `code`, dilewatkan (`return response`) supaya Next.js benar-benar merutekannya ke `app/auth/callback/route.ts`.
+- `AuthCardPreview.tsx` juga membaca `?error=oauth` dari URL (lazy `useState` initializer, bukan `useEffect`, supaya tidak kena aturan lint `react-hooks/set-state-in-effect`) dan menampilkannya lewat `StatusBanner` yang sudah ada — user yang login OAuth-nya gagal/dibatalkan kembali ke `/login` dengan pesan jelas, bukan diam saja.
+
+**Diuji hidup di dev server (Browser pane):** klik tombol Google membuka `https://<project-ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=http://localhost:3000/auth/callback&code_challenge=...` — membuktikan `redirectTo` dan PKCE `code_challenge` terkirim benar dari kode kita. Supabase membalas `400 {"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}` — **ini bukan bug kode**, providernya memang belum diaktifkan di Dashboard Supabase (langkah konfigurasi terpisah, di luar repo, lihat bawah). Navigasi `/login?error=oauth` langsung dicoba manual dan pesan error tampil benar di form.
+
+**Yang TIDAK bisa diselesaikan lewat kode — perlu tindakan user di luar repo, sebelum tombol ini bisa dipakai sungguhan:**
+1. Buat OAuth app di **Google Cloud Console** (OAuth consent screen + Web application credentials) dan di **GitHub → Settings → Developer settings → OAuth Apps**.
+2. Authorized redirect URI di KEDUA provider itu diarahkan ke callback Supabase sendiri (bukan `/auth/callback` kita): `https://<project-ref>.supabase.co/auth/v1/callback`.
+3. Di **Dashboard Supabase → Authentication → Providers**, aktifkan Google & GitHub, isi Client ID + Client Secret dari langkah 1.
+4. Di **Dashboard Supabase → Authentication → URL Configuration**, pastikan `http://localhost:3000/auth/callback` (dev) dan `https://aimuhammadiyah.my.id/auth/callback` (produksi) ada di **Redirect URLs** allow-list — kalau tidak, Supabase menolak redirect balik ke app walau provider sudah aktif.
+5. Setelah itu baru bisa diverifikasi end-to-end (klik tombol → consent screen provider sungguhan → balik ke app dalam keadaan login).
+
+**Update: user sudah menyelesaikan kelima langkah konfigurasi di atas (Google Cloud Console, GitHub OAuth App, Dashboard Supabase Providers + Redirect URLs) dan mengonfirmasi login dengan Google maupun GitHub berjalan.** Tidak ada perubahan kode lanjutan yang diperlukan.
+
+## Langkah 44: Rebrand "AI Muhammadiyah" → "M-Agent" (branch `rebrand/m-agent`) — SELESAI DI KODE
+
+Nama produk berganti karena nama lama menyiratkan produk ini kanal resmi Persyarikatan Muhammadiyah, padahal bukan. Huruf "M" sudah mewakili akarnya tanpa mengklaim keresmian.
+
+**Aturan yang dipakai konsisten di semua file** (dan sekarang ditulis permanen di `CLAUDE.md`):
+- **Ganti** kalau kata itu adalah *nama produk* atau *klaim keresmian*.
+- **Pertahankan** kalau itu *rujukan isi*: Muhammadiyah Hub, Muhammadiyah Knowledge Base, manhaj/Tarjih, "otoritas Muhammadiyah tepercaya" di prompt, "terbuka untuk semua, bukan hanya warga Muhammadiyah".
+- **Tambah** kalimat non-afiliasi di dua tempat publik + di system prompt identitas AI.
+
+**Identitas AI (`lib/ai/chat.ts`, `islamicAiIdentitySystemPrompt`):** baris pembuka jadi "You are M-Agent, a modern AI platform for learning, work, and research, grounded in Islamic values." (sebelumnya "…Islamic education AI platform for Muhammadiyah learning communities"), plus **satu baris baru**: M-Agent produk independen, BUKAN kanal/situs/juru bicara resmi Persyarikatan; kalau ditanya afiliasi, jawab apa adanya. Dua baris rujukan manhaj (`balanced Muhammadiyah educational tone`, `trusted Muhammadiyah authorities`) sengaja **tidak diubah**.
+
+**Prompt lain yang menyuntik nama:** `lib/skills.ts` (scaffold skill custom), `lib/research/synthesis.ts`, `app/api/chat/route.ts` (guard instruksi workspace), `lib/study-modes.ts` (**catatan: `createStudyModeSystemPrompt` sudah dead code** sejak Langkah 39 — tidak diimpor di mana pun, cuma `normalizeStudyMode` yang masih dipakai `lib/memory/user-memory.ts`; tetap diganti supaya grep bersih, penghapusannya cleanup terpisah).
+
+**UI:** `app/layout.tsx` (title + description), `components/home/Landing.tsx` (nav, footer, **+ blok non-afiliasi baru di footer**), `components/auth/AuthCardPreview.tsx` (3 titik), `components/AuthPage.tsx`, `components/ChatArea.tsx` (label di atas tiap jawaban AI), `hooks/useChatSession.ts` (sapaan pembuka — teks lamanya juga masih menyebut "Cambridge, OSN/STEM", disegarkan sekalian; + heading export Markdown), `components/SettingsModal.tsx`, `components/Avatar.tsx` (**dead code**, tidak diimpor di mana pun — diganti karena murah, kandidat hapus).
+
+**`app/hub/HubDirectory.tsx`:** nama "Muhammadiyah Hub" **tetap** (itu isi, bukan brand), tapi dua kalimat yang bisa terbaca sebagai klaim keresmian dirumuskan ulang — headline "Sumber pengetahuan resmi Muhammadiyah" → "Rujukan resmi Muhammadiyah, dihimpun di satu tempat", dan footer direktori kini eksplisit "dikurasi M-Agent, bukan terbitan Persyarikatan". Kata "resmi" sekarang menempel ke **sumbernya**, bukan ke kita.
+
+**Aset & brand eksternal:** `public/logo.svg` — glyph "AI" → "M" + `aria-label`; sinar Sang Surya, `#006837`, dan geometri tidak disentuh. `lib/subscriptions/stripe.ts` — `appInfo.name` + nama produk (aman: `getProductId()` deterministik `aimu_plan_*` dan jalur `products.retrieve` return duluan, jadi nama hanya dipakai saat produk BARU dibuat — Stripe belum aktif). `lib/hub/ask.ts` — User-Agent outbound `AIMuhammadiyahHub/1.0` → `MAgentHub/1.0`.
+
+**Sengaja TIDAK disentuh (keputusan cakupan user: brand + identitas AI saja):** `package.json`/`package-lock.json` name, nama folder repo, project Supabase, domain `aimuhammadiyah.my.id` (termasuk `research@aimuhammadiyah.my.id` di `lib/research/openalex.ts`), env `AIMU_SYNC_TOKEN`/`AIMU_SYNC_API`, prefix token perangkat `aimu_sync_`, id/lookup key Stripe `aimu_*`, key `localStorage` `ai-mu-*` (mengganti ini akan menghapus preferensi user yang sudah tersimpan), `scripts/hermes-mcp-server.mjs` & `scripts/logseq-bridge.mjs`, komentar header `supabase/migrations/*.sql`, `backup_*.sql`, `stitch-reference/`, dan riwayat Langkah 1-43 di dokumen ini — semuanya arsip atau kontrak yang masih hidup.
+
+**Verifikasi:** `grep -rn "AI Muhammadiyah" app components lib hooks public` → **0 hasil**; `npx tsc --noEmit` bersih; `npm run lint` bersih; `npm run build` sukses.
+
+### Risiko yang MASIH ADA setelah langkah ini
+
+1. **±15 baris `system_prompt` skill bawaan di DB produksi masih berbunyi "AI Muhammadiyah"** (dari migrasi `20260704010000`, `20260704020000`, `20260725010000`, `20260725020000`). Selama migrasi UPDATE belum ditulis & di-apply, **AI masih bisa menyebut nama lama setiap kali skill bawaan aktif** — persis hal yang mau dihilangkan rebrand ini. Ditunda atas keputusan user; butuh backup + apply manual.
+2. Percakapan lama, artifact lama, dan Markdown yang sudah diekspor tetap memuat nama lama — tidak diubah.
+3. Template email OTP di Dashboard Supabase (di luar repo) kemungkinan masih menyebut brand lama — perlu dicek user.
+4. Nama project Vercel/Supabase dan domain tetap lama, konsisten dengan keputusan cakupan.

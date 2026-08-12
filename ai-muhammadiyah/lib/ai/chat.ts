@@ -88,8 +88,9 @@ type RoutingAccess = {
 };
 
 export const islamicAiIdentitySystemPrompt = [
-  "You are AI Muhammadiyah, a modern Islamic education AI platform for Muhammadiyah learning communities.",
-  "Present yourself as AI Muhammadiyah, not as GPT, OpenAI, Gemini, a generic chatbot, or an API wrapper.",
+  "You are M-Agent, a modern AI platform for learning, work, and research, grounded in Islamic values.",
+  "Present yourself as M-Agent, not as GPT, OpenAI, Gemini, a generic chatbot, or an API wrapper.",
+  "M-Agent is an independent product. It is NOT an official channel, website, or spokesperson of Persyarikatan Muhammadiyah. If asked about affiliation, say so plainly: you answer with reference to Muhammadiyah scholarship, but you do not speak on its behalf.",
   "Your core role is a premium learning assistant for Islamic education, Cambridge-style academic learning, OSN/STEM preparation, coding, study strategy, writing, and productive school support.",
   "Speak politely, professionally, warmly, and naturally. Use Islamic greetings such as Assalamualaikum only when appropriate, usually once at the beginning of a fresh conversation.",
   "Keep greetings concise, friendly, and polished. Do not repeat long introductions or identity paragraphs.",
@@ -1133,7 +1134,7 @@ async function generateOpenRouterReply(
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "AI Muhammadiyah",
+        "X-Title": "M-Agent",
       },
       body: JSON.stringify({
         model: openRouterModel,
@@ -1258,7 +1259,7 @@ async function streamOpenRouterReply(
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "AI Muhammadiyah",
+        "X-Title": "M-Agent",
       },
       body: JSON.stringify({
         model: openRouterModel,
@@ -1727,7 +1728,7 @@ async function generateGeminiReplyWithFallback(
     }
 
     if (index === 0 && models.length > 1) {
-      console.warn("AI Muhammadiyah falling back from Gemini Pro to Gemini Flash:", {
+      console.warn("M-Agent falling back from Gemini Pro to Gemini Flash:", {
         route,
         provider: "gemini",
         failedModel: model,
@@ -1779,7 +1780,7 @@ async function streamGeminiReplyWithFallback(
 
     if (index === 0 && models.length > 1) {
       console.warn(
-        "AI Muhammadiyah streaming fallback from Gemini Pro to Gemini Flash:",
+        "M-Agent streaming fallback from Gemini Pro to Gemini Flash:",
         {
           route,
           provider: "gemini",
@@ -1991,7 +1992,7 @@ async function generateProviderReply(
     );
 
     if (openAiResult.reply) {
-      logAiSuccess("AI Muhammadiyah provider handled request:", {
+      logAiSuccess("M-Agent provider handled request:", {
         route,
         provider: "openai",
         model: resolveOpenAiModel(selectedModel),
@@ -2014,7 +2015,7 @@ async function generateProviderReply(
       };
     }
 
-    console.warn("AI Muhammadiyah falling back from OpenAI GPT to Gemini:", {
+    console.warn("M-Agent falling back from OpenAI GPT to Gemini:", {
       route,
       openAiModel: resolveOpenAiModel(selectedModel),
       geminiModel: resolveGeminiModel("fast", "free"),
@@ -2042,7 +2043,7 @@ async function generateProviderReply(
     );
 
     if (geminiResult) {
-      logAiSuccess("AI Muhammadiyah provider handled request:", {
+      logAiSuccess("M-Agent provider handled request:", {
         route,
         provider: "gemini",
         model: geminiResult.model,
@@ -2059,7 +2060,7 @@ async function generateProviderReply(
       };
     }
 
-    console.warn("AI Muhammadiyah falling back from Gemini to OpenRouter:", {
+    console.warn("M-Agent falling back from Gemini to OpenRouter:", {
       route,
       geminiModel: resolveGeminiModel(route, access.tier),
       openRouterModel: resolveOpenRouterModel(route),
@@ -2068,7 +2069,7 @@ async function generateProviderReply(
   }
 
   if (!process.env.OPENROUTER_API_KEY) {
-    console.info("AI Muhammadiyah provider could not use OpenRouter fallback:", {
+    console.info("M-Agent provider could not use OpenRouter fallback:", {
       route,
       provider: "openrouter",
       reason: "OPENROUTER_API_KEY is missing",
@@ -2093,7 +2094,7 @@ async function generateProviderReply(
     options?.imageContexts,
   );
 
-  logAiSuccess("AI Muhammadiyah provider handled request:", {
+  logAiSuccess("M-Agent provider handled request:", {
     route,
     provider: "openrouter",
     model: resolveOpenRouterModel(route),
@@ -2248,7 +2249,7 @@ export async function streamChatReply(
     );
 
     if (openAiResult?.reply) {
-      logAiSuccess("AI Muhammadiyah provider streamed request:", {
+      logAiSuccess("M-Agent provider streamed request:", {
         route,
         provider: "openai",
         model: resolveOpenAiModel(normalizedModel),
@@ -2276,7 +2277,7 @@ export async function streamChatReply(
       };
     }
 
-    console.warn("AI Muhammadiyah streaming fallback from OpenAI GPT to Gemini:", {
+    console.warn("M-Agent streaming fallback from OpenAI GPT to Gemini:", {
       route,
       openAiModel: resolveOpenAiModel(normalizedModel),
       geminiModel: resolveGeminiModel("fast", "free"),
@@ -2304,7 +2305,7 @@ export async function streamChatReply(
     );
 
     if (geminiResult) {
-      logAiSuccess("AI Muhammadiyah provider streamed request:", {
+      logAiSuccess("M-Agent provider streamed request:", {
         route,
         provider: "gemini",
         model: geminiResult.model,
@@ -2322,7 +2323,7 @@ export async function streamChatReply(
       };
     }
 
-    console.warn("AI Muhammadiyah streaming fallback from Gemini to OpenRouter:", {
+    console.warn("M-Agent streaming fallback from Gemini to OpenRouter:", {
       route,
       geminiModel: resolveGeminiModel(route, access.tier),
       openRouterModel: resolveOpenRouterModel(route),
@@ -2366,7 +2367,7 @@ export async function streamChatReply(
     };
   }
 
-  logAiSuccess("AI Muhammadiyah provider streamed request:", {
+  logAiSuccess("M-Agent provider streamed request:", {
     route,
     provider: "openrouter",
     model: resolveOpenRouterModel(route),

@@ -71,7 +71,7 @@ export function getStripeClient() {
     // apiVersion sengaja tidak dipaksa: SDK sudah mengunci versi yang cocok
     // dengan tipe TypeScript-nya sendiri.
     cachedClient = new Stripe(secretKey, {
-      appInfo: { name: "AI Muhammadiyah", url: "https://aimuhammadiyah.my.id" },
+      appInfo: { name: "M-Agent", url: "https://aimuhammadiyah.my.id" },
     });
   }
 
@@ -134,7 +134,7 @@ async function ensureTierProduct(tier: PurchasableTier) {
   try {
     const created = await stripe.products.create({
       id: productId,
-      name: `AI Muhammadiyah — ${plan.name}`,
+      name: `M-Agent — ${plan.name}`,
       description: plan.tagline,
       metadata: { tier },
     });

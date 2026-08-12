@@ -59,7 +59,7 @@ export async function fetchSourceExcerpt(url: string): Promise<string | null> {
       signal: controller.signal,
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; AIMuhammadiyahHub/1.0; +https://aimuhammadiyah.my.id)",
+          "Mozilla/5.0 (compatible; MAgentHub/1.0; +https://aimuhammadiyah.my.id)",
       },
     });
     const html = await response.text();

@@ -7,11 +7,14 @@ import { getAuthErrorMessage, logAuthError } from "@/lib/auth/errors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 // Design v2 auth screen (Login.dc.html port). Two-panel layout: brand panel
-// left, form panel right. The REAL flow is unchanged — email → 6-digit OTP via
-// Supabase; password & Google remain honestly marked "Segera hadir". Shared by
-// /login and /register through the `mode` prop.
+// left, form panel right. The REAL flow: email → 6-digit OTP via Supabase, or
+// OAuth (Google/GitHub) via signInWithOAuth -> app/auth/callback/route.ts.
+// Password remains honestly unbuilt (no field for it). Shared by /login and
+// /register through the `mode` prop.
 
 const otpLength = 6;
+
+type OAuthProvider = "google" | "github";
 
 // Subtle diamond-grid brand-panel texture (inline data URI).
 const brandPattern =
@@ -23,16 +26,6 @@ type AuthCardPreviewProps = {
 
 type AuthStep = "email" | "otp";
 
-function ComingSoonBadge({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`pointer-events-none whitespace-nowrap rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-semibold leading-none text-[var(--gold-ink-2)] ${className}`}
-    >
-      Segera hadir
-    </span>
-  );
-}
-
 function GoogleIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" className={className} aria-hidden="true">
@@ -40,6 +33,14 @@ function GoogleIcon({ className = "" }: { className?: string }) {
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+    </svg>
+  );
+}
+
+function GitHubIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" className={className} aria-hidden="true" fill="currentColor">
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.72.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 2.87-.39c.97 0 1.95.13 2.87.39 2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.07.78 2.16 0 1.56-.01 2.82-.01 3.2 0 .31.21.66.79.55A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
     </svg>
   );
 }
@@ -70,16 +71,51 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("error") === "oauth"
+      ? "Login lewat provider gagal atau dibatalkan. Coba lagi."
+      : "",
+  );
   const [successMessage, setSuccessMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
   function redirectToChat(reason: string) {
     console.log("[Supabase Auth] redirect target", { reason, redirectPath: "/" });
     router.replace("/");
     router.refresh();
+  }
+
+  async function handleOAuthSignIn(provider: OAuthProvider) {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setOauthLoading(provider);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        logAuthError(`OAuth (${provider}) error`, error);
+        setErrorMessage(getAuthErrorMessage(error));
+        setOauthLoading(null);
+      }
+
+      // Sukses: browser langsung diarahkan Supabase ke provider, jadi tidak
+      // perlu setOauthLoading(null) di sini -- komponen ini akan unmount.
+    } catch (error) {
+      console.error(`[Supabase Auth] OAuth (${provider}) unexpected error`, error);
+      setErrorMessage("Tidak bisa membuka halaman login. Coba lagi.");
+      setOauthLoading(null);
+    }
   }
 
   async function handleSendOtp(event: React.FormEvent<HTMLFormElement>) {
@@ -224,7 +260,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
             م
           </span>
           <span className="text-[16.5px] font-semibold text-[var(--surface-tint)]">
-            AI Muhammadiyah
+            M-Agent
           </span>
         </Link>
 
@@ -266,7 +302,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
               م
             </span>
             <span className="text-[16.5px] font-semibold text-[var(--ink-deep)]">
-              AI Muhammadiyah
+              M-Agent
             </span>
           </div>
 
@@ -399,18 +435,25 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
                 <span className="h-px flex-1 bg-[var(--brand-deep)]/10" />
               </div>
 
-              <div className="relative">
+              <div className="flex flex-col gap-3">
                 <button
                   type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="Segera hadir"
-                  className="flex h-12 w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] text-[14.5px] font-semibold text-[var(--ink-soft)] opacity-60"
+                  onClick={() => handleOAuthSignIn("google")}
+                  disabled={oauthLoading !== null}
+                  className="flex h-12 w-full items-center justify-center gap-2.5 rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] text-[14.5px] font-semibold text-[var(--ink-soft)] transition hover:bg-[var(--surface-border)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <GoogleIcon className="h-5 w-5" />
-                  Lanjutkan dengan Google
+                  {oauthLoading === "google" ? "Mengarahkan…" : "Lanjutkan dengan Google"}
                 </button>
-                <ComingSoonBadge className="absolute -top-2 right-3" />
+                <button
+                  type="button"
+                  onClick={() => handleOAuthSignIn("github")}
+                  disabled={oauthLoading !== null}
+                  className="flex h-12 w-full items-center justify-center gap-2.5 rounded-[10px] border border-[var(--brand-deep-line)]/16 bg-[var(--surface)] text-[14.5px] font-semibold text-[var(--ink-soft)] transition hover:bg-[var(--surface-border)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <GitHubIcon className="h-5 w-5" />
+                  {oauthLoading === "github" ? "Mengarahkan…" : "Lanjutkan dengan GitHub"}
+                </button>
               </div>
             </>
           )}
@@ -424,7 +467,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
             <a href="#" className="font-medium text-[var(--brand)] hover:underline">
               Kebijakan Privasi
             </a>{" "}
-            AI Muhammadiyah.
+            M-Agent.
           </p>
         </div>
       </div>

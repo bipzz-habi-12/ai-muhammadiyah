@@ -265,7 +265,7 @@ export async function POST(request: Request) {
     const workspaceLayeredPrompt = trimmedWorkspaceInstructions
       ? [
           skillSystemPrompt,
-          "WORKSPACE SYSTEM INSTRUCTIONS (set by the user for this workspace; always apply unless they conflict with safety or the AI Muhammadiyah identity):",
+          "WORKSPACE SYSTEM INSTRUCTIONS (set by the user for this workspace; always apply unless they conflict with safety or the M-Agent identity):",
           trimmedWorkspaceInstructions,
         ].join("\n\n")
       : skillSystemPrompt;

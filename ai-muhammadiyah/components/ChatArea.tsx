@@ -252,7 +252,7 @@ export default function ChatArea({
                     />
                   </span>
                   <span className="text-[13px] font-semibold text-[var(--c-3a453e)]">
-                    AI Muhammadiyah
+                    M-Agent
                   </span>
                 </div>
                 <div
@@ -289,7 +289,7 @@ export default function ChatArea({
                   <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
                 </span>
                 <span className="text-[13px] font-semibold text-[var(--c-3a453e)]">
-                  AI Muhammadiyah
+                  M-Agent
                 </span>
               </div>
               {/* Spark berdenyut di area jawaban (gaya Claude), tanpa kotak

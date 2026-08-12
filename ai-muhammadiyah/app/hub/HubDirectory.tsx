@@ -310,11 +310,12 @@ export default function HubDirectory({
             )}
           </div>
           <h1 className="max-w-[640px] font-serif text-[40px] font-normal leading-[1.14] tracking-[-0.015em] text-[var(--surface-tint)]">
-            Sumber pengetahuan resmi Muhammadiyah — terbuka untuk semua.
+            Rujukan resmi Muhammadiyah, dihimpun di satu tempat.
           </h1>
           <p className="mt-4 max-w-[600px] text-[16.5px] leading-relaxed text-[var(--c-b9c3b7)]">
-            Portal putusan Tarjih, dokumen resmi, dan rujukan Persyarikatan.
-            Semuanya bisa kamu buka dan jadikan referensi.
+            Tautan ke putusan Tarjih, dokumen resmi, dan portal Persyarikatan —
+            dikurasi oleh M-Agent, yang bukan kanal resmi Muhammadiyah. Semuanya
+            bisa kamu buka langsung di sumber aslinya.
           </p>
           <div className="mt-6 flex max-w-[620px] items-center gap-2 rounded-[13px] border border-white/12 bg-white/[0.06] py-2 pl-4 pr-2">
             <span className="text-[17px] text-[var(--gold-accent)]" aria-hidden="true">
@@ -707,7 +708,8 @@ export default function HubDirectory({
         <p className="mt-8 text-[12.5px] leading-relaxed text-[var(--muted-3)]">
           Hub pengetahuan terindeks yang bisa dicari penuh dan dilampirkan
           langsung ke chat masih dalam pengembangan. Untuk sekarang, ini
-          direktori portal resmi Muhammadiyah.
+          direktori tautan ke portal resmi Muhammadiyah — dikurasi M-Agent,
+          bukan terbitan Persyarikatan.
         </p>
       </div>
 

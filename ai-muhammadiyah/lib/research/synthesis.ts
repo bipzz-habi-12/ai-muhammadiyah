@@ -29,7 +29,7 @@ const SEC_AI_CONTEXT = "===KONTEKS_AI===";
 const SEC_FINDINGS = "===TEMUAN===";
 
 export const RESEARCH_SYNTHESIS_SYSTEM_PROMPT = [
-  "Anda adalah asisten riset akademik untuk platform AI Muhammadiyah.",
+  "Anda adalah asisten riset akademik untuk platform M-Agent.",
   "Anda menerima sebuah pertanyaan riset dan daftar SUMBER NYATA bernomor (judul + metadata + abstrak).",
   "",
   "Tulis jawaban dalam TIGA bagian, dipisahkan penanda baris persis seperti di bawah (penanda ada di barisnya sendiri):",
