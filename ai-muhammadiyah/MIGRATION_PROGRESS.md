@@ -1233,7 +1233,7 @@ React: `REACT nilai=0 → nilai=2 judulDiDOM=Penghitung React` (Babel mengompila
 
 **Belum diuji end-to-end** (butuh sesi login): apakah model benar-benar memancarkan `html_app`/`react_app` dengan format sentinel yang benar di percakapan nyata. Kalau meleset, kalibrasinya di prompt `MINI APP RULES` — tanpa mengubah kode.
 
-## Langkah 47: Migrasi rebrand untuk DATA produksi (prompt skill bawaan) — DITULIS, BELUM DI-APPLY
+## Langkah 47: Migrasi rebrand untuk DATA produksi (prompt skill bawaan) — SELESAI, SUDAH DI-APPLY
 
 Sisa terakhir Langkah 44. Rebrand mengganti nama di seluruh kode, tapi prompt skill **bawaan** sudah terlanjur jadi baris di `public.skills` lewat migrasi seed terdahulu (`20260704010000`, `20260704020000`, `20260725010000`, `20260725020000`) dan masih berbunyi "jaga identitas AI Muhammadiyah". Selama belum diperbarui, AI **tetap menyebut nama lama setiap kali skill bawaan aktif** — persis hal yang mau dihilangkan rebrand-nya. Ini satu-satunya kolom yang memuat nama produk sebagai data (dicek: penyebutan lain di file migrasi semuanya komentar header, bukan nilai).
 
@@ -1243,4 +1243,4 @@ Dua batasan yang disengaja:
 - **Hanya skill bawaan** (`owner_id is null`). Skill custom adalah tulisan pengguna sendiri; menulis ulang isinya diam-diam bukan hak kita, sekalipun kebetulan menyebut nama lama.
 - **`public.messages` tidak disentuh.** Jawaban lama memang menyebut nama lama — itu catatan historis dari apa yang benar-benar dikatakan saat itu.
 
-**Belum di-apply.** Sesuai aturan CLAUDE.md, migrasi yang mengubah data produksi perlu konfirmasi user + backup lebih dulu. Sampai itu dilakukan, kebocoran nama lama lewat skill bawaan masih ada.
+**Sudah di-apply user di produksi (2026-08-13), setelah backup.** Kebocoran nama lama lewat skill bawaan sudah tertutup. Belum diverifikasi lewat sesi login apakah keempat skill bawaan sekarang benar-benar menjawab sebagai M-Agent — kalau sempat, cek satu skill (mis. `/dakwah`) dan lihat identitas yang disebutkan.
