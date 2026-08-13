@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
-import { artifactTypeLabels, type Artifact } from "@/lib/artifacts";
+import MermaidDiagram from "@/components/MermaidDiagram";
+import SandboxedAppFrame from "@/components/SandboxedAppFrame";
+import {
+  artifactTypeLabels,
+  type Artifact,
+  type ArtifactType,
+} from "@/lib/artifacts";
 import { formatRelativeTime } from "@/lib/formatting/text";
 
 interface ArtifactPanelProps {
@@ -14,6 +20,14 @@ interface ArtifactPanelProps {
   onClose: () => void;
   deleteArtifact: (artifactId: string) => Promise<void>;
 }
+
+// Mini aplikasi diunduh sebagai berkas yang bisa langsung dibuka/dipakai lagi,
+// bukan .md — html_app jadi halaman yang tinggal dobel-klik.
+const downloadExtensionByArtifactType: Partial<Record<ArtifactType, string>> = {
+  html_app: "html",
+  react_app: "jsx",
+  diagram: "mmd",
+};
 
 const downloadExtensionByLanguage: Record<string, string> = {
   javascript: "js",
@@ -100,6 +114,8 @@ function renderMarkdownTable(text: string) {
   );
 }
 
+type MiniAppTab = "preview" | "code";
+
 export default function ArtifactPanel({
   artifacts,
   isLoadingArtifacts,
@@ -109,6 +125,16 @@ export default function ArtifactPanel({
   deleteArtifact,
 }: ArtifactPanelProps) {
   const [copyNotice, setCopyNotice] = useState("");
+  // Disimpan per-artifact, bukan satu state global yang di-reset lewat effect:
+  // berpindah artifact otomatis kembali ke "preview" tanpa setState di effect
+  // (aturan lint react-hooks/set-state-in-effect), dan pilihan tab tiap
+  // artifact tetap diingat selama panel terbuka.
+  const [miniAppTabById, setMiniAppTabById] = useState<
+    Record<string, MiniAppTab>
+  >({});
+  const miniAppTab: MiniAppTab = activeArtifact
+    ? miniAppTabById[activeArtifact.id] ?? "preview"
+    : "preview";
 
   async function copyActiveContent() {
     if (!activeArtifact) {
@@ -131,11 +157,12 @@ export default function ArtifactPanel({
       return;
     }
 
-    const isCode = activeArtifact.type === "code";
-    const extension = isCode
-      ? downloadExtensionByLanguage[activeArtifact.content.language ?? ""] ??
-        "txt"
-      : "md";
+    const extension =
+      downloadExtensionByArtifactType[activeArtifact.type] ??
+      (activeArtifact.type === "code"
+        ? downloadExtensionByLanguage[activeArtifact.content.language ?? ""] ??
+          "txt"
+        : "md");
     const safeTitle =
       activeArtifact.title.replace(/[^\p{L}\p{N} _-]/gu, "").trim() ||
       "artifact";
@@ -173,7 +200,22 @@ export default function ArtifactPanel({
       return <div className="p-4">{renderMarkdownTable(activeArtifact.content.text)}</div>;
     }
 
-    // diagram (Mermaid source, rendered as mono text in v1) + code
+    if (activeArtifact.type === "diagram") {
+      return <MermaidDiagram code={activeArtifact.content.text} />;
+    }
+
+    // runtime terisi = mini aplikasi; jalankan di iframe sandbox, kecuali user
+    // sedang melihat tab Kode.
+    if (activeArtifact.runtime && miniAppTab === "preview") {
+      return (
+        <SandboxedAppFrame
+          key={activeArtifact.id}
+          runtime={activeArtifact.runtime}
+          code={activeArtifact.content.text}
+        />
+      );
+    }
+
     return (
       <pre className="overflow-x-auto p-4 text-xs leading-relaxed text-[var(--ink)]">
         <code>{activeArtifact.content.text}</code>
@@ -182,7 +224,11 @@ export default function ArtifactPanel({
   }
 
   return (
-    <aside className="hidden w-[420px] shrink-0 flex-col border-l border-[var(--brand-deep-line)]/10 bg-[var(--surface-panel)] lg:flex">
+    // Below lg the layout has no room for a side column, so the panel becomes a
+    // full-screen sheet over the chat instead of being hidden entirely (that
+    // left mobile users with artifacts they could never open). From lg up it is
+    // the same in-flow column as before.
+    <aside className="fixed inset-0 z-40 flex w-full flex-col bg-[var(--surface-panel)] lg:static lg:z-auto lg:w-[420px] lg:shrink-0 lg:border-l lg:border-[var(--brand-deep-line)]/10">
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--brand-deep-line)]/10 px-4 py-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--brand)]">
           Artifact
@@ -237,6 +283,36 @@ export default function ArtifactPanel({
           <h3 className="mt-1 break-words text-base font-bold text-[var(--ink)]">
             {activeArtifact.title}
           </h3>
+
+          {activeArtifact.runtime && (
+            <div className="mt-3 inline-flex rounded-full bg-[var(--surface-border)] p-0.5">
+              {(
+                [
+                  ["preview", "Pratinjau"],
+                  ["code", "Kode"],
+                ] as const
+              ).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() =>
+                    setMiniAppTabById((previous) => ({
+                      ...previous,
+                      [activeArtifact.id]: tab,
+                    }))
+                  }
+                  aria-pressed={miniAppTab === tab}
+                  className={
+                    miniAppTab === tab
+                      ? "rounded-full bg-[var(--pure-white)] px-3 py-1 text-[11px] font-bold text-[var(--brand)]"
+                      : "rounded-full px-3 py-1 text-[11px] font-bold text-[var(--muted-2)] transition hover:text-[var(--ink)]"
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

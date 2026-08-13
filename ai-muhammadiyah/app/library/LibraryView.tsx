@@ -123,7 +123,7 @@ export default function LibraryView({ items }: { items: LibraryItem[] }) {
       {shown.length === 0 ? (
         <div className="rounded-[15px] border border-[var(--brand-deep-line)]/10 bg-[var(--surface)] px-6 py-12 text-center text-sm leading-relaxed text-[var(--c-6b746e)]">
           {items.length === 0
-            ? "Belum ada artifact. Minta AI membuat dokumen, tabel, diagram, atau kode di chat — hasilnya otomatis tersimpan di sini."
+            ? "Belum ada artifact. Minta AI membuat dokumen, tabel, diagram, kode, atau mini aplikasi di chat — hasilnya otomatis tersimpan di sini."
             : "Tidak ada artifact yang cocok dengan filter atau pencarianmu."}
         </div>
       ) : (

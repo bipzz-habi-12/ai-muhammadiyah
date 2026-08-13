@@ -141,10 +141,19 @@ const artifactSystemPrompt = [
   "...the deliverable content...",
   "[[/AI_MU_ARTIFACT]]",
   "- Both markers must be on their own lines. Everything between them is saved as the artifact.",
-  "- type must be exactly one of: document (Markdown), table (a Markdown table), diagram (Mermaid syntax), code (raw source code, no ``` fences).",
+  "- type must be exactly one of: document (Markdown), table (a Markdown table), diagram (Mermaid syntax), code (raw source code, no ``` fences), html_app, react_app.",
   "- Keep your conversational explanation OUTSIDE the markers, and keep it brief.",
   "- Do NOT use artifact markers for short answers, chit-chat, small snippets, or minor edits. At most one artifact per reply unless the user explicitly asks for more.",
-  "- Never use any other type value (interactive HTML/React apps are not supported yet).",
+  "- Never use any other type value.",
+  "",
+  "MINI APP RULES (type html_app and react_app):",
+  "Use these ONLY when the user wants something interactive they can actually use — a game, a calculator, a simulation, an interactive tool, or a clickable UI prototype. For code the user just wants to read or copy, use type code instead.",
+  "- html_app: one complete, self-contained HTML document (<!DOCTYPE html> ... </html>) with its CSS in <style> and its JS in <script>.",
+  "- react_app: JSX only, no HTML wrapper. Define a component named exactly App. Do NOT write import or export statements, and do NOT call ReactDOM yourself — React, ReactDOM and the hooks (useState, useEffect, useRef, useMemo, useCallback, useReducer) are already in scope, and the app is mounted for you.",
+  "- The app runs in a locked-down sandbox with NO network access at all: fetch, XMLHttpRequest, WebSocket and remote images are blocked. Never write an app that needs an API, a backend, a login, or a remote image — keep all data inline, and draw graphics with CSS, SVG, emoji or canvas.",
+  "- Do not use localStorage, sessionStorage or cookies; the sandbox has no persistent storage. Keep state in memory.",
+  "- Extra libraries are almost never needed — prefer plain HTML/CSS/JS. If one truly is, load it only from https://cdn.jsdelivr.net, https://unpkg.com or https://cdn.tailwindcss.com; scripts from any other host are blocked and the app will simply not work.",
+  "- Write the app so it is usable on a phone screen too.",
 ].join("\n");
 
 // Second Brain sentinel contract — the parser lives in lib/second-brain/parse.ts

@@ -1182,3 +1182,53 @@ Nama produk berganti karena nama lama menyiratkan produk ini kanal resmi Persyar
 2. Percakapan lama, artifact lama, dan Markdown yang sudah diekspor tetap memuat nama lama — tidak diubah.
 3. Template email OTP di Dashboard Supabase (di luar repo) kemungkinan masih menyebut brand lama — perlu dicek user.
 4. Nama project Vercel/Supabase dan domain tetap lama, konsisten dengan keputusan cakupan.
+
+## Langkah 45: Tutup 3 gap Artifacts dasar (marker bocor, panel mobile, diagram visual) — SELESAI DI KODE
+
+Tiga backlog yang dibuka Langkah 26 ("Gap v1 Stage D yang sengaja terbuka") ditutup sebelum masuk ke Mini Aplikasi, supaya fitur sandbox nanti berdiri di atas fondasi yang tidak bocor.
+
+**1. Marker mentah bocor ke export & share.** `messages` menyimpan teks MENTAH (marker utuh) supaya history AI membawa konten untuk follow-up — itu tetap benar dan tidak diubah. Yang salah: `getActiveChatMarkdown()` dan `openSharePreview()` mendorong `message.text` apa adanya, jadi file `.md` yang diunduh user berisi `[[AI_MU_ARTIFACT:...]]`. Ditambah `formatArtifactTextForExport()` di `lib/artifacts.ts` — **beda tujuan** dari `formatArtifactTextForDisplay()`: file export dibaca terpisah dari panel Artifact, jadi isinya di-**inline** (heading `### Judul (Kode)` + fence ```lang; `diagram` di-fence sebagai ```mermaid; `document`/`table` sudah markdown jadi ditulis apa adanya), bukan diciutkan jadi baris "tersimpan di panel" yang justru membuang isinya. Marker buka tanpa penutup (stream terputus) tetap mempertahankan isi, cuma sentinel-nya dibuang. Blok catatan Otak Kedua ikut dibersihkan lewat `formatNoteTextForDisplay` yang sudah ada — sebelumnya penanda catatan **juga** bocor ke export, tidak cuma artifact. Share preview tetap memakai bentuk ringkas (`formatArtifactTextForDisplay`) karena itu cuplikan, bukan dokumen.
+
+**2. Panel artifact tidak ada di mobile.** `ArtifactPanel` dulu `hidden … lg:flex` dan pill "Artifact · n" di `TopBar` juga `lg:inline-flex` — artinya pengguna mobile punya artifact tersimpan yang **tidak mungkin dibuka**. Panel sekarang `fixed inset-0 z-40` di bawah `lg` (lembar layar penuh di atas chat) dan `lg:static lg:w-[420px]` ke atas — struktur desktop tidak berubah sama sekali. `z-40` sengaja di bawah modal (`z-50`) supaya Settings/Share tetap menang. Pill TopBar jadi `inline-flex` di semua breakpoint karena itu satu-satunya jalan masuk di mobile. `KnowledgeSidebar` yang digantikan panel saat terbuka memang `hidden … lg:flex`, jadi tidak ada yang hilang di mobile.
+
+**3. Diagram cuma teks Mermaid.** `components/MermaidDiagram.tsx` (baru) + dependensi `mermaid@11.16.1`. Mermaid ~1MB, jadi di-`import()` **dinamis** (promise level-modul, sekali per sesi) — hanya sampai ke browser saat artifact diagram benar-benar dibuka, tidak masuk bundle awal. Sumbernya teks buatan AI dari DB, jadi diperlakukan tidak tepercaya: `securityLevel: "strict"` (HTML label mati + sanitasi Mermaid sendiri) yang membuat SVG hasilnya aman di-inject. `mermaid.parse()` dipanggil **sebelum** `render()` karena `render()` menempelkan node error sendiri ke `document` saat sumbernya invalid — walau throw-nya ditangkap, elemen liar itu tetap tertinggal di halaman. Sumber yang gagal parse jatuh ke tampilan teks (perilaku lama) + pesan penjelas, bukan hilang. Warna Mermaid dipanggang ke dalam SVG saat render, jadi tema diikuti lewat `MutationObserver` pada `data-theme` di `<html>` → re-render, bukan swap CSS.
+
+**Verifikasi:** `tsc --noEmit`, `npm run lint`, `npm run build` bersih. Transform export diuji headless (4 kasus: code/diagram/table/marker-tak-tertutup) — 0 marker bocor, isi utuh, `parseArtifactBlocks` tidak berubah perilakunya. UI diuji lewat harness scratch `app/dev-artifact-scratch/` (dihapus sebelum commit, tidak masuk diff) di dev server: Mermaid merender SVG asli 372×520 dengan label node benar; diagram sengaja-rusak jatuh ke fallback teks **tanpa** node error liar di `body` (membuktikan guard `parse()`-dulu bekerja); di 375×812 panel jadi `fixed` 0,0 selebar layar, diagram muat (343px di panel 375px) tanpa scroll horizontal halaman; toggle `data-theme` light↔dark mengubah fill node Mermaid `#ECECFF`↔`#1F2020` (re-render tema bekerja). Nol error console.
+
+**Belum diuji end-to-end di chat sungguhan** (butuh sesi login): artifact hasil AI beneran → panel, dan file `.md` hasil tombol Export. Yang diuji adalah komponen + fungsi transformnya, bukan alur penuh dari jawaban AI.
+
+## Langkah 46: Mini Aplikasi — artifact yang benar-benar jalan di iframe sandbox — SELESAI DI KODE
+
+Item terakhir "Urutan Kerja Coding v2" (CLAUDE.md poin 6), yang sejak Langkah 26 sengaja ditunda menunggu sesi keamanan tersendiri. **Tidak ada migrasi DB**: migrasi `20260711010000` sudah mengizinkan `type in (... 'html_app','react_app')` dan `runtime in ('html','react')` sejak awal.
+
+### Model keamanan (`lib/sandbox/mini-app.ts`)
+
+Isi artifact ini adalah kode buatan AI yang dieksekusi di browser pengguna, jadi diperlakukan sebagai kode tidak tepercaya dengan pertahanan berlapis:
+
+1. **`sandbox="allow-scripts"` TANPA `allow-same-origin`.** Skrip boleh jalan, tapi dokumennya beropaque origin. **Jangan pernah menambahkan `allow-same-origin`** — begitu keduanya digabung untuk konten se-origin, iframe bisa melepas sandbox-nya sendiri dan seluruh model ini runtuh.
+2. **CSP `<meta>` = allowlist CDN** yang diminta CLAUDE.md. Sandbox menutup akses ke origin kita; CSP-lah yang menutup "panggil domain sembarangan". `connect-src 'none'` mematikan fetch/XHR/WebSocket total — mini aplikasi (game, kalkulator, prototipe UI) tidak butuh jaringan, dan itu menutup jalur eksfiltrasi paling gampang. `'unsafe-eval'` **hanya** untuk `react_app` (Babel standalone), tidak untuk `html_app`. Meta CSP wajib jadi isi pertama `<head>` karena hanya berlaku untuk resource yang diparsing sesudahnya.
+3. **Permissions Policy** (`allow=...'none'`) mematikan kamera/mikrofon/geolokasi, plus `referrerPolicy="no-referrer"`.
+
+Allowlist: `cdn.jsdelivr.net`, `unpkg.com`, `cdn.tailwindcss.com` (+ Google Fonts untuk style/font). Runtime React dipatok versi (`react@18.3.1`, `react-dom@18.3.1`, `@babel/standalone@7.28.4`) dari jsdelivr — bukan tag `latest`, supaya build tidak berubah diam-diam di bawah kaki kita. Atribut sandbox diekspor sebagai konstanta dan dipakai `SandboxedAppFrame` supaya tidak ada titik render yang lupa satu flag.
+
+**Jembatan error:** aplikasi yang gagal tidak boleh tampil sebagai kotak putih kosong, jadi `window.onerror`/`unhandledrejection` di dalam sandbox mem-`postMessage` ke induk. Sisi penerima memverifikasi `event.source === iframe.contentWindow` (origin opaque tidak bisa dipakai sebagai filter) dan memperlakukan payload sebagai teks — dipotong 300 char, tidak pernah dirender sebagai HTML.
+
+**`stripModuleSyntax`:** model tetap menulis `import`/`export default` walau prompt melarang, dan di mode script satu kata kunci nyasar membuat SELURUH aplikasi blank — bukan satu baris gagal. Impor dibuang (di mode script memang tidak pernah bisa jalan) dan `export` dilucuti supaya sisanya hidup.
+
+### Perubahan lain
+
+- `lib/artifacts.ts`: `ArtifactType` + `html_app`/`react_app`, `artifactRuntimeForType()` (runtime murni turunan tipe, ditulis ke kolomnya sendiri saat insert karena panel memutuskan "perlu iframe atau tidak" dari situ), pola regex sentinel dibangun dari satu daftar tipe, fence export (`html`/`jsx`).
+- `lib/ai/chat.ts`: blok "MINI APP RULES" — kapan memakainya (interaktif, bukan kode untuk dibaca), kontrak `react_app` (komponen bernama `App`, tanpa import/export, tanpa memanggil ReactDOM sendiri), dan **batasan sandbox dinyatakan eksplisit ke model** (tanpa jaringan/localStorage/gambar remote) supaya AI tidak membuat aplikasi yang pasti gagal.
+- `components/ArtifactPanel.tsx`: tab **Pratinjau/Kode** untuk artifact ber-runtime. Tab disimpan per-artifact id (`Record<id, tab>`), bukan satu state yang di-reset lewat effect — berpindah artifact otomatis kembali ke Pratinjau tanpa melanggar `react-hooks/set-state-in-effect`. Unduhan mini app jadi `.html`/`.jsx` (bisa langsung dibuka), diagram jadi `.mmd`.
+- `app/library/LibraryView.tsx`: chip "Mini app" + presentasi tipe ternyata **sudah** ada sejak Design v2; hanya teks empty-state yang disesuaikan.
+
+### Verifikasi (harness scratch, dihapus sebelum commit)
+
+Isolasi dibuktikan dari dalam sandbox lewat aplikasi "penyerang" yang melapor via jembatan error:
+`cookie:THREW | localStorage:BLOCKED | sessionStorage:BLOCKED | parent.document:BLOCKED | origin="null" | fetch:started` → disusul `TypeError: Failed to fetch` (bukti `connect-src 'none'` menggigit). Dari sisi induk, `iframe.contentDocument === null`.
+
+Allowlist diuji **dua arah** dalam satu aplikasi: `ALLOWLIST cdn.jsdelivr.net=function | origin-kita-sendiri=undefined` — skrip dari CDN yang diizinkan termuat, sementara skrip dari **origin aplikasi kita sendiri** (`http://localhost:3000/...`, sengaja tidak di-allowlist) diblokir. Ini yang membuktikan CSP-nya menegakkan aturan, bukan sekadar permisif.
+
+React: `REACT nilai=0 → nilai=2 judulDiDOM=Penghitung React` (Babel mengompilasi JSX, hook tersedia, state update me-render ulang). Kasus `import` + `export default`: tetap jalan, membuktikan `stripModuleSyntax`. Panel: badge "Mini aplikasi", `sandbox="allow-scripts"`, tab Kode menampilkan sumber & menghilangkan iframe, kembali ke Pratinjau memulihkan iframe, artifact `document` tidak menampilkan tab sama sekali. `tsc`/`lint`/`build` bersih.
+
+**Belum diuji end-to-end** (butuh sesi login): apakah model benar-benar memancarkan `html_app`/`react_app` dengan format sentinel yang benar di percakapan nyata. Kalau meleset, kalibrasinya di prompt `MINI APP RULES` — tanpa mengubah kode.

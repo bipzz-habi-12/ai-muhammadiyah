@@ -90,10 +90,12 @@ export default function TopBar({
             aria-label="Panel artifact"
             title="Panel artifact"
             aria-expanded={isArtifactPanelOpen}
+            // Visible on every breakpoint: the panel is a full-screen sheet
+            // below lg, so this pill is the only way in on mobile.
             className={
               isArtifactPanelOpen
-                ? "hidden items-center gap-1.5 rounded-full bg-[var(--brand)]/10 px-3 py-1.5 text-xs font-bold text-[var(--brand)] lg:inline-flex"
-                : "hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-border)] lg:inline-flex"
+                ? "inline-flex items-center gap-1.5 rounded-full bg-[var(--brand)]/10 px-3 py-1.5 text-xs font-bold text-[var(--brand)]"
+                : "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-border)]"
             }
           >
             Artifact

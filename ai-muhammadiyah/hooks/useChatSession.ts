@@ -8,7 +8,12 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { parseArtifactBlocks, type ArtifactDraft } from "@/lib/artifacts";
+import {
+  formatArtifactTextForDisplay,
+  formatArtifactTextForExport,
+  parseArtifactBlocks,
+  type ArtifactDraft,
+} from "@/lib/artifacts";
 import { getFriendlyChatError } from "@/lib/chat/errors";
 import {
   createConversationTitle,
@@ -27,6 +32,7 @@ import type {
   UploadedAttachment,
   Workspace,
 } from "@/lib/mappers/types";
+import { formatNoteTextForDisplay } from "@/lib/second-brain/parse";
 import { resolveAllowedSkill, type Skill } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { PlanModelId } from "@/lib/subscriptions/plans";
@@ -614,7 +620,15 @@ export function useChatSession(
     for (const message of messages.filter((item) => item.text.trim())) {
       lines.push(`## ${message.role === "user" ? "User" : "M-Agent"}`);
       lines.push("");
-      lines.push(message.text.trim());
+      // Rows store raw sentinels so chat history keeps the content for
+      // follow-ups; a file the user opens elsewhere must not contain them.
+      // Artifacts are inlined (content survives the export), note blocks are
+      // dropped entirely — same rule the chat view uses.
+      lines.push(
+        formatNoteTextForDisplay(
+          formatArtifactTextForExport(message.text),
+        ).trim(),
+      );
       lines.push("");
     }
 
@@ -651,7 +665,12 @@ export function useChatSession(
       .slice(0, 6)
       .map(
         (message) =>
-          `${message.role === "user" ? "User" : "AI"}: ${message.text
+          // A preview is a snippet, not a document: artifacts stay collapsed to
+          // their one-line reference (same as the chat view) instead of being
+          // inlined like in the export.
+          `${message.role === "user" ? "User" : "AI"}: ${formatNoteTextForDisplay(
+            formatArtifactTextForDisplay(message.text),
+          )
             .trim()
             .slice(0, 360)}`,
       )

@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Artifacts v2 (basic): document | table | diagram | code. Mini-app types
-// (html_app/react_app) exist in the DB schema but are deliberately NOT produced
-// or rendered yet — they need a sandboxing security pass first (Master Plan v2).
+// Artifacts v2: document | table | diagram | code | html_app | react_app.
+// The mini-app types run AI-written code in the user's browser; everything that
+// makes that safe lives in lib/sandbox/mini-app.ts — read it before touching
+// how these are rendered.
 //
 // The AI marks an artifact by wrapping it in plain-text sentinels (same family
 // as [[AI_MU_CONTINUE_SUGGESTED]] — plain markers survive streaming, unlike
@@ -16,7 +17,31 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // content for follow-ups); stripping happens at render time via
 // formatArtifactTextForDisplay.
 
-export type ArtifactType = "document" | "table" | "diagram" | "code";
+export type ArtifactType =
+  | "document"
+  | "table"
+  | "diagram"
+  | "code"
+  | "html_app"
+  | "react_app";
+
+export type ArtifactRuntime = "html" | "react";
+
+/** Runtime hanya turunan dari tipe — disimpan di kolomnya sendiri karena panel
+ *  memutuskan "perlu iframe sandbox atau tidak" dari kolom ini. */
+export function artifactRuntimeForType(
+  type: ArtifactType,
+): ArtifactRuntime | null {
+  if (type === "html_app") {
+    return "html";
+  }
+
+  if (type === "react_app") {
+    return "react";
+  }
+
+  return null;
+}
 
 export type ArtifactContent = {
   text: string;
@@ -35,7 +60,7 @@ export type Artifact = {
   type: ArtifactType;
   title: string;
   content: ArtifactContent;
-  runtime: "html" | "react" | null;
+  runtime: ArtifactRuntime | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -56,15 +81,23 @@ export const artifactTypeLabels: Record<ArtifactType, string> = {
   table: "Tabel",
   diagram: "Diagram",
   code: "Kode",
+  html_app: "Mini aplikasi",
+  react_app: "Mini aplikasi",
 };
 
 const artifactOpenMarkerPrefix = "[[AI_MU_ARTIFACT:";
 const artifactCloseMarker = "[[/AI_MU_ARTIFACT]]";
 
-const artifactBlockPattern =
-  /\[\[AI_MU_ARTIFACT:(document|table|diagram|code)\|([^\]\n]{0,160})\]\][ \t]*\r?\n?([\s\S]*?)\[\[\/AI_MU_ARTIFACT\]\]/g;
-const artifactOpenPattern =
-  /\[\[AI_MU_ARTIFACT:(document|table|diagram|code)\|([^\]\n]{0,160})\]\][ \t]*\r?\n?/;
+const artifactTypeAlternation =
+  "document|table|diagram|code|html_app|react_app";
+
+const artifactBlockPattern = new RegExp(
+  `\\[\\[AI_MU_ARTIFACT:(${artifactTypeAlternation})\\|([^\\]\\n]{0,160})\\]\\][ \\t]*\\r?\\n?([\\s\\S]*?)\\[\\[\\/AI_MU_ARTIFACT\\]\\]`,
+  "g",
+);
+const artifactOpenPattern = new RegExp(
+  `\\[\\[AI_MU_ARTIFACT:(${artifactTypeAlternation})\\|([^\\]\\n]{0,160})\\]\\][ \\t]*\\r?\\n?`,
+);
 
 function normalizeArtifactTitle(rawTitle: string) {
   const title = rawTitle.trim();
@@ -144,17 +177,61 @@ export function formatArtifactTextForDisplay(text: string) {
   return displayText;
 }
 
+// Export/share transform. Different goal from the render-time one above: an
+// exported .md file is read on its own, away from the Artifact panel, so the
+// content must be INLINED rather than collapsed to a "lihat di panel" line —
+// otherwise exporting a chat silently drops the very thing the AI produced.
+// Either way, raw sentinels must never reach a file the user opens elsewhere.
+const defaultFenceLanguage: Partial<Record<ArtifactType, string>> = {
+  diagram: "mermaid",
+  html_app: "html",
+  react_app: "jsx",
+};
+
+export function formatArtifactTextForExport(text: string) {
+  let exportText = text.replace(
+    artifactBlockPattern,
+    (_match, type: string, rawTitle: string, rawBody: string) => {
+      const artifactType = type as ArtifactType;
+      const { text: body, language } = normalizeArtifactBody(rawBody);
+      const heading = `### ${normalizeArtifactTitle(rawTitle)} (${artifactTypeLabels[artifactType]})`;
+
+      // document/table are already markdown; everything else needs a fence to
+      // survive as code rather than being reflowed as prose.
+      if (artifactType === "document" || artifactType === "table") {
+        return [heading, "", body].join("\n");
+      }
+
+      const fenceLanguage = language ?? defaultFenceLanguage[artifactType] ?? "";
+
+      return [heading, "", `\`\`\`${fenceLanguage}`, body, "```"].join("\n");
+    },
+  );
+
+  // An interrupted stream can leave an opening marker with no close. Keep the
+  // body (it is real content) and drop only the sentinel.
+  exportText = exportText.replace(
+    artifactOpenPattern,
+    (_match, _type: string, rawTitle: string) =>
+      `### ${normalizeArtifactTitle(rawTitle)}\n\n`,
+  );
+
+  return exportText;
+}
+
 function normalizeArtifactType(value: string): ArtifactType {
   if (
     value === "document" ||
     value === "table" ||
     value === "diagram" ||
-    value === "code"
+    value === "code" ||
+    value === "html_app" ||
+    value === "react_app"
   ) {
     return value;
   }
 
-  // html_app/react_app rows (future stage) degrade to a plain code view.
+  // Unknown type from a newer writer: show the source rather than nothing.
   return "code";
 }
 
@@ -220,6 +297,7 @@ export async function insertArtifacts(
         type: draft.type,
         title: draft.title,
         content: draft.content,
+        runtime: artifactRuntimeForType(draft.type),
       })),
     )
     .select(artifactSelectColumns);
