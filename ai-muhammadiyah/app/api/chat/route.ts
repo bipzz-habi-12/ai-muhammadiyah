@@ -11,6 +11,7 @@ import {
   retrieveKnowledgeChunks,
 } from "@/lib/knowledge";
 import { loadUserMemory } from "@/lib/memory/user-memory";
+import { buildSourcesMarkerBlock } from "@/lib/web-search";
 import {
   createSecondBrainPromptContext,
   retrieveRelevantNotes,
@@ -356,6 +357,20 @@ export async function POST(request: Request) {
             },
           );
 
+          // Web search sources ride as a trailing marker in the SAME plain-text
+          // stream (route has no side channel for structured metadata) — see
+          // lib/web-search.ts. Enqueued after the model's own text so it never
+          // interleaves with streamed prose.
+          if (chatResult.sources?.length) {
+            const sourcesMarker = buildSourcesMarkerBlock(
+              chatResult.sources,
+              chatResult.searchQueries,
+            );
+
+            enqueueText(sourcesMarker);
+            streamedReply += sourcesMarker;
+          }
+
           const finalReply = chatResult.reply || streamedReply;
           const estimatedTotalTokens = estimateTokenUsage(
             ...safeHistory.map((message) => message.text),
@@ -398,6 +413,8 @@ export async function POST(request: Request) {
                 fallback_event: chatResult.fallbackEvent ?? null,
                 finish_reason: chatResult.finishReason ?? null,
                 streamed_reply_length: finalReply.length,
+                web_search_used: Boolean(chatResult.sources?.length),
+                web_search_source_count: chatResult.sources?.length ?? 0,
               },
               p_user_id: user.id,
             },

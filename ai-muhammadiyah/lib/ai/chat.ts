@@ -14,6 +14,7 @@ import {
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { SubscriptionTier } from "@/lib/usage/limits";
+import type { WebSource } from "@/lib/web-search";
 
 export type ChatMessage = {
   role: "user" | "ai";
@@ -38,12 +39,17 @@ type GenerateChatReplyResult = {
   model: string;
   fallbackEvent?: string;
   finishReason?: string;
+  /** Only ever set by the Gemini web-search branch of streamChatReply. */
+  sources?: WebSource[];
+  searchQueries?: string[];
 };
 
 type StreamChunkHandler = (chunk: string) => void | Promise<void>;
 type StreamProviderResult = {
   reply: string;
   finishReason?: string;
+  sources?: WebSource[];
+  searchQueries?: string[];
 };
 type OpenAiErrorDetails = {
   status?: number;
@@ -181,6 +187,17 @@ const noteSystemPrompt = [
   "- Titles must be short, specific, and reusable ('Kaidah Ushul Fiqh: Al-Yaqin', not 'Catatan hari ini').",
   "- Skip the blocks entirely for greetings, chit-chat, simple lookups, or something the user needed only once. Never more than 2 per reply.",
   "- Never mention the note in your prose and never ask whether to save it. The user decides from the suggestion.",
+].join("\n");
+
+// Only injected into the Gemini system instruction when needsWebSearch()
+// triggered the google_search tool for this turn (see streamChatReply) — the
+// generic "no browsing tool available" line in islamicAiIdentitySystemPrompt
+// already covers every other turn.
+const webSearchSystemPrompt = [
+  "LIVE WEB SEARCH:",
+  "Google Search results for this turn are attached because the question looks time-sensitive (news, prices, schedules, scores, or anything that changes over time).",
+  "Ground your answer in those results instead of relying on stable training-data knowledge for anything that could be outdated.",
+  "If the results do not actually answer the question, say so plainly instead of guessing or falling back to possibly-stale knowledge.",
 ].join("\n");
 
 const contextPrioritySystemPrompt = [
@@ -661,6 +678,67 @@ function isImageQuestion(question: string) {
   return imageWords.some((word) => normalizedQuestion.includes(word));
 }
 
+// Heuristic like isDocumentQuestion/isImageQuestion above — imperfect by
+// nature (keyword match, not intent classification), tuned toward catching
+// obviously time-sensitive questions rather than triggering on everything
+// that merely mentions a date. False negatives just mean the AI answers from
+// training knowledge as it always did; false positives cost one extra Gemini
+// call with no OpenAI fallback for that turn (see streamChatReply), so this
+// stays conservative rather than firing on every "kapan"/"siapa".
+function needsWebSearch(question: string) {
+  const normalizedQuestion = question.toLowerCase();
+
+  const timeSensitivePhrases = [
+    "hari ini",
+    "saat ini",
+    "sekarang",
+    "terbaru",
+    "terkini",
+    "terupdate",
+    "minggu ini",
+    "bulan ini",
+    "tahun ini",
+    "baru-baru ini",
+    "berita",
+    "kabar terbaru",
+    "kabar terkini",
+    "harga",
+    "kurs",
+    "nilai tukar",
+    "harga saham",
+    "cuaca",
+    "gempa",
+    "jadwal",
+    "skor",
+    "hasil pertandingan",
+    "hasil pemilu",
+    "siapa presiden",
+    "siapa juara",
+    "siapa gubernur",
+    "siapa menteri",
+    "kapan rilis",
+    "kapan tayang",
+    "today",
+    "current",
+    "currently",
+    "this week",
+    "this month",
+    "this year",
+    "latest",
+    "breaking news",
+    "exchange rate",
+    "stock price",
+    "weather in",
+    "who is the current",
+    "release date",
+    "score of",
+  ];
+
+  return timeSensitivePhrases.some((phrase) =>
+    normalizedQuestion.includes(phrase),
+  );
+}
+
 function isPdfContextTooShort(pdfContext: string) {
   return pdfContext.length > 0 && pdfContext.length < minUsefulDocumentContextLength;
 }
@@ -935,6 +1013,7 @@ function createOpenAiInstructions(
 function createGeminiSystemInstruction(
   memory?: UserMemory,
   systemPrompt?: string,
+  enableWebSearch = false,
 ) {
   return [
     islamicAiIdentitySystemPrompt,
@@ -943,6 +1022,7 @@ function createGeminiSystemInstruction(
     responseStyleSystemPrompt,
     artifactSystemPrompt,
     noteSystemPrompt,
+    enableWebSearch ? webSearchSystemPrompt : "",
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]
@@ -1586,11 +1666,17 @@ async function streamGeminiReply(
   knowledgeContext = "",
   documentContexts: DocumentContext[] = [],
   imageContexts: ImageContext[] = [],
+  enableWebSearch = false,
 ): Promise<StreamProviderResult | null> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
   let streamedText = "";
   let streamedFinishReason: string | undefined;
+  // Populated from groundingMetadata on whichever SSE event carries it —
+  // observed live (2026-08-13) attached to the final candidate chunk, but
+  // captured defensively on every event in case that shifts.
+  let groundingChunks: { web?: { uri?: string; title?: string } }[] = [];
+  let webSearchQueries: string[] = [];
 
   if (!geminiApiKey) {
     return null;
@@ -1610,7 +1696,11 @@ async function streamGeminiReply(
           systemInstruction: {
             parts: [
               {
-                text: createGeminiSystemInstruction(memory, systemPrompt),
+                text: createGeminiSystemInstruction(
+                  memory,
+                  systemPrompt,
+                  enableWebSearch,
+                ),
               },
             ],
           },
@@ -1625,6 +1715,7 @@ async function streamGeminiReply(
             maxOutputTokens: geminiMaxOutputTokens,
             temperature: 0.4,
           },
+          ...(enableWebSearch ? { tools: [{ google_search: {} }] } : {}),
         }),
       },
     );
@@ -1651,11 +1742,16 @@ async function streamGeminiReply(
                 text?: string;
               }[];
             };
+            groundingMetadata?: {
+              groundingChunks?: { web?: { uri?: string; title?: string } }[];
+              webSearchQueries?: string[];
+            };
           }[];
         };
         const parts = event.candidates?.[0]?.content?.parts ?? [];
         const finishReason = event.candidates?.[0]?.finishReason;
         const chunk = parts.map((part) => part.text ?? "").join("");
+        const groundingMetadata = event.candidates?.[0]?.groundingMetadata;
 
         if (chunk) {
           streamedText += chunk;
@@ -1664,6 +1760,14 @@ async function streamGeminiReply(
 
         if (isMaxTokenFinishReason(finishReason)) {
           streamedFinishReason = finishReason;
+        }
+
+        if (groundingMetadata?.groundingChunks?.length) {
+          groundingChunks = groundingMetadata.groundingChunks;
+        }
+
+        if (groundingMetadata?.webSearchQueries?.length) {
+          webSearchQueries = groundingMetadata.webSearchQueries;
         }
       } catch (error) {
         console.error("Gemini stream parse failed:", {
@@ -1674,10 +1778,19 @@ async function streamGeminiReply(
       }
     });
 
+    const sources = groundingChunks
+      .map((groundingChunk) => ({
+        url: groundingChunk.web?.uri ?? "",
+        title: groundingChunk.web?.title ?? "",
+      }))
+      .filter((source): source is WebSource => Boolean(source.url && source.title));
+
     return streamedText
       ? {
           reply: streamedText,
           finishReason: streamedFinishReason,
+          sources: sources.length ? sources : undefined,
+          searchQueries: webSearchQueries.length ? webSearchQueries : undefined,
           }
       : null;
   } catch (error) {
@@ -1761,6 +1874,7 @@ async function streamGeminiReplyWithFallback(
   knowledgeContext = "",
   documentContexts: DocumentContext[] = [],
   imageContexts: ImageContext[] = [],
+  enableWebSearch = false,
 ) {
   const models = resolveGeminiFallbackModels(route, tier);
 
@@ -1777,6 +1891,7 @@ async function streamGeminiReplyWithFallback(
       knowledgeContext,
       documentContexts,
       imageContexts,
+      enableWebSearch,
     );
 
     if (result) {
@@ -2216,6 +2331,14 @@ export async function streamChatReply(
   );
   const shouldUsePdfContext =
     Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
+  // Deliberate, narrow exception to the GPT-first routing rule: only OpenAI's
+  // Responses API model here has no live-search tool wired up, but Gemini's
+  // google_search grounding does. A time-sensitive question skips the GPT
+  // branch entirely for this one turn and goes straight to Gemini with
+  // search enabled — see needsWebSearch() and CLAUDE.md's routing exception
+  // note. Every other turn is unaffected.
+  const shouldSearchWeb =
+    needsWebSearch(latestMessage) && Boolean(process.env.GEMINI_API_KEY);
 
   if (shouldUsePdfContext && isPdfContextTooShort(preparedPdfContext)) {
     const reply = createShortPdfFallback(preparedPdfContext);
@@ -2240,7 +2363,7 @@ export async function streamChatReply(
   }
 
   const routeConfig = aiRouteConfig[route];
-  const triedOpenAi = shouldTryOpenAiFirst(normalizedModel);
+  const triedOpenAi = shouldTryOpenAiFirst(normalizedModel) && !shouldSearchWeb;
   const effortRuntime = resolveEffortRuntime(options, normalizedModel);
 
   if (triedOpenAi) {
@@ -2311,6 +2434,7 @@ export async function streamChatReply(
       options?.knowledgeContext,
       options?.documentContexts,
       options?.imageContexts,
+      shouldSearchWeb,
     );
 
     if (geminiResult) {
@@ -2319,6 +2443,8 @@ export async function streamChatReply(
         provider: "gemini",
         model: geminiResult.model,
         tier: access.tier,
+        webSearchUsed: shouldSearchWeb,
+        webSearchSourceCount: geminiResult.sources?.length ?? 0,
       });
 
       return {
@@ -2329,6 +2455,8 @@ export async function streamChatReply(
           geminiResult.fallbackEvent ??
           (triedOpenAi ? "openai_to_gemini" : undefined),
         finishReason: geminiResult.finishReason,
+        sources: geminiResult.sources,
+        searchQueries: geminiResult.searchQueries,
       };
     }
 

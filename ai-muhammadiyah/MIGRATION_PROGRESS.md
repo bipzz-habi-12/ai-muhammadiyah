@@ -1244,3 +1244,43 @@ Dua batasan yang disengaja:
 - **`public.messages` tidak disentuh.** Jawaban lama memang menyebut nama lama — itu catatan historis dari apa yang benar-benar dikatakan saat itu.
 
 **Sudah di-apply user di produksi (2026-08-13), setelah backup.** Kebocoran nama lama lewat skill bawaan sudah tertutup. Belum diverifikasi lewat sesi login apakah keempat skill bawaan sekarang benar-benar menjawab sebagai M-Agent — kalau sempat, cek satu skill (mis. `/dakwah`) dan lihat identitas yang disebutkan.
+
+## Langkah 48: AI bisa mencari web asli + user bisa membuka situs yang ditelusuri — SELESAI di kode
+
+Fitur baru (bukan bagian rebrand). Keputusan dikunci lewat AskUserQuestion sebelum coding: **otomatis** (bukan toggle manual), sumber **Gemini Google Search grounding** (bukan OpenAI web_search / Tavily / dsb — tidak perlu API key baru), **gratis untuk semua tier**.
+
+### Kenapa arsitekturnya begini
+
+`app/api/chat/route.ts` mengalirkan balasan sebagai `Content-Type: text/plain` mentah — bukan SSE, tidak ada side-channel untuk metadata terstruktur. Untuk membawa daftar sumber tanpa mengubah kontrak streaming yang dipakai semua provider, dipakai pola yang **sudah ada**: marker `[[AI_MU_...]]` yang sama family-nya dengan artifact (`lib/artifacts.ts`) dan note (`lib/second-brain/parse.ts`). Bedanya: marker artifact/note ditulis AI sendiri di tengah jawabannya; marker `[[AI_MU_SOURCES]]...[[/AI_MU_SOURCES]]` ditempel **SERVER** (`app/api/chat/route.ts`) sebagai chunk TERAKHIR setelah teks model selesai — isinya JSON `{queries, sources}` dari grounding metadata Gemini, bukan sesuatu yang AI karang. Konsekuensi bagus: **tidak perlu migrasi DB**. Marker itu naik-turun bareng `messages.content` persis seperti artifact, jadi membuka ulang percakapan lama tetap menampilkan chip sumbernya.
+
+### Pengecualian routing GPT-first (didokumentasikan di CLAUDE.md)
+
+Aturan lama: GPT-5.6 Terra dicoba dulu untuk SEMUA rute dan SEMUA tier. OpenAI Responses API di sini **tidak** disambungkan ke tool pencarian; Gemini punya `google_search`. Jadi `streamChatReply` menghitung `shouldSearchWeb = needsWebSearch(latestMessage) && ada GEMINI_API_KEY`, dan **hanya untuk pesan itu** melompati cabang GPT lalu langsung ke Gemini dengan `tools:[{google_search:{}}]`. Kalau Gemini gagal, alurnya tetap jatuh ke OpenRouter seperti biasa (tanpa sumber — lebih baik daripada chat mati). Pesan lain yang tidak lolos heuristik tidak terpengaruh sama sekali.
+
+`needsWebSearch()` (di `lib/ai/chat.ts`, sebelah `isDocumentQuestion`/`isImageQuestion`) adalah keyword-match sederhana ("hari ini", "terbaru", "harga", "skor", "siapa presiden", dst — ID + EN) — sengaja konservatif: false negative cuma berarti AI jawab dari pengetahuan lama seperti biasa, false positive cuma menghabiskan satu panggilan Gemini ekstra. Bukan klasifikasi intent, tidak akan pernah sempurna.
+
+### Temuan penting dari uji langsung ke API Gemini (2026-08-13, pakai key produksi di `.env.local`, bukan tebakan dari dokumentasi)
+
+curl langsung ke `generateContent` dengan `tools:[{google_search:{}}]` untuk pertanyaan "siapa presiden Indonesia saat ini":
+- `groundingMetadata.groundingChunks[].web.uri` **BUKAN** URL asli penerbit — itu link redirect `vertexaisearch.cloud.google.com/grounding-api-redirect/...`. Diverifikasi lewat Browser pane (bukan curl — curl ke domain redirect itu di-reset TLS-nya oleh jaringan sandbox, tapi itu masalah jaringan sandbox, bukan link-nya): link redirect benar-benar membawa ke `en.wikipedia.org` artikel "President of Indonesia" di browser sungguhan. Jadi permintaan user ("user bisa membuka situs yang ditelusuri") **terpenuhi**, tapi URL yang tersimpan/ditampilkan bukan URL langsung.
+- `groundingMetadata.groundingChunks[].web.title` **BUKAN** judul artikel — cuma nama domain polos ("wikipedia.org", "britannica.com"). `WebSources.tsx` menampilkannya apa adanya sebagai chip domain, bukan berpura-pura jadi judul halaman.
+- `groundingMetadata.webSearchQueries` berisi query asli yang dipakai Gemini (mis. `["siapa presiden indonesia saat ini","presiden indonesia"]`) — ditangkap sebagai `queries` di marker, disimpan tapi belum ditampilkan di UI (chip baru pakai `sources`; caption "AI menelusuri: ..." bisa ditambah belakangan kalau perlu).
+
+**Catatan compliance yang belum diputuskan:** respons Gemini juga membawa `groundingMetadata.searchEntryPoint.renderedContent` — HTML carousel "chip pencarian Google" berbranding resmi. Syarat pemakaian Grounding with Google Search umumnya meminta widget itu ditampilkan berdampingan dengan jawaban yang di-ground. Implementasi ini **tidak** merender widget itu, hanya chip sumber polos — cukup untuk permintaan fungsional user, tapi belum tentu cukup untuk kepatuhan penuh ke ToS Google kalau nanti diperiksa. Diputuskan untuk tidak memblokir pengerjaan atas ini (butuh keputusan produk terpisah), tapi harus diketahui sebelum fitur ini dipakai serius/dipromosikan.
+
+### Perubahan file
+
+- **`lib/web-search.ts`** (baru): tipe `WebSource`, `buildSourcesMarkerBlock` (server), `parseSourcesFromText`/`formatSourcesTextForDisplay`/`formatSourcesTextForExport` (dipakai server & client, sama seperti `lib/artifacts.ts`).
+- **`lib/ai/chat.ts`**: `needsWebSearch()`, `webSearchSystemPrompt` (baris tambahan di system instruction Gemini, hanya saat search aktif), `enableWebSearch` dithread lewat `streamGeminiReply`→`streamGeminiReplyWithFallback`→`streamChatReply`, grounding metadata ditangkap defensif dari SETIAP event SSE (diamati live nempel di event terakhir, tapi tidak diasumsikan selalu begitu).
+- **`app/api/chat/route.ts`**: enqueue marker sumber setelah `chatResult` selesai; tambah `web_search_used`/`web_search_source_count` ke `p_metadata` usage log.
+- **`components/WebSources.tsx`** (baru): chip sumber, hanya dirender `!isStreamingMessage` (pola sama dengan `NoteSuggestions`) supaya tidak pernah menampilkan JSON parsial.
+- **`components/ChatArea.tsx`**: `formatSourcesTextForDisplay` dirantai bareng strip artifact/note; `<WebSources>` dirender setelah streaming selesai.
+- **`hooks/useChatSession.ts`**: export Markdown inline daftar sumber (`formatSourcesTextForExport`), share preview men-strip marker (`formatSourcesTextForDisplay`) — pola sama seperti artifact.
+
+### Verifikasi
+
+- `tsc`/`lint`/`build` bersih.
+- **API Gemini asli** diuji langsung (bukan simulasi) — lihat "Temuan penting" di atas.
+- Harness scratch (dihapus sebelum commit) menguji `lib/web-search.ts` end-to-end: parse marker lengkap (2 sumber, 2 query, judul domain benar), strip marker lengkap → prosa bersih, **marker parsial saat streaming disembunyikan dengan benar** (tidak ada JSON mentah yang bocor ke layar), teks tanpa marker sama sekali lewat tak berubah, format export menghasilkan daftar "Sumber web:" yang rapi. `WebSources` merender chip untuk marker lengkap dan **tidak merender apa pun** untuk marker parsial/tanpa marker.
+
+**Belum diuji end-to-end lewat sesi login sungguhan**: apakah `needsWebSearch()` benar-benar terpicu di alur chat asli, apakah grounding metadata Gemini dalam mode STREAMING (bukan `generateContent` biasa yang dicoba lewat curl) punya bentuk JSON yang persis sama, dan apakah chip sumber benar-benar muncul di UI produksi setelah pesan nyata. Kode menangani ketidakpastian ini secara defensif (semua akses field pakai optional chaining, gagal-senyap ke "tidak ada sumber" bukan crash), tapi kalibrasi akhir tetap butuh satu kali uji chat sungguhan dengan pertanyaan seperti "berita apa hari ini di Indonesia?".

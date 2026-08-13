@@ -16,6 +16,10 @@ import {
 } from "@/lib/artifacts";
 import { getFriendlyChatError } from "@/lib/chat/errors";
 import {
+  formatSourcesTextForDisplay,
+  formatSourcesTextForExport,
+} from "@/lib/web-search";
+import {
   createConversationTitle,
   mapConversationRow,
   sortConversations,
@@ -626,7 +630,7 @@ export function useChatSession(
       // dropped entirely — same rule the chat view uses.
       lines.push(
         formatNoteTextForDisplay(
-          formatArtifactTextForExport(message.text),
+          formatSourcesTextForExport(formatArtifactTextForExport(message.text)),
         ).trim(),
       );
       lines.push("");
@@ -668,8 +672,8 @@ export function useChatSession(
           // A preview is a snippet, not a document: artifacts stay collapsed to
           // their one-line reference (same as the chat view) instead of being
           // inlined like in the export.
-          `${message.role === "user" ? "User" : "AI"}: ${formatNoteTextForDisplay(
-            formatArtifactTextForDisplay(message.text),
+          `${message.role === "user" ? "User" : "AI"}: ${formatSourcesTextForDisplay(
+            formatNoteTextForDisplay(formatArtifactTextForDisplay(message.text)),
           )
             .trim()
             .slice(0, 360)}`,

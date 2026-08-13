@@ -10,8 +10,10 @@ import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import NoteSuggestions from "@/components/NoteSuggestions";
+import WebSources from "@/components/WebSources";
 import { formatArtifactTextForDisplay } from "@/lib/artifacts";
 import { formatNoteTextForDisplay } from "@/lib/second-brain/parse";
+import { formatSourcesTextForDisplay } from "@/lib/web-search";
 import type { Message } from "@/lib/mappers/types";
 import type { Skill } from "@/lib/skills";
 import {
@@ -260,22 +262,31 @@ export default function ChatArea({
                     isStreamingMessage ? " ai-stream-in" : ""
                   }`}
                 >
-                  {/* Rows store raw artifact + note markers; strip them at
-                      render time (works mid-stream too). Note blocks are
-                      removed entirely — isinya sudah tampil di chip usulan. */}
+                  {/* Rows store raw artifact + note + sources markers; strip
+                      them at render time (works mid-stream too). Note blocks
+                      are removed entirely — isinya sudah tampil di chip
+                      usulan. Sources marker is appended by the server AFTER
+                      the model's own text (lib/web-search.ts), so it only
+                      ever completes once streaming is done. */}
                   <MarkdownMessage
-                    text={formatNoteTextForDisplay(
-                      formatArtifactTextForDisplay(message.text),
+                    text={formatSourcesTextForDisplay(
+                      formatNoteTextForDisplay(
+                        formatArtifactTextForDisplay(message.text),
+                      ),
                     )}
                   />
-                  {/* Usulan catatan hanya setelah streaming selesai, supaya
-                      tidak pernah menyela pengguna yang sedang membaca. */}
+                  {/* Usulan catatan & chip sumber web hanya setelah streaming
+                      selesai, supaya tidak pernah menyela pengguna yang
+                      sedang membaca (dan marker sumber baru lengkap saat itu). */}
                   {!isStreamingMessage && (
-                    <NoteSuggestions
-                      messageText={message.text}
-                      conversationId={activeConversationId}
-                      workspaceId={activeWorkspaceId}
-                    />
+                    <>
+                      <WebSources messageText={message.text} />
+                      <NoteSuggestions
+                        messageText={message.text}
+                        conversationId={activeConversationId}
+                        workspaceId={activeWorkspaceId}
+                      />
+                    </>
                   )}
                 </div>
               </div>
