@@ -1373,3 +1373,51 @@ Route scratch memanggil `streamChatReply` yang asli dengan `toolContext` aktif (
 - **Hanya jalur Gemini.** OpenAI Responses API belum punya adapter tool, jadi pesan yang ditangani GPT (mayoritas) belum memakai tool. Ini alasan wiring-nya dikunci ke pemicu `needsWebSearch` — memakai jalur tool untuk semua pesan akan mematikan GPT sepenuhnya. Adapter OpenAI adalah pekerjaan lanjutan yang jelas.
 - Pintu masuknya masih heuristik kata kunci `needsWebSearch()`. Setelah adapter OpenAI ada, heuristik itu bisa dihapus total dan keputusan sepenuhnya diserahkan ke model.
 - Belum diuji dengan sesi login sungguhan: `cari_catatan`/`cari_pengetahuan` yang benar-benar mengembalikan isi (uji di atas membuktikan jalur & penanganan kosongnya, bukan hasil non-kosongnya).
+
+## Langkah 50: Work = connector — integrasi Google Drive (Tahap 2 subsistem)
+
+**Pembatalan Langkah 49 sebagian.** 4 skill kerja (`/surat`, `/rapat`, `/laporan`, `/proyek`) **dihapus atas permintaan user** — migrasinya belum pernah di-apply, jadi tidak ada sisa di DB dan tidak perlu migrasi pembatalan. Arah Work diklarifikasi user: fungsinya **terhubung dengan aplikasi lain dan bekerja lewat aplikasi itu dari dalam web ini**, bukan kumpulan template prompt. `/work` ditulis ulang total: dari peluncur skill jadi pusat koneksi. `WorkLauncher.tsx` dihapus.
+
+### Keputusan scope Google (menentukan segalanya)
+
+Diverifikasi ke dokumentasi Google, bukan dari ingatan:
+
+| Scope | Kelas | Konsekuensi |
+|---|---|---|
+| `drive.file` | **Non-sensitif** | Tanpa verifikasi, tanpa CASA, tanpa batas 100 user, tanpa masalah token 7 hari |
+| Calendar | Sensitif | Verifikasi ±10 hari, tanpa CASA |
+| Gmail, Drive penuh, `drive.readonly` | **Restricted** | Wajib audit CASA tahunan ~$540/tahun lewat asesor terdaftar |
+
+**Dipilih `drive.file` saja** (keputusan user setelah diberi tiga opsi). Konsekuensinya jujur: aplikasi HANYA melihat berkas yang ia buat sendiri atau yang dipilih pengguna — bukan seluruh Drive. Itu bukan keterbatasan yang disembunyikan, justru itulah yang membuatnya bebas audit dan bisa langsung dirilis publik.
+
+Jebakan yang hampir terlewat dan sudah didokumentasikan di `lib/connectors/google.ts`: selama consent screen berstatus **Testing**, Google menghanguskan **semua refresh token tepat 7 hari** + batas 100 pengguna. Dengan `drive.file` saja, consent screen bisa langsung Production sehingga masalah itu tidak pernah muncul. **Menambah satu scope restricted akan menjatuhkan SELURUH aplikasi ke rezim itu** — karena itu ada peringatan keras di file tersebut.
+
+### Keamanan token (tabel paling sensitif di basis data)
+
+Satu refresh token Google yang bocor = akses berkelanjutan ke Drive pengguna, jauh setelah kata sandi diganti. Tiga lapis, semuanya disengaja:
+
+1. **RLS aktif TANPA satu pun policy** untuk `authenticated`/`anon`. Di Postgres itu berarti TOLAK SEMUA — klien browser tidak bisa membaca tabel ini sama sekali, bahkan baris miliknya. Ada peringatan eksplisit di migrasi: **jangan** menambahkan policy "users can select their own connection", itu akan membuat token bisa dipanen lewat supabase-js dari devtools.
+2. **Refresh token dienkripsi AES-256-GCM** (`lib/connectors/crypto.ts`), kunci dari `CONNECTION_ENCRYPTION_KEY`. GCM dipilih karena *authenticated encryption*: baris DB yang dirusak GAGAL didekripsi, bukan menghasilkan sampah diam-diam.
+3. **Status koneksi untuk UI lewat RPC `get_my_connections`** (security definer, difilter `auth.uid()`) yang tidak pernah mengembalikan kolom token.
+
+Detail lain: `access_type=offline` + `prompt=consent` wajib — tanpanya Google tidak mengirim refresh token pada otorisasi ulang dan koneksi mati diam-diam setelah ±1 jam. State anti-CSRF dibandingkan dengan `timingSafeEqual`. Memutus koneksi **mencabut token di sisi Google lebih dulu** sebelum menghapus baris — menghapus baris saja meninggalkan izin aktif di akun Google pengguna yang mengira sudah memutus hubungan.
+
+### Tool baru (menumpang Tahap 1)
+
+`simpan_ke_google_drive`, `cari_berkas_google_drive`, `baca_berkas_google_drive` — ditambahkan ke registry `lib/ai/tools.ts`. Belum terhubung = executor mengembalikan pesan yang bisa dibacakan model ("minta pengguna menyambungkan di halaman Work"), bukan error.
+
+### Verifikasi
+
+- `tsc` / `lint` / `build` bersih; 3 rute connector + `/work` terdaftar.
+- **Enkripsi diuji 8 assertion, semua lolos**: round-trip benar, ciphertext tidak memuat token polos, IV acak (dua enkripsi nilai sama menghasilkan ciphertext berbeda), kunci salah → null, **ciphertext dirusak → null**, **authTag dirusak → null**, payload sampah → null. Dua yang dicetak tebal itu inti alasan memilih GCM.
+- Gerbang autentikasi diuji langsung: `/work` → 307 `/login`, `start`/`callback` → 307 `/login`, `POST /disconnect` → 401.
+
+### BELUM BISA DIPAKAI sampai user mengerjakan ini
+
+1. Buat project + OAuth client di Google Cloud Console (**hanya user yang bisa**), lalu isi `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, dan `CONNECTION_ENCRYPTION_KEY` (≥32 karakter) di env.
+2. Daftarkan redirect URI di Google: `<NEXT_PUBLIC_SITE_URL>/api/connectors/google/callback`. **Catatan dari pengujian:** redirect memakai `NEXT_PUBLIC_SITE_URL` yang saat ini menunjuk domain produksi, jadi untuk uji lokal perlu menambahkan `http://localhost:3000/api/connectors/google/callback` sebagai authorized redirect URI juga.
+3. Apply migrasi `20260814000000_user_connections.sql` (backup dulu).
+
+Sampai ketiganya beres, `/work` tetap terbuka dan jujur menampilkan "Belum dikonfigurasi" beserta env apa yang kurang — tidak error.
+
+**Belum teruji end-to-end**: alur OAuth sungguhan, pembuatan Google Docs nyata, dan pembacaan berkas Drive — ketiganya butuh kredensial Google yang hanya user bisa buat.

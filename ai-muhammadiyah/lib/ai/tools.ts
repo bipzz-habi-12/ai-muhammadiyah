@@ -1,4 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  createGoogleDoc,
+  listAccessibleFiles,
+  readDriveFileText,
+} from "@/lib/connectors/drive";
+import { getValidGoogleAccessToken } from "@/lib/connectors/google";
 import { createKnowledgePromptContext, retrieveKnowledgeChunks } from "@/lib/knowledge";
 import {
   createSecondBrainPromptContext,
@@ -247,6 +253,139 @@ export const toolRegistry: ToolDefinition[] = [
     },
   },
 ];
+
+// --- Connector Google Drive --------------------------------------------------
+// Tool ini hanya berguna bila pengguna sudah menghubungkan akun Google-nya di
+// /work. Bila belum, executor mengembalikan pesan yang bisa dibacakan model ke
+// pengguna — bukan error — supaya AI bisa mengarahkan mereka menyambungkan.
+//
+// Ingat batas scope drive.file: aplikasi hanya melihat berkas yang ia buat
+// sendiri atau yang dipilih pengguna. Deskripsi tool menyebut ini eksplisit
+// supaya model tidak menjanjikan "saya cari di seluruh Drive-mu".
+const driveTools: ToolDefinition[] = [
+  {
+    name: "simpan_ke_google_drive",
+    description:
+      "Simpan sebuah dokumen ke Google Drive pengguna sebagai Google Docs asli yang bisa langsung dibuka dan dibagikan. Pakai ini ketika pengguna minta hasil kerja disimpan, diekspor, atau dikirim ke Drive.",
+    parameters: {
+      type: "object",
+      properties: {
+        judul: { type: "string", description: "Judul dokumen." },
+        isi: {
+          type: "string",
+          description: "Isi lengkap dokumen dalam teks/Markdown.",
+        },
+      },
+      required: ["judul", "isi"],
+    },
+    async execute(args, context) {
+      const judul = readStringArg(args, "judul");
+      const isi = readStringArg(args, "isi");
+
+      if (!judul || !isi) {
+        return { text: "Judul dan isi dokumen wajib diisi." };
+      }
+
+      const connection = await getValidGoogleAccessToken(context.userId);
+
+      if (!connection) {
+        return {
+          text: "Akun Google pengguna belum terhubung. Minta pengguna membuka halaman Work lalu menekan 'Hubungkan Google'.",
+        };
+      }
+
+      const file = await createGoogleDoc(connection.accessToken, judul, isi);
+
+      if (!file) {
+        return { text: "Gagal menyimpan dokumen ke Google Drive." };
+      }
+
+      return {
+        text: `Dokumen "${file.name}" berhasil dibuat di Google Drive. Tautan: ${file.webViewLink ?? "(tautan tidak tersedia)"}`,
+      };
+    },
+  },
+  {
+    name: "cari_berkas_google_drive",
+    description:
+      "Cari berkas di Google Drive pengguna yang bisa diakses aplikasi ini (yaitu berkas yang dibuat lewat M-Agent atau yang dipilih pengguna). Kembalikan daftar beserta id-nya.",
+    parameters: {
+      type: "object",
+      properties: {
+        kueri: {
+          type: "string",
+          description: "Kata kunci nama berkas. Kosongkan untuk berkas terbaru.",
+        },
+      },
+      required: [],
+    },
+    async execute(args, context) {
+      const connection = await getValidGoogleAccessToken(context.userId);
+
+      if (!connection) {
+        return {
+          text: "Akun Google pengguna belum terhubung. Minta pengguna menyambungkannya di halaman Work.",
+        };
+      }
+
+      const files = await listAccessibleFiles(
+        connection.accessToken,
+        readStringArg(args, "kueri") || undefined,
+      );
+
+      if (!files.length) {
+        return {
+          text: "Tidak ada berkas Drive yang bisa diakses aplikasi ini. Catatan: hanya berkas yang dibuat lewat M-Agent atau yang dipilih pengguna yang terlihat.",
+        };
+      }
+
+      return {
+        text: files
+          .map((file) => `- ${file.name} (id: ${file.id}, tipe: ${file.mimeType})`)
+          .join("\n"),
+      };
+    },
+  },
+  {
+    name: "baca_berkas_google_drive",
+    description:
+      "Baca isi sebuah berkas Google Drive berdasarkan id-nya. Dapatkan id lebih dulu lewat cari_berkas_google_drive.",
+    parameters: {
+      type: "object",
+      properties: {
+        id_berkas: { type: "string", description: "ID berkas Google Drive." },
+      },
+      required: ["id_berkas"],
+    },
+    async execute(args, context) {
+      const fileId = readStringArg(args, "id_berkas");
+
+      if (!fileId) {
+        return { text: "ID berkas wajib diisi." };
+      }
+
+      const connection = await getValidGoogleAccessToken(context.userId);
+
+      if (!connection) {
+        return {
+          text: "Akun Google pengguna belum terhubung. Minta pengguna menyambungkannya di halaman Work.",
+        };
+      }
+
+      const file = await readDriveFileText(connection.accessToken, fileId);
+
+      if (!file) {
+        return {
+          text: "Berkas tidak bisa dibaca. Mungkin id-nya salah, atau berkas itu di luar jangkauan aplikasi (scope drive.file).",
+        };
+      }
+
+      return { text: `[Berkas Drive: ${file.name}]\n${file.text}` };
+    },
+  },
+];
+
+toolRegistry.push(...driveTools);
 
 export function findTool(name: string): ToolDefinition | undefined {
   return toolRegistry.find((tool) => tool.name === name);
