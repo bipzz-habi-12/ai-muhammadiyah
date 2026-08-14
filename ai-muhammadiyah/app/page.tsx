@@ -28,6 +28,7 @@ import { useSkills } from "@/hooks/useSkills";
 import { applyUsageConstraints, useUsage } from "@/hooks/useUsage";
 import { useUserMemory } from "@/hooks/useUserMemory";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { canAccessTier } from "@/lib/skills";
 import { getEmailInitials } from "@/lib/formatting/text";
 import {
   groupConversationsByWorkspace,
@@ -70,6 +71,10 @@ export default function Home() {
   // state): consumed exactly once, and the resolve effect is already re-run by
   // the isLoadingConversations flip, so no extra render is needed.
   const pendingConversationIdRef = useRef<string | null>(null);
+  // Deep link from /work: "/?skill=/surat" preselects that skill for the next
+  // message. Same ref-consumed-once pattern, resolved after the skill list
+  // loads (the slash command is only resolvable to an id once skills arrive).
+  const pendingSkillSlashRef = useRef<string | null>(null);
   const {
     knowledgeSources,
     isKnowledgeAdmin,
@@ -331,6 +336,7 @@ export default function Home() {
   //  - ?workspaceId= preselects the workspace so the next new chat is created
   //    inside it (from the workspace page's "New chat" button)
   //  - ?ask= prefills the composer with a question (from the Research page)
+  //  - ?skill= preselects a skill by its slash command (from the Work page)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const uuidRegex =
@@ -351,10 +357,42 @@ export default function Home() {
       setInput(ask.slice(0, 2000));
     }
 
+    const skillSlash = params.get("skill");
+    if (skillSlash) {
+      pendingSkillSlashRef.current = skillSlash.slice(0, 64);
+    }
+
     if (window.location.search) {
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, [setSelectedWorkspaceId, setInput]);
+
+  // Resolve ?skill= once the skill list has loaded. Gated by tier on purpose:
+  // a locked skill is left unset rather than silently swapped for the default
+  // server-side by resolveAllowedSkill, which would look like the deep link
+  // worked when it did not.
+  useEffect(() => {
+    const pendingSlash = pendingSkillSlashRef.current;
+
+    if (!pendingSlash || skillsLoading || skills.length === 0) {
+      return;
+    }
+
+    pendingSkillSlashRef.current = null;
+
+    const target = skills.find(
+      (skill) => skill.slashCommand?.toLowerCase() === pendingSlash.toLowerCase(),
+    );
+
+    if (target && canAccessTier(usageSnapshot?.tier, target.minTier)) {
+      setMessageSkillOverrideId(target.id);
+    }
+  }, [
+    skills,
+    skillsLoading,
+    usageSnapshot?.tier,
+    setMessageSkillOverrideId,
+  ]);
 
   // Resolve the deep link after the initial conversation load. If the target is
   // outside the 40-item list, fetch it directly and MERGE it into the list first —

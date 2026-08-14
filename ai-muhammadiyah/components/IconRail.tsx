@@ -67,6 +67,26 @@ export default function IconRail({
           </svg>
         </Link>
         <Link
+          href="/work"
+          title="Work"
+          className="grid h-9 w-9 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="2.5" y="7" width="19" height="13" rx="2" />
+            <path d="M8.5 7V5.2A1.7 1.7 0 0 1 10.2 3.5h3.6A1.7 1.7 0 0 1 15.5 5.2V7" />
+            <path d="M2.5 12.5h19" />
+          </svg>
+        </Link>
+        <Link
           href="/research"
           title="Research"
           className="grid h-9 w-9 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"

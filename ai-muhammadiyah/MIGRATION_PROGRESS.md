@@ -1293,3 +1293,44 @@ curl langsung ke `generateContent` dengan `tools:[{google_search:{}}]` untuk per
 - Marker `[[AI_MU_SOURCES]]` dan `[[AI_MU_NOTE]]` (Second Brain) muncul berdampingan di satu jawaban yang sama tanpa saling mengganggu satu sama lain.
 
 Yang **masih** belum diuji: rendering nyata di `ChatArea.tsx`/`WebSources.tsx` lewat sesi login sungguhan di browser (perlu kredensial user) — tapi karena bentuk marker dari stream produksi asli sudah dikonfirmasi cocok dengan yang diuji `parseSourcesFromText`/`formatSourcesTextForDisplay` di harness komponen sebelumnya, risiko sisa di lapisan UI kecil.
+
+## Langkah 49: M-Agent: Work — pekerjaan kantor/organisasi — SELESAI di kode (migrasi BELUM di-apply)
+
+Permintaan awalnya "seperti Cowork di Claude". Setelah ditelusuri, Cowork asli = puluhan connector OAuth ke tool eksternal + sistem plugin + eksekusi multi-step otonom di background. M-Agent **tidak punya satu pun** fondasi itu: tidak ada OAuth ke pihak ketiga (hanya login Supabase Google/GitHub), tidak ada job queue/worker/cron, dan skill tidak punya konsep "tools" sama sekali — hanya string `system_prompt` (dikonfirmasi lewat penelusuran kode, bukan asumsi). Jadi yang dibangun adalah potongan yang benar-benar bisa selesai dan langsung dipakai, **tanpa subsistem baru**: paket skill kerja + halaman peluncur.
+
+Kenapa halaman ini bukan sekadar `/research` kedua: `/library` dan `/research` sudah menampilkan artifact. Menampilkan artifact generik lagi di sini lalu menyebutnya "hasil kerja" akan menyesatkan — tidak semua artifact adalah pekerjaan kantor. Jadi "Pekerjaan terakhir" di `/work` justru memfilter **percakapan yang benar-benar memakai skill kategori 'Kerja'** (`messages.skill_id`), yang secara definisi memang pekerjaan.
+
+### 4 skill kerja baru (`20260814000000_seed_work_skills.sql`)
+
+Skill bawaan yang ada menutup akademik/pengajaran/bahasa/dakwah/data/bisnis/kesehatan — tapi tidak ada satu pun untuk kerja administratif harian, padahal itu pekerjaan tersering di sekolah, amal usaha, dan ranting/cabang.
+
+| Skill | Slash | Tier |
+|---|---|---|
+| Korespondensi Resmi | `/surat` | free |
+| Notulen & Rapat | `/rapat` | free |
+| Laporan & Proposal | `/laporan` | free |
+| Manajemen Proyek | `/proyek` | kader_pintar |
+
+Kedalaman promptnya mengikuti standar `20260725020000` (metode + struktur keluaran + rambu), bukan gaya 4-bullet dangkal. **Rambu kejujuran diulang di keempatnya dan itu disengaja:** jangan mengarang nomor surat, angka anggaran, nama pejabat, atau tanggal — bila belum ada, tulis penanda `[DIISI: ...]`. Dokumen organisasi dipakai sungguhan; satu angka karangan yang lolos ke LPJ bisa berujung masalah keuangan atau hukum nyata, jadi ini bukan formalitas prompt.
+
+`category = 'Kerja'` adalah kontrak: `app/work/page.tsx` memfilter tepat dari kolom itu. Mengubah nilainya akan mematikan halaman.
+
+### Halaman `/work`
+
+- `app/work/page.tsx` (server): baca skill kerja dari DB + percakapan ber-skill-kerja (dua query terpisah dengan sengaja — lebih mudah dibaca daripada join bersarang, RLS menjaga keduanya).
+- `app/work/WorkLauncher.tsx` (client): ask bar bebas + 6 template mulai-cepat. **Template didefinisikan di KODE, bukan DB**, supaya halaman tetap berguna sebelum migrasi di-apply.
+- `?skill=<slash>` baru di `app/page.tsx`: mengaktifkan skill untuk pesan berikutnya. **Digerbangi tier dengan sengaja** — skill terkunci dibiarkan tidak aktif, bukan diam-diam ditukar default oleh `resolveAllowedSkill` di server, yang akan terlihat seolah deep link berhasil padahal tidak.
+- Rail: item "Work" di `AppShellRail` (halaman shell) dan `IconRail` (chat).
+
+### Verifikasi
+
+`tsc`/`lint`/`build` bersih, rute `/work` terdaftar. Harness scratch (dihapus sebelum commit) merender `WorkLauncher` **yang asli** dua kali — dengan skill kerja dan tanpa — lalu tombolnya diklik sungguhan dan URL hasilnya dibaca dari log dev server:
+
+- Dengan skill: `/?skill=%2Fsurat&ask=Buatkan+surat+undangan+rapat+resmi...`
+- Tanpa skill: `/?ask=Buatkan+surat+undangan+rapat+resmi...` — parameter `skill` **hilang total**, tidak menunjuk skill yang tidak ada.
+
+Itu menguji logika komponen sungguhan, bukan salinan logikanya.
+
+**Belum diuji** (butuh sesi login + migrasi ter-apply): apakah `?skill=` benar-benar mengaktifkan chip skill di komposer, tampilan strip "Skill kerja" dan "Pekerjaan terakhir" di halaman aslinya, dan gerbang tier untuk `/proyek` pada user free.
+
+**Migrasi belum di-apply** — mengubah data produksi, jadi perlu backup + konfirmasi. Sampai itu dilakukan, `/work` tetap hidup tapi hanya bagian template yang berfungsi; strip skill dan pekerjaan terakhir kosong dengan sendirinya.

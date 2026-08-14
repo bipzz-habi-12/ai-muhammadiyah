@@ -5,7 +5,14 @@ import Link from "next/link";
 // renders in both Server and Client components. Only links to routes that
 // actually exist in the app; the active item is a non-link highlight.
 
-type RailKey = "workspaces" | "chat" | "research" | "library" | "hub" | "history";
+type RailKey =
+  | "workspaces"
+  | "chat"
+  | "work"
+  | "research"
+  | "library"
+  | "hub"
+  | "history";
 
 function WorkspaceGlyph() {
   return (
@@ -20,6 +27,16 @@ function ChatGlyph() {
   return (
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z" />
+    </svg>
+  );
+}
+
+function WorkGlyph() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="7" width="19" height="13" rx="2" />
+      <path d="M8.5 7V5.2A1.7 1.7 0 0 1 10.2 3.5h3.6A1.7 1.7 0 0 1 15.5 5.2V7" />
+      <path d="M2.5 12.5h19" />
     </svg>
   );
 }
@@ -63,6 +80,7 @@ function HistoryGlyph() {
 const items: { key: RailKey; href: string; title: string; glyph: React.ReactNode }[] = [
   { key: "workspaces", href: "/workspace", title: "Workspaces", glyph: <WorkspaceGlyph /> },
   { key: "chat", href: "/", title: "Chat", glyph: <ChatGlyph /> },
+  { key: "work", href: "/work", title: "Work", glyph: <WorkGlyph /> },
   { key: "research", href: "/research", title: "Research", glyph: <ResearchGlyph /> },
   { key: "library", href: "/library", title: "Library", glyph: <LibraryGlyph /> },
   { key: "hub", href: "/hub", title: "Muhammadiyah Hub", glyph: <HubGlyph /> },
