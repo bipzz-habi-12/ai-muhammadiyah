@@ -165,8 +165,14 @@ export async function retrieveKnowledgeChunks(
   supabase: SupabaseClient,
   question: string,
   limit = maxRetrievedKnowledgeChunks,
+  // Lewati gerbang allowlist kata kunci. Dipakai HANYA oleh tool-calling
+  // (lib/ai/tools.ts): di sana model sudah memutuskan sendiri bahwa ia ingin
+  // mencari, dan kuerinya adalah kata kunci hasil rumusannya — bukan pesan
+  // mentah pengguna. Menjalankan `isKnowledgeQuestion` atas kueri itu akan
+  // membuang panggilan tool yang justru disengaja.
+  forceSearch = false,
 ) {
-  if (!isKnowledgeQuestion(question)) {
+  if (!forceSearch && !isKnowledgeQuestion(question)) {
     return [];
   }
 

@@ -1334,3 +1334,42 @@ Itu menguji logika komponen sungguhan, bukan salinan logikanya.
 **Belum diuji** (butuh sesi login + migrasi ter-apply): apakah `?skill=` benar-benar mengaktifkan chip skill di komposer, tampilan strip "Skill kerja" dan "Pekerjaan terakhir" di halaman aslinya, dan gerbang tier untuk `/proyek` pada user free.
 
 **Migrasi belum di-apply** — mengubah data produksi, jadi perlu backup + konfirmasi. Sampai itu dilakukan, `/work` tetap hidup tapi hanya bagian template yang berfungsi; strip skill dan pekerjaan terakhir kosong dengan sendirinya.
+
+## Langkah 50: Tool calling — Tahap 1 dari 3 subsistem "Cowork-like" — SELESAI & TERVERIFIKASI HIDUP
+
+Tiga subsistem yang M-Agent tidak punya (dikonfirmasi lewat penelusuran kode di Langkah 49): connector OAuth pihak ketiga, job queue eksekusi background, dan skill yang punya konsep *tools*. Tahap 1 = **tool calling**.
+
+**Kenapa tool calling duluan, bukan connector OAuth** (urutan ini sengaja diubah dari daftar awal): connector tanpa tool calling hanya jadi RAG biasa — model tidak bisa memutuskan apa yang diambil. Job queue tanpa tool calling tidak punya apa pun untuk dijalankan. Lapisan inilah yang membuat dua subsistem berikutnya masuk akal, dan ia tidak butuh dependensi eksternal sehingga bisa hidup hari ini. Tambahan: scope Gmail/Drive termasuk *restricted scope* Google yang butuh verifikasi + asesmen keamanan pihak ketiga — proses berminggu-minggu di luar kendali kode, jadi mendahulukannya berarti menulis sesuatu yang tidak bisa dipakai siapa pun selama itu.
+
+### Batasan keras yang menentukan seluruh arsitekturnya
+
+Diuji langsung ke API Gemini (2026-08-14), bukan dibaca dari dokumentasi:
+
+```
+"Built-in tools ({google_search}) and Function Calling cannot be combined
+ in the same request. Please choose one to continue."   → HTTP 400
+```
+
+Ini tabrakan langsung dengan fitur web search Langkah 48. Jalan keluarnya: **web search berhenti jadi built-in tool dan berubah jadi tool biasa `cari_web`**, yang di dalam executor-nya menjalankan panggilan Gemini TERPISAH dengan `google_search` aktif. Panggilan bersarang itu sah karena ia tidak membawa `functionDeclarations`. Hasilnya justru lebih baik daripada sekadar menghindari error: model kini bisa memakai web DAN tool internal di giliran yang sama — mustahil kalau keduanya dipasang bersamaan.
+
+### Isi
+
+- **`lib/ai/tools.ts`** (baru): registry tool (definisi + executor + adapter format Gemini), `MAX_TOOL_ROUNDS = 3`, dan `runTool()` yang **tidak pernah melempar** — kegagalan tool dikembalikan ke model sebagai teks supaya model bisa menjelaskan, bukan mematikan seluruh jawaban. Tiga tool: `cari_catatan` (Otak Kedua), `cari_pengetahuan` (Knowledge Base), `cari_web` (grounded bersarang).
+- **`streamGeminiReplyWithTools`** di `lib/ai/chat.ts`: loop panggil→eksekusi→panggil lagi. Putaran terakhir dijalankan **tanpa tool** supaya model yang terjebak memanggil tool terus-menerus tetap menghasilkan jawaban. Giliran model dipantulkan apa adanya termasuk `thoughtSignature` (wajib untuk model thinking 2.5). Teks dari putaran yang memanggil tool sengaja tidak dialirkan — itu gumaman "baik, saya cari dulu" yang jadi rancu begitu jawaban final tiba.
+- **Gerbang heuristik retrieval dilewati saat dipanggil sebagai tool** (`forceSearch` di `retrieveKnowledgeChunks` dan `retrieveRelevantNotes`). Ini jebakan nyata: `isKnowledgeQuestion` adalah allowlist 26 kata dan `shouldSearchNotes` menuntut ≥15 karakter — keduanya akan membuang panggilan tool yang justru disengaja model, karena kueri tool adalah kata kunci rumusan model (mis. "fotosintesis", 12 karakter), bukan pesan mentah pengguna.
+- **Wiring sengaja konservatif**: jalur tool dipakai pada pemicu yang PERSIS SAMA dengan jalur web search sebelumnya (`needsWebSearch`), jadi **tidak ada bypass GPT baru**. Pesan yang dulu memakai `google_search` sekarang memakai tool; pesan lain tetap GPT-dulu seperti semula.
+
+### Verifikasi (jalur produksi asli, bukan simulasi)
+
+Route scratch memanggil `streamChatReply` yang asli dengan `toolContext` aktif (dihapus sebelum commit):
+
+1. *"Apa berita terbaru tentang pemanfaatan hutan di Indonesia hari ini?"* → `toolsUsed: ["cari_web"]`, 8 sumber (`antaranews.com`, `kehutanan.go.id`, `kemenkeu.go.id`, dst), jawaban 2.183 karakter berisi data spesifik (Gerakan Pemulihan Ekosistem HKAN 2026, restorasi 12 juta hektar, 22 PBPH seluas 1 juta hektar dicabut). Membuktikan format `functionResponse` dengan `role: "user"` diterima dan loop menutup dengan benar.
+2. *"Apa isi catatan saya hari ini tentang fotosintesis?"* → `toolsUsed: ["cari_catatan"]` — model memilih tool yang **tepat** tanpa diarahkan, bukan `cari_web`. Hasil kosong (tanpa sesi login) ditangani jujur: *"tidak menemukan catatan Anda tentang fotosintesis"*, bukan mengarang isi catatan.
+
+`tsc`/`lint`/`build` bersih.
+
+### Batas yang diketahui
+
+- **Hanya jalur Gemini.** OpenAI Responses API belum punya adapter tool, jadi pesan yang ditangani GPT (mayoritas) belum memakai tool. Ini alasan wiring-nya dikunci ke pemicu `needsWebSearch` — memakai jalur tool untuk semua pesan akan mematikan GPT sepenuhnya. Adapter OpenAI adalah pekerjaan lanjutan yang jelas.
+- Pintu masuknya masih heuristik kata kunci `needsWebSearch()`. Setelah adapter OpenAI ada, heuristik itu bisa dihapus total dan keputusan sepenuhnya diserahkan ke model.
+- Belum diuji dengan sesi login sungguhan: `cari_catatan`/`cari_pengetahuan` yang benar-benar mengembalikan isi (uji di atas membuktikan jalur & penanganan kosongnya, bukan hasil non-kosongnya).

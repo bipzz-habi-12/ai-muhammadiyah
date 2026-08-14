@@ -14,6 +14,12 @@ import {
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { SubscriptionTier } from "@/lib/usage/limits";
+import {
+  MAX_TOOL_ROUNDS,
+  runTool,
+  toGeminiToolDeclarations,
+  type ToolContext,
+} from "@/lib/ai/tools";
 import type { WebSource } from "@/lib/web-search";
 
 export type ChatMessage = {
@@ -50,6 +56,8 @@ type StreamProviderResult = {
   finishReason?: string;
   sources?: WebSource[];
   searchQueries?: string[];
+  /** Nama tool yang benar-benar dijalankan giliran ini (jalur tool calling). */
+  toolsUsed?: string[];
 };
 type OpenAiErrorDetails = {
   status?: number;
@@ -80,6 +88,12 @@ type ChatContextOptions = {
   effort?: EffortLevel;
   /** Toggle "Pemikiran" — mematikannya memaksa upaya minimal. */
   thinking?: boolean;
+  /**
+   * Bila diisi, jalur Gemini memakai TOOL CALLING (lib/ai/tools.ts) alih-alih
+   * built-in google_search. Hanya rute yang punya sesi Supabase yang bisa
+   * mengisinya — tool membaca data milik pengguna, dan RLS-lah pembatasnya.
+   */
+  toolContext?: ToolContext;
 };
 type SelectedModel = PlanModelId;
 /**
@@ -1803,6 +1817,176 @@ async function streamGeminiReply(
   }
 }
 
+/**
+ * Jalur TOOL CALLING (Tahap 1 subsistem — lihat lib/ai/tools.ts).
+ *
+ * Berbeda dari streamGeminiReply di atas yang sekali tembak, ini berputar:
+ * panggil model → kalau ia meminta tool, jalankan → kirim hasilnya kembali →
+ * panggil lagi, sampai model menjawab dengan teks biasa.
+ *
+ * Kenapa fungsi terpisah, bukan menambah flag di streamGeminiReply: jalur
+ * google_search (Langkah 48) sudah terverifikasi hidup, dan Gemini MENOLAK
+ * (HTTP 400) permintaan yang memuat built-in tool sekaligus functionDeclarations.
+ * Keduanya memang tidak bisa jadi satu fungsi. Web search tetap tersedia di
+ * sini lewat tool `cari_web`, yang menjalankan panggilan Gemini bersarang.
+ *
+ * Teks dari putaran yang MEMANGGIL tool sengaja tidak dialirkan ke pengguna:
+ * itu biasanya gumaman "baik, saya cari dulu" yang jadi rancu begitu jawaban
+ * final tiba. Hanya putaran terakhir (yang tidak memanggil tool) yang tampil.
+ */
+async function streamGeminiReplyWithTools(
+  messages: ChatMessage[],
+  pdfContext: string,
+  onChunk: StreamChunkHandler,
+  route: AiRoute,
+  tier: SubscriptionTier,
+  systemPrompt: string | undefined,
+  memory: UserMemory | undefined,
+  modelOverride: string | undefined,
+  knowledgeContext: string,
+  documentContexts: DocumentContext[],
+  imageContexts: ImageContext[],
+  toolContext: ToolContext,
+): Promise<StreamProviderResult | null> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
+
+  if (!geminiApiKey) {
+    return null;
+  }
+
+  type GeminiPart = {
+    text?: string;
+    functionCall?: { name?: string; args?: Record<string, unknown> };
+    // Wajib dipantulkan kembali apa adanya untuk model thinking (2.5): tanda
+    // tangan ini yang menautkan panggilan tool ke jejak penalaran aslinya.
+    thoughtSignature?: string;
+  };
+
+  const contents: { role: string; parts: unknown[] }[] = createGeminiContents(
+    messages,
+    pdfContext,
+    knowledgeContext,
+    documentContexts,
+    imageContexts,
+  );
+
+  const collectedSources: WebSource[] = [];
+  const usedToolNames: string[] = [];
+
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+    // Putaran terakhir dijalankan TANPA tool: kalau tidak, model yang terjebak
+    // memanggil tool terus-menerus akan berakhir tanpa jawaban sama sekali.
+    const isFinalRound = round === MAX_TOOL_ROUNDS;
+    let roundText = "";
+    const functionCalls: { name: string; args: Record<string, unknown> }[] = [];
+    const modelParts: GeminiPart[] = [];
+
+    let response: Response;
+
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+          geminiModel,
+        )}:streamGenerateContent?alt=sse&key=${encodeURIComponent(geminiApiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: createGeminiSystemInstruction(memory, systemPrompt) }],
+            },
+            contents,
+            generationConfig: {
+              maxOutputTokens: geminiMaxOutputTokens,
+              temperature: 0.4,
+            },
+            ...(isFinalRound ? {} : { tools: toGeminiToolDeclarations() }),
+          }),
+        },
+      );
+    } catch (error) {
+      console.error("Gemini tool-round request failed:", { round, error });
+      return null;
+    }
+
+    if (!response.ok) {
+      console.error("Gemini tool-round error:", {
+        status: response.status,
+        model: geminiModel,
+        round,
+        errorText: await response.text(),
+      });
+      return null;
+    }
+
+    await streamSseJson(response, async (data) => {
+      try {
+        const event = JSON.parse(data) as {
+          candidates?: { content?: { parts?: GeminiPart[] } }[];
+        };
+
+        for (const part of event.candidates?.[0]?.content?.parts ?? []) {
+          modelParts.push(part);
+
+          if (part.functionCall?.name) {
+            functionCalls.push({
+              name: part.functionCall.name,
+              args: part.functionCall.args ?? {},
+            });
+          } else if (part.text) {
+            roundText += part.text;
+          }
+        }
+      } catch (error) {
+        console.error("Gemini tool-round parse failed:", { data, error });
+      }
+    });
+
+    if (functionCalls.length === 0) {
+      // Model menjawab dengan teks — inilah jawaban final.
+      if (!roundText) {
+        return null;
+      }
+
+      await onChunk(roundText);
+
+      return {
+        reply: roundText,
+        sources: collectedSources.length ? collectedSources : undefined,
+        toolsUsed: usedToolNames.length ? usedToolNames : undefined,
+      };
+    }
+
+    // Pantulkan giliran model apa adanya (termasuk thoughtSignature), lalu
+    // kirim hasil tiap tool sebagai satu giliran balasan.
+    contents.push({ role: "model", parts: modelParts });
+
+    const responseParts: unknown[] = [];
+
+    for (const call of functionCalls) {
+      usedToolNames.push(call.name);
+
+      const result = await runTool(call.name, call.args, toolContext);
+
+      if (result.sources?.length) {
+        collectedSources.push(...result.sources);
+      }
+
+      responseParts.push({
+        functionResponse: {
+          name: call.name,
+          response: { result: result.text },
+        },
+      });
+    }
+
+    contents.push({ role: "user", parts: responseParts });
+  }
+
+  return null;
+}
+
 function resolveGeminiFallbackModels(
   route: AiRoute,
   tier: SubscriptionTier,
@@ -2423,19 +2607,43 @@ export async function streamChatReply(
     route === "smart" ||
     routeConfig.futureProvider === "gemini"
   ) {
-    const geminiResult = await streamGeminiReplyWithFallback(
-      recentMessages,
-      pdfContext,
-      onChunk,
-      route,
-      access.tier,
-      systemPrompt,
-      memory,
-      options?.knowledgeContext,
-      options?.documentContexts,
-      options?.imageContexts,
-      shouldSearchWeb,
-    );
+    // Jalur TOOL CALLING dipakai pada pemicu yang PERSIS SAMA dengan jalur
+    // web search sebelumnya (needsWebSearch), jadi tidak ada bypass GPT baru
+    // yang ditambahkan — pesan yang dulu memakai google_search sekarang
+    // memakai tool, dan pesan lain tetap GPT-dulu seperti semula. Bedanya, di
+    // jalur itu model kini bisa memakai cari_web SEKALIGUS cari_catatan /
+    // cari_pengetahuan, bukan hanya pencarian web.
+    const geminiResult =
+      shouldSearchWeb && options?.toolContext
+        ? await streamGeminiReplyWithTools(
+            recentMessages,
+            pdfContext,
+            onChunk,
+            route,
+            access.tier,
+            systemPrompt,
+            memory,
+            undefined,
+            options.knowledgeContext ?? "",
+            options.documentContexts ?? [],
+            options.imageContexts ?? [],
+            options.toolContext,
+          ).then((result) =>
+            result ? { ...result, model: resolveGeminiModel(route, access.tier) } : null,
+          )
+        : await streamGeminiReplyWithFallback(
+            recentMessages,
+            pdfContext,
+            onChunk,
+            route,
+            access.tier,
+            systemPrompt,
+            memory,
+            options?.knowledgeContext,
+            options?.documentContexts,
+            options?.imageContexts,
+            shouldSearchWeb,
+          );
 
     if (geminiResult) {
       logAiSuccess("M-Agent provider streamed request:", {
@@ -2445,6 +2653,7 @@ export async function streamChatReply(
         tier: access.tier,
         webSearchUsed: shouldSearchWeb,
         webSearchSourceCount: geminiResult.sources?.length ?? 0,
+        toolsUsed: geminiResult.toolsUsed ?? [],
       });
 
       return {
@@ -2452,11 +2661,15 @@ export async function streamChatReply(
         provider: "gemini" as const,
         model: geminiResult.model,
         fallbackEvent:
-          geminiResult.fallbackEvent ??
-          (triedOpenAi ? "openai_to_gemini" : undefined),
+          // Jalur tool tidak punya fallback Pro→Flash (satu model saja), jadi
+          // properti ini memang absen di sana — bukan kelalaian.
+          ("fallbackEvent" in geminiResult
+            ? geminiResult.fallbackEvent
+            : undefined) ?? (triedOpenAi ? "openai_to_gemini" : undefined),
         finishReason: geminiResult.finishReason,
         sources: geminiResult.sources,
         searchQueries: geminiResult.searchQueries,
+        toolsUsed: geminiResult.toolsUsed,
       };
     }
 

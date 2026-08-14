@@ -354,6 +354,10 @@ export async function POST(request: Request) {
               imageContexts,
               effort,
               thinking,
+              // Mengaktifkan jalur tool calling (Tahap 1 subsistem). Rute ini
+              // punya klien Supabase ber-sesi, jadi tool membaca data lewat
+              // RLS milik pengguna yang sedang login — bukan service role.
+              toolContext: { supabase, userId: user.id },
             },
           );
 
@@ -415,6 +419,7 @@ export async function POST(request: Request) {
                 streamed_reply_length: finalReply.length,
                 web_search_used: Boolean(chatResult.sources?.length),
                 web_search_source_count: chatResult.sources?.length ?? 0,
+                tools_used: chatResult.toolsUsed ?? [],
               },
               p_user_id: user.id,
             },

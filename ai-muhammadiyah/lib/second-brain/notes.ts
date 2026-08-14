@@ -45,8 +45,12 @@ export async function retrieveRelevantNotes(
   supabase: SupabaseClient,
   question: string,
   limit = maxRetrievedNoteChunks,
+  // Lihat catatan yang sama di retrieveKnowledgeChunks: saat dipanggil sebagai
+  // tool, kuerinya adalah kata kunci rumusan model (sering pendek, mis.
+  // "fotosintesis") sehingga ambang 15 karakter akan salah membuangnya.
+  forceSearch = false,
 ): Promise<NoteChunk[]> {
-  if (!shouldSearchNotes(question)) {
+  if (!forceSearch && !shouldSearchNotes(question)) {
     return [];
   }
 
