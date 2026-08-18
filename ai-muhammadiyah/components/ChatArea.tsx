@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useSyncExternalStore } from "react";
 import type {
   Dispatch,
   MutableRefObject,
@@ -22,6 +23,86 @@ import {
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
+
+// Sapaan layar sambutan — diacak tiap kali layar sambutan muncul (chat baru /
+// ganti chat). Campuran salam Islami dan sapaan netral supaya tetap terbuka
+// untuk semua pengguna, bukan hanya warga Muhammadiyah.
+const welcomeGreetings = [
+  "Mau mulai dari mana hari ini?",
+  "Apa yang sedang kamu kerjakan?",
+  "Assalamu’alaikum, mau bahas apa hari ini?",
+  "Ada yang ingin kamu pelajari hari ini?",
+  "Tulis apa saja, M-Agent siap membantu.",
+  "Apa yang ingin kamu selesaikan hari ini?",
+  "Selamat datang kembali. Lanjut yang mana?",
+  "Mari mulai — apa topiknya?",
+  "Butuh bantuan apa hari ini?",
+  "Ada pertanyaan? Mulai saja dari sini.",
+];
+
+// Sapaan acak hanya boleh diputuskan di client: kalau diacak saat render,
+// HTML server dan client berbeda dan hidrasi gagal. useSyncExternalStore
+// menangani ini secara resmi — server memakai getServerSnapshot (kosong,
+// judul dirender transparan), client mengisi pilihan acaknya sesudah hidrasi.
+function subscribeGreeting(onStoreChange: () => void) {
+  // Satu notifikasi sesudah mount. Tanpa ini React bisa tetap memakai nilai
+  // getServerSnapshot (string kosong = judul transparan) sampai ada render
+  // lain — terbukti terjadi di halaman yang tidak pernah re-render.
+  let cancelled = false;
+
+  queueMicrotask(() => {
+    if (!cancelled) {
+      onStoreChange();
+    }
+  });
+
+  return () => {
+    cancelled = true;
+  };
+}
+
+function getServerGreeting() {
+  return "";
+}
+
+function WelcomeGreeting() {
+  // Satu pilihan acak per mount (layar sambutan muncul lagi = sapaan baru).
+  // getSnapshot wajib mengembalikan nilai yang sama tiap dipanggil, jadi hasil
+  // undian di-cache di dalam closure.
+  const [getGreeting] = useState(() => {
+    let picked = "";
+
+    return () => {
+      if (!picked) {
+        picked =
+          welcomeGreetings[
+            Math.floor(Math.random() * welcomeGreetings.length)
+          ];
+      }
+
+      return picked;
+    };
+  });
+
+  const greeting = useSyncExternalStore(
+    subscribeGreeting,
+    getGreeting,
+    getServerGreeting,
+  );
+
+  return (
+    <h2
+      className={
+        greeting
+          ? "font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)] opacity-100 transition-opacity duration-300 sm:text-[44px]"
+          : "font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)] opacity-0 transition-opacity duration-300 sm:text-[44px]"
+      }
+    >
+      {/* Fallback dipakai hanya untuk menahan tinggi baris saat masih transparan. */}
+      {greeting || welcomeGreetings[0]}
+    </h2>
+  );
+}
 
 const quickPrompts = [
   {
@@ -140,9 +221,7 @@ export default function ChatArea({
           </div>
 
           <section className="text-center">
-            <h2 className="font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)] sm:text-[44px]">
-              Assalamu&apos;alaikum, ada yang bisa AI-mu bantu?
-            </h2>
+            <WelcomeGreeting key={activeConversationId} />
             <p className="mt-6 text-lg leading-relaxed text-[var(--muted-2)] sm:text-xl">
               Belajar, meneliti, dan berkarya dalam satu ruang cerdas —
               berpijak pada{" "}

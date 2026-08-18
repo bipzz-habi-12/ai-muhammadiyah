@@ -1421,3 +1421,45 @@ Detail lain: `access_type=offline` + `prompt=consent` wajib — tanpanya Google 
 Sampai ketiganya beres, `/work` tetap terbuka dan jujur menampilkan "Belum dikonfigurasi" beserta env apa yang kurang — tidak error.
 
 **Belum teruji end-to-end**: alur OAuth sungguhan, pembuatan Google Docs nyata, dan pembacaan berkas Drive — ketiganya butuh kredensial Google yang hanya user bisa buat.
+
+## Langkah 51: Satu sidebar kiri + sapaan acak + hapus sisa nama "AI-mu" — SELESAI di kode
+
+Tiga permintaan UI dari user dalam satu sesi. Tidak ada perubahan DB, tidak ada migrasi.
+
+### A. Dua sidebar kiri dilebur jadi satu (pola Claude/ChatGPT)
+
+Halaman chat punya DUA panel kiri: `IconRail` (66px — nav antar-halaman + menu akun) dan `Sidebar` (260px — cari + obrolan baru + riwayat). User minta satu saja.
+
+- **`components/IconRail.tsx` dihapus.** Seluruh isinya (6 item nav, tombol Settings, menu akun) pindah ke `Sidebar.tsx`.
+- Susunan sidebar tunggal (272px): logo + "M-Agent" + tombol ciut -> **Obrolan baru** -> kolom cari -> nav (Workspaces, Work, Research, Library, Muhammadiyah Hub, Riwayat) + "Workspace baru" -> daftar riwayat (grup + kebab rename/pin/pindah/hapus, TIDAK diubah) -> Internal Links -> footer akun (avatar + email + tier) yang membuka popover Upgrade / Learning Profile / Usage / Settings / Logout.
+- Item nav aktif ditandai `usePathname()`. Mode ciut menyusut ke 64px tapi tetap SATU sidebar (bukan kembali jadi dua).
+- `isAccountMenuOpen` tetap dibagi dengan popover mobile di `TopBar` — perilaku layar kecil tidak berubah.
+- Halaman lain (`/library`, `/hub`, `/research`, `/work`, `/workspace`, `/settings/personalization`) memakai `AppShellRail` sendiri dan memang hanya punya satu rail, jadi tidak ikut disentuh.
+
+### B. Knowledge sidebar tidak lagi muncul untuk user biasa
+
+`KnowledgeSidebar` dulu selalu dirender saat panel Artifact tertutup — termasuk untuk user yang belum pernah mengunggah apa pun, jadi yang tampil panel 240px berisi "Belum ada knowledge source aktif". Sekarang syaratnya `knowledgeSources.length > 0`.
+
+Fiturnya tidak dihapus: menambah/melihat source tetap lewat **Settings -> Knowledge Base**, dan panelnya muncul lagi begitu ada satu source. Kalau nanti diputuskan hapus total untuk semua tier, cukup buang satu kondisi itu di `app/page.tsx`.
+
+### C. Sapaan layar sambutan diacak — dan jebakan hidrasinya
+
+"Assalamu'alaikum, ada yang bisa AI-mu bantu?" diganti 10 varian (campuran salam dan sapaan netral) yang diundi tiap layar sambutan muncul: buka aplikasi, obrolan baru, atau pindah chat (`key={activeConversationId}` pada `WelcomeGreeting`).
+
+**Jebakan nyata — teks acak TIDAK boleh diputuskan saat render**, karena HTML server dan client jadi berbeda dan hidrasi gagal. Dua percobaan gagal sebelum versi final, dicatat supaya tidak diulang:
+
+1. `useState` + `useEffect` -> **ditolak lint** (`react-hooks/set-state-in-effect`).
+2. `useSyncExternalStore` dengan `subscribe` no-op -> lolos lint, tapi **judulnya bisa tidak pernah muncul**. `getServerSnapshot` mengembalikan string kosong (judul dirender transparan), dan tanpa notifikasi store React tidak selalu membaca ulang snapshot client. Terbukti di route uji yang tidak pernah re-render: 3 detik sesudah muat, judul masih transparan. Di halaman chat asli bug ini kemungkinan tertutupi karena parent sering re-render — persis jenis bug yang lolos ke produksi.
+3. **Yang dipakai:** `subscribe` yang mengirim SATU notifikasi lewat `queueMicrotask` sesudah mount. HTML server tetap deterministik, client mengisi sapaan acaknya dengan fade 300ms.
+
+Verifikasi lewat route sementara (dihapus sebelum commit): tiga kali muat menghasilkan sapaan indeks 2, 9, 0; `curl` tiga kali mengembalikan HTML server yang identik (mismatch jadi mustahil); tidak ada error hydration di console.
+
+### D. "AI-mu" -> "M-Agent"
+
+Atas koreksi user, 7 string copy diganti: sapaan `ChatArea`, placeholder + disclaimer `Composer`, eyebrow `/history`, judul daftar akun `AuthPage`, deskripsi `SettingsModal`, dan tagline tier Gratis di `plans.ts`. Pencarian ulang `AI-mu`/`AI mu`/`AImu` di `app`, `components`, `lib` sudah kosong.
+
+Identifier internal (domain `aimuhammadiyah.my.id`, env `AIMU_*`, key `localStorage` `ai-mu-*`) **sengaja tidak disentuh** sesuai aturan di `CLAUDE.md`.
+
+### Verifikasi
+
+`npm run lint`, `tsc --noEmit`, dan `npm run build` bersih di tiap tahap. Pengecekan visual dilakukan lewat pohon aksesibilitas + geometri DOM di dev server (route uji sementara, karena halaman chat butuh sesi login): satu `<aside>` kiri berisi nav + riwayat + akun, popover akun utuh di dalam viewport, mode ciut 64px tanpa scroll horizontal. **Screenshot tidak bisa diambil** — Browser pane tidak ditampilkan di sesi ini, jadi tab dianggap hidden dan transisi CSS membeku (sempat terbaca sebagai "opacity 0 yang salah", ternyata artefak lingkungan uji, bukan bug).

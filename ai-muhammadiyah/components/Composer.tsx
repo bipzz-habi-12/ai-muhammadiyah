@@ -30,7 +30,7 @@ import {
 
 // Shared disclaimer copy (reused by the welcome hero and the active composer).
 export const CHAT_DISCLAIMER =
-  "AI-mu dapat keliru. Selalu verifikasi informasi penting, terutama dalam urusan ibadah & syariah.";
+  "M-Agent dapat keliru. Selalu verifikasi informasi penting, terutama dalam urusan ibadah & syariah.";
 
 interface ComposerProps {
   variant: "welcome" | "active";
@@ -544,7 +544,7 @@ export default function Composer({
           placeholder={
             isSlashPickerOpen
               ? "Ketik perintah skill, mis. /coding..."
-              : "Tanyakan apa saja kepada AI-mu... (ketik / untuk skill)"
+              : "Tanyakan apa saja kepada M-Agent... (ketik / untuk skill)"
           }
           disabled={isSending}
           className={inputClassName}

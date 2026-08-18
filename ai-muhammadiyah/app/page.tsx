@@ -6,7 +6,6 @@ import { Icon } from "@/components/icons";
 import ArtifactPanel from "@/components/ArtifactPanel";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
-import IconRail from "@/components/IconRail";
 import KnowledgeSidebar from "@/components/KnowledgeSidebar";
 import MobileToolbar from "@/components/MobileToolbar";
 import ShareModal from "@/components/ShareModal";
@@ -663,21 +662,6 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
-      <IconRail
-        isAccountMenuOpen={isAccountMenuOpen}
-        setIsAccountMenuOpen={setIsAccountMenuOpen}
-        currentTierLabel={currentTierLabel}
-        usageSnapshot={usageSnapshot}
-        usageError={usageError}
-        openLearningProfile={openLearningProfile}
-        openSettings={openSettings}
-        profileLabel={profileLabel}
-        handleLogout={handleLogout}
-        isLoggingOut={isLoggingOut}
-        userInitials={userInitials}
-        userEmail={userEmail}
-      />
-
       <Sidebar
         chatSearch={chatSearch}
         setChatSearch={setChatSearch}
@@ -697,6 +681,18 @@ export default function Home() {
         toggleConversationPin={toggleConversationPin}
         deleteConversation={deleteConversation}
         updateConversationWorkspace={updateConversationWorkspace}
+        isAccountMenuOpen={isAccountMenuOpen}
+        setIsAccountMenuOpen={setIsAccountMenuOpen}
+        currentTierLabel={currentTierLabel}
+        usageSnapshot={usageSnapshot}
+        usageError={usageError}
+        openLearningProfile={openLearningProfile}
+        openSettings={openSettings}
+        profileLabel={profileLabel}
+        handleLogout={handleLogout}
+        isLoggingOut={isLoggingOut}
+        userInitials={userInitials}
+        userEmail={userEmail}
       />
 
       <section className="flex min-w-0 flex-1 flex-col bg-[var(--background)]">
@@ -828,7 +824,10 @@ export default function Home() {
       </section>
 
       {/* Artifact panel replaces the knowledge sidebar while open (Master Plan
-          v2: knowledge sidebar collapses so the layout doesn't get cramped). */}
+          v2: knowledge sidebar collapses so the layout doesn't get cramped).
+          Knowledge sidebar hanya muncul untuk user yang MEMANG punya knowledge
+          source; user biasa (belum pernah upload) tidak melihat panel kosong —
+          menambah source tetap bisa lewat Settings > Knowledge Base. */}
       {activeTool === "chat" && isArtifactPanelOpen ? (
         <ArtifactPanel
           artifacts={artifacts}
@@ -838,13 +837,13 @@ export default function Home() {
           onClose={() => setIsArtifactPanelOpen(false)}
           deleteArtifact={deleteArtifact}
         />
-      ) : (
+      ) : knowledgeSources.length > 0 ? (
         <KnowledgeSidebar
           knowledgeSources={knowledgeSources}
           isLoadingKnowledge={isLoadingKnowledge}
           openSettings={openSettings}
         />
-      )}
+      ) : null}
 
       <WorkspaceModal
         isOpen={isWorkspaceModalOpen}

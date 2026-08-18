@@ -45,7 +45,7 @@ export default function AuthPage({ mode, initialEmail = "" }: AuthPageProps) {
                 ? "Verifikasi OTP"
                 : isLogin
                   ? "Masuk dengan OTP"
-                  : "Daftar akun AI-mu"}
+                  : "Daftar akun M-Agent"}
             </h1>
           </div>
         </div>

@@ -173,7 +173,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     name: tierLabels.free,
     price: formatIdrPrice(0),
     priceIdr: 0,
-    tagline: "Mulai belajar dengan AI-mu.",
+    tagline: "Mulai belajar dengan M-Agent.",
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
     modelNames: ["Prism", "Velo"],

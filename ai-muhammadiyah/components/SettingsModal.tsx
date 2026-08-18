@@ -263,7 +263,7 @@ export default function SettingsModal({
           <div>
             <h2 className="font-serif text-[26px] font-normal text-[var(--ink-deep)]">Settings</h2>
             <p className="mt-1 text-sm text-[var(--muted-2)]">
-              Preferensi AI-mu, akun, data, dan dokumen.
+              Preferensi M-Agent, akun, data, dan dokumen.
             </p>
           </div>
           <button

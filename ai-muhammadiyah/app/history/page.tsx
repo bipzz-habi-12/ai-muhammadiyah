@@ -14,7 +14,7 @@ export default async function HistoryPage() {
 
   return (
     <PlaceholderPage
-      eyebrow="AI-mu"
+      eyebrow="M-Agent"
       title="History"
       description="Riwayat percakapan lintas workspace dalam tampilan terpusat akan tampil di sini."
     />
