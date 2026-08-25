@@ -189,6 +189,16 @@ export function Icon({
     );
   }
 
+  if (name === "question") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.4 9.4a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.7-2.6 2.7" />
+        <path d="M12 17h.01" />
+      </svg>
+    );
+  }
+
   if (name === "info") {
     return (
       <svg {...common}>

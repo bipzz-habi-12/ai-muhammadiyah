@@ -7,12 +7,14 @@ import type {
   ReactNode,
   SetStateAction,
 } from "react";
+import AskUserQuestion from "@/components/AskUserQuestion";
 import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
 import { SparkIcon, Icon } from "@/components/icons";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import NoteSuggestions from "@/components/NoteSuggestions";
 import WebSources from "@/components/WebSources";
 import { formatArtifactTextForDisplay } from "@/lib/artifacts";
+import { formatAskTextForDisplay } from "@/lib/ask-user";
 import { formatNoteTextForDisplay } from "@/lib/second-brain/parse";
 import { formatSourcesTextForDisplay } from "@/lib/web-search";
 import type { Message } from "@/lib/mappers/types";
@@ -131,7 +133,7 @@ interface ChatAreaProps {
   messages: Message[];
   input: string;
   setInput: Dispatch<SetStateAction<string>>;
-  sendMessage: () => Promise<void>;
+  sendMessage: (messageOverride?: string) => Promise<void>;
   isSending: boolean;
   isAwaitingFirstChunk: boolean;
   hasMessageQuota: boolean;
@@ -341,24 +343,36 @@ export default function ChatArea({
                     isStreamingMessage ? " ai-stream-in" : ""
                   }`}
                 >
-                  {/* Rows store raw artifact + note + sources markers; strip
-                      them at render time (works mid-stream too). Note blocks
-                      are removed entirely — isinya sudah tampil di chip
-                      usulan. Sources marker is appended by the server AFTER
-                      the model's own text (lib/web-search.ts), so it only
-                      ever completes once streaming is done. */}
+                  {/* Rows store raw artifact + note + sources + ask markers;
+                      strip them at render time (works mid-stream too). Note
+                      and ask blocks are removed entirely — isinya sudah tampil
+                      di chip usulan / kartu pertanyaan. Sources marker is
+                      appended by the server AFTER the model's own text
+                      (lib/web-search.ts), so it only ever completes once
+                      streaming is done. */}
                   <MarkdownMessage
-                    text={formatSourcesTextForDisplay(
-                      formatNoteTextForDisplay(
-                        formatArtifactTextForDisplay(message.text),
+                    text={formatAskTextForDisplay(
+                      formatSourcesTextForDisplay(
+                        formatNoteTextForDisplay(
+                          formatArtifactTextForDisplay(message.text),
+                        ),
                       ),
                     )}
                   />
-                  {/* Usulan catatan & chip sumber web hanya setelah streaming
-                      selesai, supaya tidak pernah menyela pengguna yang
-                      sedang membaca (dan marker sumber baru lengkap saat itu). */}
+                  {/* Usulan catatan, chip sumber web & kartu pertanyaan hanya
+                      setelah streaming selesai, supaya tidak pernah menyela
+                      pengguna yang sedang membaca (dan markernya baru lengkap
+                      saat itu). */}
                   {!isStreamingMessage && (
                     <>
+                      <AskUserQuestion
+                        messageText={message.text}
+                        isLatest={index === messages.length - 1}
+                        disabled={isSending || !hasMessageQuota}
+                        onAnswer={(answer) => {
+                          void sendMessage(answer);
+                        }}
+                      />
                       <WebSources messageText={message.text} />
                       <NoteSuggestions
                         messageText={message.text}

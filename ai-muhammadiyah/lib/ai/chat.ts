@@ -203,6 +203,41 @@ const noteSystemPrompt = [
   "- Never mention the note in your prose and never ask whether to save it. The user decides from the suggestion.",
 ].join("\n");
 
+// Clarifying-question sentinel contract — the parser lives in lib/ask-user.ts
+// (parseAskQuestions / formatAskTextForDisplay); keep the marker syntax here in
+// sync with it.
+//
+// Ini melawan arus dua blok prompt di atasnya: ANSWER COMPLETION melarang
+// berhenti di tengah lalu bertanya "lanjut?", dan RESPONSE STYLE mendorong satu
+// jawaban prosa yang selesai. Keduanya BENAR untuk kasus biasa dan tidak
+// dilemahkan di sini. Yang ditambahkan hanya satu jalan keluar sempit: kalau
+// permintaannya sungguh bercabang — dua tafsir menghasilkan pekerjaan yang
+// BERBEDA JAUH — menebak lalu salah membuang lebih banyak giliran pengguna
+// daripada satu pertanyaan berbentuk pilihan.
+//
+// Pelajaran Langkah 40a dipakai lagi di sini (jangan diulang dari nol):
+// modalitasnya harus tegas, dan harus ada satu baris yang menyatakan blok ini
+// BUKAN bagian jawaban prosa — tanpa itu blok kalah oleh aturan
+// answer-completion dan tidak pernah dipancarkan sama sekali.
+const clarifyingQuestionSystemPrompt = [
+  "CLARIFYING QUESTION RULES:",
+  "Default to answering. Most requests are clear enough, and an unnecessary question wastes the user's turn. Prefer stating an assumption and proceeding.",
+  "But when the request is genuinely underdetermined — two or more readings would lead to MATERIALLY different work, and guessing wrong would waste substantial effort or produce something unusable — do not guess, and do not bury the choice inside a paragraph of prose. Ask with a choice block.",
+  "To ask, append ONE block at the very end of the reply:",
+  "[[AI_MU_ASK]]",
+  "{\"questions\":[{\"header\":\"Bentuk\",\"question\":\"Mau dibuat dalam bentuk apa?\",\"multiSelect\":false,\"options\":[{\"label\":\"Ringkasan singkat\",\"description\":\"Satu halaman, poin utama saja.\"},{\"label\":\"Laporan lengkap\",\"description\":\"Beberapa bagian dengan analisis dan rujukan.\"}]}]}",
+  "[[/AI_MU_ASK]]",
+  "- This block is NOT part of your prose answer. It is stripped out of the message and rendered as clickable choice cards, so appending it never conflicts with the answer-completion or response-style rules above.",
+  "- Between the markers write ONE line of valid JSON and nothing else. Both markers sit on their own lines, and the closing marker [[/AI_MU_ASK]] is required — a block that is never closed shows the user nothing at all.",
+  "- At most 3 questions in the block, each with 2 to 4 options. Every option needs a short description saying what picking it means. header is a short chip label of at most 24 characters — a longer one is dropped, so keep it to one or two words.",
+  "- Set multiSelect to true only when several options can sensibly be picked together.",
+  "- Options must be real, distinct choices the user can pick without typing. If you have a recommendation, put it first and end its label with ' (disarankan)'. The user can always type something else instead, so never add an 'other' or 'lainnya' option yourself.",
+  "- When you ask, keep the prose above the block to at most two sentences and do NOT also deliver the full result — the point is to settle the choice first. Do whatever part of the work does NOT depend on the answer, then ask about the rest.",
+  "- Do not append Second Brain note blocks in the same reply as a choice block.",
+  "- Never ask about something the user already told you, something you could look up with a tool, or a small preference you could simply pick yourself. Never use the block for 'mau saya lanjutkan?' — finish what you can instead.",
+  "- Ask at most one block per reply, and once the user answers, get to work immediately without asking about the same thing again.",
+].join("\n");
+
 // Only injected into the Gemini system instruction when needsWebSearch()
 // triggered the google_search tool for this turn (see streamChatReply) — the
 // generic "no browsing tool available" line in islamicAiIdentitySystemPrompt
@@ -921,6 +956,7 @@ function createOpenRouterMessages(
     { role: "system", content: responseStyleSystemPrompt },
     { role: "system", content: artifactSystemPrompt },
     { role: "system", content: noteSystemPrompt },
+    { role: "system", content: clarifyingQuestionSystemPrompt },
     ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
     ...(memorySystemPrompt
       ? [{ role: "system", content: memorySystemPrompt }]
@@ -1017,6 +1053,7 @@ function createOpenAiInstructions(
     responseStyleSystemPrompt,
     artifactSystemPrompt,
     noteSystemPrompt,
+    clarifyingQuestionSystemPrompt,
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]
@@ -1036,6 +1073,7 @@ function createGeminiSystemInstruction(
     responseStyleSystemPrompt,
     artifactSystemPrompt,
     noteSystemPrompt,
+    clarifyingQuestionSystemPrompt,
     enableWebSearch ? webSearchSystemPrompt : "",
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",

@@ -1,6 +1,6 @@
 # M-Agent Project Status
 
-Last updated: August 18, 2026 (Langkah 51)
+Last updated: August 24, 2026 (Langkah 52a)
 
 > This file describes the state of the code as it exists now. For the reasoning
 > behind each change — including traps hit along the way — read
@@ -77,6 +77,7 @@ v2 systems:
 - [x] Tool calling: `cari_catatan`, `cari_pengetahuan`, `cari_web` + 3 Google Drive tools
 - [x] Stripe Checkout, Billing Portal, and signed webhook (code complete)
 - [x] Google Drive connector code path (`drive.file` scope, encrypted refresh token)
+- [x] Clarifying questions: the AI asks back with clickable choice cards when a request is genuinely ambiguous (Langkah 52), and a turn that only asks is waived from the token meter (Langkah 52a)
 
 UI shell (Langkah 51):
 
@@ -225,6 +226,7 @@ Conversations with no workspace stay in the General group.
 - Right panel: the Artifact panel takes over when open; otherwise the Knowledge sidebar appears **only if the user has knowledge sources**. Adding sources is always available under Settings → Knowledge Base.
 - Design v2 palette and fonts (Hanken Grotesk + Newsreader) are applied app-wide — see `CLAUDE.md` for the tokens any new UI must follow.
 - AI messages render without bubbles (Claude-style, not ChatGPT-style).
+- Below a finished AI message: web source chips, Second Brain note suggestions, and — when the reply carries an `[[AI_MU_ASK]]` block — a clarifying-question card (`components/AskUserQuestion.tsx`). All three render only after streaming ends. The card locks into a read-only state once answered, or once it is no longer the last message.
 
 ## Supabase Migrations
 

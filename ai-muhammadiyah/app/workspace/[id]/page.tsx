@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { artifactTypeLabels, type ArtifactType } from "@/lib/artifacts";
+import { formatAskTextForDisplay } from "@/lib/ask-user";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import WorkspaceView, {
@@ -20,11 +21,15 @@ type WorkspacePageProps = {
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Collapse a stored message into a one-line preview: drop artifact markers and
+// Collapse a stored message into a one-line preview: drop sentinel blocks and
 // the coarsest markdown noise, then squeeze whitespace. CSS handles the visual
 // truncation, so a generous slice is enough to keep the payload small.
+//
+// Blok pertanyaan klarifikasi ([[AI_MU_ASK]], lib/ask-user.ts) dibuang berikut
+// ISINYA, bukan cuma penandanya: isinya JSON satu baris, dan menghapus penanda
+// saja akan menumpahkan JSON mentah ke pratinjau daftar chat.
 function buildPreview(content: string): string {
-  return content
+  return formatAskTextForDisplay(content)
     .replace(/\[\[AI_MU_ARTIFACT:[^\]]*\]\]/g, " ")
     .replace(/\[\[\/AI_MU_ARTIFACT\]\]/g, " ")
     .replace(/\[\[[^\]]*\]\]/g, " ")

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { parseArtifactBlocks } from "@/lib/artifacts";
+import { isClarifyingQuestionOnlyReply } from "@/lib/ask-user";
 import { trimHistoryToTokenBudget } from "@/lib/ai/context-window";
 import {
   streamChatReply,
@@ -381,14 +383,37 @@ export async function POST(request: Request) {
             combinedDocumentContext,
             finalReply,
           );
+          // Giliran yang HANYA berisi pertanyaan klarifikasi dibebaskan dari
+          // meteran kuota: AI belum mengerjakan apa pun, ia baru bertanya.
+          // Menagihnya berarti pengguna membayar dua kali untuk satu hasil
+          // (sekali saat ditanya, sekali saat dikerjakan) — itu menghukum
+          // perilaku yang justru ingin didorong.
+          //
+          // Kalau balasannya ikut memuat artifact, ia TIDAK gratis: pekerjaan
+          // sungguhannya sudah jadi, pertanyaannya cuma untuk sisanya.
+          //
+          // Dua hal yang sengaja dipertahankan:
+          //   * Barisnya tetap ditulis ke usage_logs (biaya 1 token — RPC
+          //     memaksa lantai `greatest(cost, 1)`), jadi provider, model,
+          //     tool, dan fallback tetap terekam untuk analitik.
+          //   * `waived_estimated_tokens` menyimpan biaya yang SEHARUSNYA
+          //     ditagih, supaya pembebasan ini bisa diaudit belakangan.
+          const isFreeClarifyingTurn =
+            isClarifyingQuestionOnlyReply(finalReply) &&
+            parseArtifactBlocks(finalReply).length === 0;
+          const chargedTokens = isFreeClarifyingTurn ? 1 : estimatedTotalTokens;
           const { data: usageData, error: usageError } = await supabase.rpc(
             "increment_usage",
             {
               p_action: "message",
               p_model_used: selectedModel,
               p_document_count: 0,
-              p_estimated_tokens: estimatedTotalTokens,
+              p_estimated_tokens: chargedTokens,
               p_metadata: {
+                clarifying_question_only: isFreeClarifyingTurn,
+                waived_estimated_tokens: isFreeClarifyingTurn
+                  ? estimatedTotalTokens
+                  : 0,
                 has_document_context: Boolean(combinedDocumentContext.trim()),
                 document_count: documentContexts.length,
                 image_count: imageContexts.length,
@@ -434,6 +459,7 @@ export async function POST(request: Request) {
               fallbackEvent: chatResult.fallbackEvent,
               finishReason: chatResult.finishReason,
               estimatedTotalTokens,
+              chargedTokens,
               error: usageError,
             });
           } else if (process.env.AI_MU_VERBOSE_LOGS === "true") {
@@ -445,6 +471,7 @@ export async function POST(request: Request) {
               fallbackEvent: chatResult.fallbackEvent,
               finishReason: chatResult.finishReason,
               estimatedTotalTokens,
+              chargedTokens,
               usage: usageData,
             });
           }

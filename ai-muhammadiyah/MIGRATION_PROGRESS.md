@@ -1463,3 +1463,77 @@ Identifier internal (domain `aimuhammadiyah.my.id`, env `AIMU_*`, key `localStor
 ### Verifikasi
 
 `npm run lint`, `tsc --noEmit`, dan `npm run build` bersih di tiap tahap. Pengecekan visual dilakukan lewat pohon aksesibilitas + geometri DOM di dev server (route uji sementara, karena halaman chat butuh sesi login): satu `<aside>` kiri berisi nav + riwayat + akun, popover akun utuh di dalam viewport, mode ciut 64px tanpa scroll horizontal. **Screenshot tidak bisa diambil** — Browser pane tidak ditampilkan di sesi ini, jadi tab dianggap hidden dan transisi CSS membeku (sempat terbaca sebagai "opacity 0 yang salah", ternyata artefak lingkungan uji, bukan bug).
+
+## Langkah 52: AI bisa bertanya balik saat konteksnya bercabang — kartu pilihan ala Claude — SELESAI di kode
+
+Permintaan user: "tambahkan fitur AI bertanya jika ada konteks AI tidak bisa memahami atau memilih sesuatu yang perlu diputuskan seperti Claude". Tidak ada perubahan DB, tidak ada migrasi.
+
+### Keputusan arsitektur: marker, BUKAN tool `tanya_pengguna`
+
+Ini keputusan yang menentukan seluruh sisanya, dan dua alasannya harus tetap dipegang kalau nanti tergoda memindahkannya ke tool calling (Langkah 50):
+
+1. **Jangkauan.** Jalur tool hanya hidup di Gemini, dan hanya untuk pesan yang lolos heuristik `needsWebSearch()`. Mayoritas pesan ditangani GPT dan tidak akan pernah bisa bertanya. Marker jalan di SEMUA provider dan semua pesan — sudah diuji hidup di kedua jalur (lihat Verifikasi).
+2. **Bentuk eksekusinya.** Executor tool berjalan di dalam satu permintaan HTTP yang harus ditutup sebelum respons selesai. Tool yang "menunggu jawaban manusia" berarti menggantung stream sampai timeout Vercel, atau membangun mesin suspend/resume berikut penyimpanannya. Marker menutup giliran seperti biasa; jawaban pengguna datang sebagai pesan berikutnya.
+
+Jadi ia masuk keluarga marker yang sudah ada (`[[AI_MU_ARTIFACT]]`, `[[AI_MU_NOTE]]`, `[[AI_MU_SOURCES]]`): blok menumpang di `messages.content`, **tidak perlu kolom/tabel DB baru**, dan membuka ulang percakapan lama tetap menampilkan kartu yang sama.
+
+Beda dari `[[AI_MU_SOURCES]]` yang ditempel server: blok ini **ditulis model**, jadi isinya tidak dipercaya. `lib/ask-user.ts` memvalidasi bentuknya, memotong panjang, membuang pertanyaan berpilihan < 2 (itu pernyataan, bukan pertanyaan), membuang label ganda, dan menolak seluruh blok kalau JSON-nya rusak — lebih baik tidak ada kartu daripada kartu setengah jadi.
+
+### Isi
+
+- **`lib/ask-user.ts`** (baru): kontrak marker `[[AI_MU_ASK]]{json}[[/AI_MU_ASK]]`, parser bertahan-banting, `formatAskTextForDisplay` (juga menyembunyikan ekor marker yang baru separuh ter-stream, dua bentuk: marker buka lengkap dengan JSON masih mengalir, dan marker buka yang sendirinya belum selesai), `formatAskTextForExport` (menulis pertanyaannya sebagai daftar — berkas .md dibaca lepas dari aplikasi), dan `buildAskAnswerMessage`.
+- **`clarifyingQuestionSystemPrompt`** di `lib/ai/chat.ts`, dipasang di KETIGA pembangun prompt (OpenRouter messages, OpenAI instructions, Gemini system instruction).
+- **`components/AskUserQuestion.tsx`** (baru): kartu pilihan — chip header, opsi berdeskripsi, single/multi select, kolom "tulis jawabanmu sendiri", tombol **Kirim jawaban** + **Tentukan saja untukku**.
+- **`components/ChatArea.tsx`**: strip marker saat render + render kartu sesudah streaming selesai; tipe prop `sendMessage` dilebarkan jadi `(messageOverride?: string)` (implementasinya di `useChatSession` memang sudah menerimanya sejak dulu).
+- **`hooks/useChatSession.ts`**: strip di export Markdown dan share preview. **`app/workspace/[id]/page.tsx`**: pratinjau daftar chat memakai `formatAskTextForDisplay` — menghapus penandanya saja akan menumpahkan JSON satu baris ke pratinjau.
+- **`components/icons.tsx`**: ikon `question`.
+
+### Jebakan yang sudah ditangani (jangan diulang)
+
+- **Prompt ini melawan arus dua blok prompt di atasnya.** ANSWER COMPLETION melarang berhenti lalu bertanya "lanjut?", RESPONSE STYLE mendorong satu jawaban prosa yang selesai. Keduanya tidak dilemahkan; yang ditambahkan cuma satu jalan keluar sempit + satu baris yang menyatakan blok ini **bukan bagian jawaban prosa** — pelajaran Langkah 40a, tanpa baris itu blok kalah oleh aturan lain dan tidak pernah dipancarkan.
+- **Kartu pada pesan yang bukan pesan terakhir dirender mati.** Tanpa ini, membuka chat lama menampilkan tombol yang kalau ditekan menjawab pertanyaan yang sudah lama terjawab.
+- **Header kepanjangan DIBUANG, bukan dipotong.** Potongan di tengah kata ("Informasi Tambaha") terbaca seperti UI rusak; tanpa chip, pertanyaannya tetap utuh. Batasnya 24 karakter dan disebutkan di prompt.
+- **Kolom jawaban bebas wajib ada.** Pilihan buatan model belum tentu memuat yang pengguna maksud; memaksa memilih salah satunya membuat jawaban jadi tidak jujur.
+- Border memakai token `var(--hairline)`, bukan `rgba(20,40,30,0.12)` seperti komponen lama — supaya ikut membalik di dark mode (Langkah 42).
+
+### Verifikasi
+
+**Parser — 14 kelompok assertion, semua lolos** (Node menjalankan `lib/ask-user.ts` langsung; harness scratch, dihapus): blok lengkap, JSON rusak (tidak ada kartu DAN tidak bocor ke layar), ekor mid-stream dalam dua bentuk, `[[wikilink]]` biasa tidak ikut terpotong, pertanyaan < 2 opsi dibuang, batas 3 pertanyaan / 4 opsi, label ganda, pemotongan panjang, pesan jawaban, dan export tanpa JSON.
+
+**Provider sungguhan** (route scratch memanggil `streamChatReply` asli dengan tumpukan prompt LENGKAP, dihapus sebelum commit) — ini bagian yang tidak bisa disimulasikan:
+
+1. *"Tolong buatkan aplikasi untuk sekolah kami."* → **openai / gpt-5.6-luna**, blok dipancarkan, 1 pertanyaan 4 opsi ("Manajemen sekolah (disarankan)", "Portal siswa & orang tua", "PPDB online", "Perpustakaan digital"), prosa di atasnya satu kalimat. Konvensi "(disarankan)" dipatuhi tanpa diarahkan.
+2. *"Apa ibu kota provinsi Jawa Timur?"* (kontrol) → **tidak ada blok**, langsung dijawab. Membuktikan prompt tidak membuat AI bertanya untuk hal yang jelas.
+3. *"Berapa harga yang sebaiknya saya pasang sekarang?"* → **gemini-2.5-flash** (lewat pemicu `needsWebSearch`), 2 pertanyaan, salah satunya `multiSelect: true`. Jalur Gemini terbukti ikut bisa bertanya.
+4. **Giliran lanjutan**: riwayat [pertanyaan → jawaban kartu] dikirim ulang → model **langsung mengerjakan** artifact PPDB-nya dan **tidak bertanya lagi**. Ini yang paling penting: loop-nya menutup.
+
+**UI** (halaman uji sementara, karena halaman chat butuh sesi login): single-select menimpa pilihan sebelumnya, multi-select menumpuk, "Kirim jawaban" mati sampai semua pertanyaan terjawab, pesan tersusun benar (`- Fokus aplikasi: Portal siswa & orang tua, Sekolah kami pakai kurikulum khusus`), sesudah dikirim kartu terkunci jadi mode riwayat (semua tombol mati, footer & input hilang) sehingga tidak bisa dikirim dua kali. Mode riwayat: 6 tombol semuanya `disabled`, tanpa input. Mobile 375px: satu kolom, tanpa scroll horizontal.
+
+**Screenshot tetap tidak bisa diambil** (Browser pane tidak ditampilkan). Efek sampingnya terulang persis seperti catatan Langkah 51 dan sempat menyesatkan lagi: elemen ber-`transition-colors` MEMBEKU pada nilai warna lamanya, sehingga tombol opsi terbaca "tidak ikut berganti tema" padahal kartunya berganti. Terbukti artefak lingkungan: begitu `transition` dimatikan lewat JS, background dan border tombol langsung membalik benar di kedua tema (light `#fbfaf6` / hairline `rgba(20,40,30,0.1)`, dark `#171717` / `rgba(255,255,255,0.08)`).
+
+### Batas yang diketahui
+
+- Keputusan "kapan bertanya" sepenuhnya milik model — tidak ada gerbang heuristik. Kalau di produksi ternyata terlalu sering bertanya, pengetatannya ada di `clarifyingQuestionSystemPrompt`, bukan di kode.
+- Kartu tidak menyimpan status "sudah dijawab" di DB. Statusnya disimpulkan dari posisi pesan (bukan pesan terakhir = sudah lewat) plus state lokal sesudah dikirim. Cukup untuk alur nyata, tapi kalau pengguna mengabaikan kartu lalu mengetik pesan lain, kartunya ikut mati — itu memang perilaku yang diinginkan.
+
+### Addendum Langkah 52a: giliran "cuma bertanya" dibebaskan dari kuota — SELESAI di kode
+
+Permintaan user langsung setelah Langkah 52: *"hapuskan sistem kuota pada pertanyaan karena itu hanya bertanya"*. Benar, dan alasannya lebih tajam daripada kelihatannya.
+
+**Kuota M-Agent adalah meteran TOKEN, bukan hitungan pesan** (`increment_usage`, migrasi `20260729000000`): biaya satu giliran = `estimateTokenUsage(seluruh riwayat + konteks dokumen + balasan)`. Jadi pertanyaan klarifikasi menagih hampir sebesar jawaban sungguhan — lalu giliran berikutnya, yang benar-benar mengerjakan, menagih riwayat yang sama SEKALI LAGI. Pengguna membayar dua kali untuk satu hasil, semata-mata karena AI-nya bertanya lebih dulu. Itu menghukum perilaku yang justru ingin didorong, dan bikin fitur Langkah 52 terasa seperti pajak.
+
+**Perbaikan** (`app/api/chat/route.ts`, sesudah stream selesai): kalau balasan `isClarifyingQuestionOnlyReply()` **dan** tidak memuat artifact, `p_estimated_tokens` dikirim `1` alih-alih biaya penuh.
+
+Empat keputusan yang menyertainya:
+
+- **Diputuskan dari teks balasan MODEL di server, bukan flag dari browser.** Klien tidak boleh bisa menyatakan "giliran ini gratis" — kalau bisa, seluruh meteran kuota bisa dimatikan dari devtools.
+- **Balasan yang memuat artifact TIDAK gratis** meski ikut bertanya: pekerjaan sungguhannya sudah jadi, pertanyaannya cuma untuk sisanya.
+- **Barisnya tetap ditulis ke `usage_logs`**, bukan dilewati. Biayanya 1 token karena RPC memaksa lantai `greatest(cost, 1)` — 1 dari 160.000 token sesi tier Gratis, praktis nol — tapi provider, model, tool, dan `fallback_event` tetap terekam. Membuat biayanya benar-benar `0` menuntut migrasi fungsi DB produksi; tidak sepadan.
+- Metadata `clarifying_question_only` + `waived_estimated_tokens` menyimpan biaya yang SEHARUSNYA ditagih, supaya pembebasan ini bisa diaudit belakangan kalau ternyata disalahgunakan model.
+
+**Verifikasi — 8 assertion, semua lolos** (harness scratch memakai balasan SUNGGUHAN yang tersimpan dari uji provider Langkah 52, bukan contoh karangan): r1 (GPT bertanya) → gratis; r5 (Gemini bertanya 2 pertanyaan) → gratis; r2 (jawaban biasa), r3 (ringkasan berita panjang), r4 (mengerjakan artifact PPDB sesudah dijawab) → ditagih; artifact + bertanya dalam satu balasan → ditagih; blok ask rusak yang tidak jadi kartu → **ditagih, bukan gratis diam-diam**; pertanyaan berpilihan tunggal (ditolak parser) → ditagih. `tsc`/`lint`/`build` bersih.
+
+**Yang TIDAK ikut dibebaskan, dan alasannya:**
+
+- **Jawaban pengguna atas kartu** tetap ditagih penuh. Itu giliran yang mengerjakan pekerjaannya. Lagi pula "ini jawaban kartu" hanya bisa dinyatakan klien, jadi membebaskannya sama saja membuka pintu bypass kuota.
+- **Gerbang pra-permintaan** (`check_usage_limits` di awal route) tetap memakai estimasi token input penuh. Server belum tahu balasannya akan berupa pertanyaan sebelum model menulisnya, jadi pengguna yang kuotanya sudah mepet tetap ditolak sebelum sempat ditanya. Menghapus gerbang itu berarti membiarkan panggilan provider berjalan tanpa plafon.
