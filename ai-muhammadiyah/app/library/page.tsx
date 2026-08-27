@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import LibraryTabs from "./LibraryTabs";
@@ -165,7 +166,8 @@ export default async function LibraryPage() {
     <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="library" userInitials={getEmailInitials(user.email ?? "")} />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[1080px] px-6 pb-20 pt-11 sm:px-12">
           <header className="mb-7">
             <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
@@ -190,6 +192,9 @@ export default async function LibraryPage() {
             <LibraryTabs items={items} notes={notes} />
           )}
         </div>
+        </div>
+
+        <BottomNav />
       </div>
     </main>
   );

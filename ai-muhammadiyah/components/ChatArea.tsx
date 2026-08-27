@@ -96,8 +96,8 @@ function WelcomeGreeting() {
     <h2
       className={
         greeting
-          ? "font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)] opacity-100 transition-opacity duration-300 sm:text-[44px]"
-          : "font-serif text-4xl font-normal leading-tight tracking-[-0.01em] text-[var(--ink-deep)] opacity-0 transition-opacity duration-300 sm:text-[44px]"
+          ? "font-serif text-[33px] font-normal leading-[1.16] tracking-[-0.01em] text-[var(--ink-deep)] opacity-100 transition-opacity duration-300 sm:text-[40px]"
+          : "font-serif text-[33px] font-normal leading-[1.16] tracking-[-0.01em] text-[var(--ink-deep)] opacity-0 transition-opacity duration-300 sm:text-[40px]"
       }
     >
       {/* Fallback dipakai hanya untuk menahan tinggi baris saat masih transparan. */}
@@ -216,19 +216,26 @@ export default function ChatArea({
 }: ChatAreaProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-9">
+      {/* Layar sambutan — Design premium Langkah 53: rata kiri, satu tujuan
+          (kotak tulis), dan contoh pertanyaan turun jadi baris ramping supaya
+          tidak bersaing dengan composer.
+
+          justify-start, bukan justify-center: begitu isinya lebih tinggi dari
+          kontainer (hampir selalu di HP), flex yang di-center meluber ke DUA
+          arah dan bagian atasnya tidak bisa dijangkau dengan scroll. Padding
+          atas yang lebih lega juga menurunkan posisi kotak tulis, sehingga menu
+          model punya ruang dan layar tidak terasa mepet ke header. */}
       {messages.length <= 1 && (
-        <div className="mx-auto flex min-h-full w-full max-w-[746px] flex-col items-center justify-center gap-8 pb-3 pt-1 md:justify-start">
-          <div className="grid h-[76px] w-[76px] place-items-center rounded-[22px] bg-[var(--brand)] text-[var(--on-brand)] shadow-[0_12px_32px_-18px_rgba(11,61,42,0.85)]">
-            <SparkIcon className="h-11 w-11" />
+        <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col justify-start gap-6 pb-4 pt-8 sm:pt-10 md:pt-12">
+          <div className="grid h-[42px] w-[42px] place-items-center rounded-xl bg-[var(--brand)] text-[var(--on-brand)]">
+            <SparkIcon className="h-6 w-6" />
           </div>
 
-          <section className="text-center">
+          <section>
             <WelcomeGreeting key={activeConversationId} />
-            <p className="mt-6 text-lg leading-relaxed text-[var(--muted-2)] sm:text-xl">
-              Belajar, meneliti, dan berkarya dalam satu ruang cerdas —
-              berpijak pada{" "}
-              <strong className="text-[var(--ink)]">Muhammadiyah Knowledge Base</strong>{" "}
-              dan nilai <strong className="text-[var(--ink)]">Islam berkemajuan</strong>.
+            <p className="mt-3.5 max-w-[420px] text-[15px] leading-relaxed text-[var(--muted-2)]">
+              Belajar, meneliti, dan berkarya — berpijak pada Muhammadiyah
+              Knowledge Base dan nilai Islam berkemajuan.
             </p>
           </section>
 
@@ -269,30 +276,48 @@ export default function ChatArea({
             setMessageSkillOverrideId={setMessageSkillOverrideId}
           />
 
-          <div className="grid w-full gap-3 sm:grid-cols-2">
-            {quickPrompts.map((prompt) => (
-              <button
-                key={prompt.title}
-                type="button"
-                onClick={() => setInput(prompt.title)}
-                className="flex min-h-[104px] items-center gap-5 rounded-[20px] bg-[var(--surface)] px-6 text-left ring-1 ring-[var(--brand-deep-line)]/10 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-24px_rgba(11,61,42,0.7)]"
-              >
-                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[var(--brand)]/10 text-[var(--brand)]">
-                  <Icon name={prompt.icon} className="h-7 w-7" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-lg font-bold text-[var(--ink)]">
+          <div className="w-full">
+            <p className="mb-2 text-[12.5px] font-medium text-[var(--muted-3)]">
+              Coba mulai dari
+            </p>
+            <div className="grid w-full gap-2">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt.title}
+                  type="button"
+                  onClick={() => setInput(prompt.title)}
+                  className="flex min-h-[56px] items-center gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface)] px-3.5 py-2 text-left transition hover:bg-[var(--surface-alt)]"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--brand-soft)] text-[var(--brand)]">
+                    <Icon name={prompt.icon} className="h-[17px] w-[17px]" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-[14.5px] leading-snug text-[var(--ink-soft)]">
                     {prompt.title}
+                    <span className="text-[var(--muted-3)]">
+                      {" · "}
+                      {prompt.description}
+                    </span>
                   </span>
-                  <span className="mt-1 block text-base leading-snug text-[var(--muted-2)]">
-                    {prompt.description}
+                  <span className="shrink-0 text-[var(--muted-3)]">
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-[15px] w-[15px]"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
                   </span>
-                </span>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <p className="max-w-2xl text-center text-base leading-relaxed text-[var(--muted-2)]">
+          <p className="text-[11.5px] leading-relaxed text-[var(--muted-3)]">
             {CHAT_DISCLAIMER}
           </p>
         </div>
@@ -315,7 +340,7 @@ export default function ChatArea({
                 key={index}
                 className="flex flex-col items-end gap-1 animate-[messageIn_0.25s_ease-out]"
               >
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-[16px] rounded-br-[4px] bg-[var(--brand)] px-[17px] py-[13px] text-sm leading-relaxed text-[var(--c-f1f4ef)] sm:max-w-xl sm:text-[15px]">
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-[16px] rounded-br-[4px] bg-[var(--brand)] px-[17px] py-[13px] text-sm leading-relaxed text-[var(--on-brand)] sm:max-w-xl sm:text-[15px]">
                   {message.text}
                 </div>
               </div>
@@ -334,12 +359,12 @@ export default function ChatArea({
                       }
                     />
                   </span>
-                  <span className="text-[13px] font-semibold text-[var(--c-3a453e)]">
+                  <span className="text-[13px] font-semibold text-[var(--muted-2)]">
                     M-Agent
                   </span>
                 </div>
                 <div
-                  className={`min-w-0 space-y-4 text-[15px] leading-[1.72] text-[var(--c-242e28)] sm:text-[15.5px]${
+                  className={`min-w-0 space-y-4 text-[15px] leading-[1.72] text-[var(--ink-soft)] sm:text-[15.5px]${
                     isStreamingMessage ? " ai-stream-in" : ""
                   }`}
                 >
@@ -392,7 +417,7 @@ export default function ChatArea({
                 <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
                   <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
                 </span>
-                <span className="text-[13px] font-semibold text-[var(--c-3a453e)]">
+                <span className="text-[13px] font-semibold text-[var(--muted-2)]">
                   M-Agent
                 </span>
               </div>

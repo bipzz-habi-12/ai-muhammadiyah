@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { isHubAdmin } from "@/lib/admin";
 import { getEmailInitials } from "@/lib/formatting/text";
 import {
@@ -39,7 +40,10 @@ export default async function HubPage() {
   return (
     <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="hub" userInitials={getEmailInitials(user.email ?? "")} />
-      <HubDirectory resources={resources} isAdmin={isHubAdmin(user)} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <HubDirectory resources={resources} isAdmin={isHubAdmin(user)} />
+        <BottomNav />
+      </div>
     </main>
   );
 }

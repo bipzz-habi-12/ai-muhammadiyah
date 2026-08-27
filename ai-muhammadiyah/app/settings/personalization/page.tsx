@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { loadUserMemory } from "@/lib/memory/user-memory";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
@@ -32,7 +33,8 @@ export default async function PersonalizationPage() {
     <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="settings" userInitials={getEmailInitials(user.email ?? "")} />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[680px] px-6 pb-20 pt-12 sm:px-11">
           <div className="mb-8">
             <Link
@@ -58,6 +60,9 @@ export default async function PersonalizationPage() {
             </p>
           )}
         </div>
+        </div>
+
+        <BottomNav />
       </div>
     </main>
   );

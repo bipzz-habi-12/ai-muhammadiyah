@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 
@@ -36,8 +37,9 @@ export default async function WorkspaceIndexPage() {
           active="workspaces"
           userInitials={getEmailInitials(user.email ?? "")}
         />
-        <div className="flex flex-1 items-center justify-center px-6">
-          <div className="max-w-[440px] text-center">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-1 items-center justify-center px-6">
+            <div className="max-w-[440px] text-center">
             <h1 className="font-serif text-[30px] font-normal tracking-[-0.01em] text-[var(--ink-deep)]">
               Belum ada workspace
             </h1>
@@ -51,7 +53,10 @@ export default async function WorkspaceIndexPage() {
             >
               Ke chat
             </Link>
+            </div>
           </div>
+
+          <BottomNav />
         </div>
       </main>
     );

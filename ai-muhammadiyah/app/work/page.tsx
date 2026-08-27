@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { isGoogleConnectorConfigured } from "@/lib/connectors/google";
 import { getEmailInitials } from "@/lib/formatting/text";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
@@ -51,7 +52,8 @@ export default async function WorkPage() {
         userInitials={getEmailInitials(user.email ?? "")}
       />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[860px] px-6 pb-20 pt-11 sm:px-12">
           <header className="mb-9">
             <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
@@ -94,6 +96,9 @@ export default async function WorkPage() {
             Google-mu.
           </p>
         </div>
+        </div>
+
+        <BottomNav />
       </div>
     </main>
   );

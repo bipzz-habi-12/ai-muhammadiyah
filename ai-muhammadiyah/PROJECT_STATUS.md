@@ -1,6 +1,6 @@
 # M-Agent Project Status
 
-Last updated: August 24, 2026 (Langkah 52a)
+Last updated: August 26, 2026 (Langkah 53)
 
 > This file describes the state of the code as it exists now. For the reasoning
 > behind each change — including traps hit along the way — read
@@ -79,11 +79,13 @@ v2 systems:
 - [x] Google Drive connector code path (`drive.file` scope, encrypted refresh token)
 - [x] Clarifying questions: the AI asks back with clickable choice cards when a request is genuinely ambiguous (Langkah 52), and a turn that only asks is waived from the token meter (Langkah 52a)
 
-UI shell (Langkah 51):
+UI shell (Langkah 51, reworked in Langkah 53):
 
 - [x] Single left sidebar — navigation, new chat, search, history, and account in one panel
 - [x] Knowledge sidebar shown only when the user actually has knowledge sources
 - [x] Randomized welcome greeting, hydration-safe via `useSyncExternalStore`
+- [x] Mobile navigation: bottom nav on every shell page, plus a `/more` tab for account, quota, and the pages without a tab of their own (Langkah 53)
+- [x] One visual language: green reserved for actionable/active elements, gold demoted to status marks, locked type and spacing scale, 44px minimum touch targets (Langkah 53)
 
 ## Model System
 
@@ -221,8 +223,13 @@ Conversations with no workspace stay in the General group.
 
 ## UI Shell
 
-- Single left sidebar (272px, collapses to 64px): logo, new chat, search, section nav (Workspaces, Work, Research, Library, Hub, History), chat history, internal links, account footer. `components/IconRail.tsx` was deleted in Langkah 51 and merged into `components/Sidebar.tsx`.
-- Other full-shell pages (`/library`, `/hub`, `/research`, `/work`, `/workspace`, `/settings/personalization`) use `AppShellRail` and already had a single rail.
+Reworked in Langkah 53 against a "premium" brief; `MIGRATION_PROGRESS.md` carries the audit and the traps.
+
+- **Two shells, not three.** Chat uses `components/Sidebar.tsx` (264px neutral panel: logo, new chat, search, section nav, chat history, account footer; collapses to 64px). Every other full-shell page (`/library`, `/hub`, `/research`, `/work`, `/workspace`, `/settings/personalization`, `/history`, `/more`) uses `components/AppShellRail.tsx`, now a 264px labelled neutral panel rather than a 66px icon rail. `WorkspaceView.tsx` used to inline its own copy of that rail — deleted, it imports the shared one. `components/IconRail.tsx` was deleted back in Langkah 51.
+- **Mobile.** Both shells are `hidden md:flex`; `components/BottomNav.tsx` (Chat / Workspace / Library / Lainnya) takes over below `md` and is rendered as a plain flex child, never `fixed`. On the chat page it stays visible even mid-conversation — deliberately, so there is no navigation dead end. `components/HistorySheet.tsx` replaced `MobileToolbar.tsx`, which used to stack ~280px of controls above the conversation.
+- **Colour discipline.** Green is only for actionable or active elements — the only filled green button on the chat page is Send. Gold is a status mark (tier lock, "Segera hadir", context-near-limit), never an action colour.
+- **Composer popovers open by variant.** `welcome` opens downward (`top-full`), `active` opens upward (`bottom-full`). Do not unify them: the welcome composer sits inside a scroll container, so an upward popover is clipped by the container's top edge and scrolling cannot reveal it.
+- **`/more`** is the account/quota/overflow page. It reads the existing `get_usage_snapshot` RPC directly from the server — no new API route.
 - Right panel: the Artifact panel takes over when open; otherwise the Knowledge sidebar appears **only if the user has knowledge sources**. Adding sources is always available under Settings → Knowledge Base.
 - Design v2 palette and fonts (Hanken Grotesk + Newsreader) are applied app-wide — see `CLAUDE.md` for the tokens any new UI must follow.
 - AI messages render without bubbles (Claude-style, not ChatGPT-style).

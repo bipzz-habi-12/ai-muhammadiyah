@@ -1537,3 +1537,69 @@ Empat keputusan yang menyertainya:
 
 - **Jawaban pengguna atas kartu** tetap ditagih penuh. Itu giliran yang mengerjakan pekerjaannya. Lagi pula "ini jawaban kartu" hanya bisa dinyatakan klien, jadi membebaskannya sama saja membuka pintu bypass kuota.
 - **Gerbang pra-permintaan** (`check_usage_limits` di awal route) tetap memakai estimasi token input penuh. Server belum tahu balasannya akan berupa pertanyaan sebelum model menulisnya, jadi pengguna yang kuotanya sudah mepet tetap ditolak sebelum sempat ditanya. Menghapus gerbang itu berarti membiarkan panggilan provider berjalan tanpa plafon.
+
+## Langkah 53: Pembenahan UI "premium" — navigasi mobile, satu bahasa visual — SELESAI di kode
+
+Permintaan user: lihat UI yang ada, temukan kekurangannya, lalu ubah supaya terasa premium dengan delapan syarat — satu tujuan utama tiap halaman, warna terbatas (1 primer + netral), tipografi berjenjang, ruang kosong teratur, tombol utama mudah ditemukan, informasi penting lebih dulu, mobile-first satu tangan, cepat dibaca — **tanpa merusak backend**. Desainnya digambar dulu sebagai kanvas artboard, disetujui, baru diterapkan.
+
+Tidak ada perubahan DB, tidak ada migrasi, tidak ada route API baru, tidak ada hook data yang disentuh. Seluruhnya lapisan presentasi.
+
+### Audit: apa yang sebenarnya salah
+
+Sepuluh temuan, tapi tiga yang pertama saling berkait dan itulah inti pekerjaannya:
+
+1. **Tiga sistem navigasi hidup bersamaan.** Halaman chat pakai `Sidebar` 272px hijau tua; `/library` `/hub` `/research` `/work` `/workspace` `/settings/personalization` pakai `AppShellRail` 66px ikon-saja; dan `WorkspaceView` **menyalin ulang rail itu sebagai kode inline sendiri**. Pindah halaman = layout berganti bentuk.
+2. **Di HP navigasi hilang total.** `Sidebar` = `hidden md:flex`, dan `MobileToolbar` tidak memuat satu pun tautan ke Workspaces/Library/Hub/Research/Riwayat. Jadi di HP pengguna terkunci di layar chat. Kebalikannya, `AppShellRail` **tidak punya breakpoint sama sekali** — rail hijau 66px tetap memakan lebar di HP pada enam halaman itu.
+3. **Layar chat HP sesak sebelum isinya muncul.** `MobileToolbar` menumpuk lima baris kontrol (cari, dropdown workspace, chip percakapan, pin/export/share, tombol lampiran) sekitar 280px, di atas header 64px. Tujuan utama halaman — mengetik pertanyaan — terdorong ke bawah lipatan.
+4. **Tombol paling menonjol bukan aksi utama:** satu-satunya tombol berisi hijau di `TopBar` adalah **Share**.
+5. **Warna belum terbatas.** Hijau, krem, dan emas sama-sama dipakai sebagai warna aksi (avatar emas, chip "sekali pakai" emas), ditambah 60+ token satu-off `--c-xxxxxx` sisa konversi otomatis.
+6. **Hierarki tipografi datar** — hampir semua teks kecil dan `font-bold`, dengan ukuran acak 10/10.5/11/12.5/13/13.5px.
+7. **Radius campur** dalam satu layar: 10/11/12/16/18/20/22px + full.
+8. **Target sentuh di bawah 44px**: kebab 28px, tombol rename 28px, ikon header 36px, toggle 20px.
+9. **Lebar maksimum berbeda tiap halaman**: 746 / 768 / 860 / 1080 / 1180px.
+10. **"Internal Links"** — tiga tautan yang mengirim orang keluar produk — menempati sidebar utama, permukaan paling mahal di aplikasi.
+
+### Yang diubah
+
+**A. Navigasi: dari tiga sistem jadi dua, dan mobile dapat rumahnya sendiri**
+
+- **`components/BottomNav.tsx` (baru)** — nav bawah `md:hidden`: Chat / Workspace / Library / Lainnya, aktif dari `usePathname()` (rute tanpa tab sendiri menyalakan "Lainnya"). Dirender sebagai **anak flex biasa, bukan `fixed`**, jadi ia tidak pernah menutupi composer dan tiap halaman cukup menaruhnya sebagai elemen terakhir di kolom utamanya. Dipasang di semua halaman ber-shell.
+- **`components/AppShellRail.tsx` ditulis ulang**: dari rail ikon 66px hijau tua tanpa breakpoint jadi panel netral 264px berlabel, `hidden md:flex`. **Nama komponen dan props-nya sengaja dipertahankan** supaya keenam halaman pemakainya tidak perlu diubah.
+- **Rail inline di `WorkspaceView.tsx` dihapus** (sekitar 80 baris + `RailIcon`/`ChatGlyph` yang jadi mati) dan diganti `AppShellRail`. Sistem navigasi ketiga hilang.
+- **`app/more/page.tsx` (baru)** — tab "Lainnya": kartu akun + meteran kuota + pintu ke Hub/Research/Work/Riwayat/Personalisasi/Paket + keluar. Kuotanya membaca **RPC `get_usage_snapshot` yang sudah ada langsung dari server** (`normalizeUsageSnapshot` + `getTightestWindow`) — bukan endpoint baru, bukan angka karangan. Satu-satunya bagian client-nya `LogoutButton.tsx`.
+
+**B. Layar chat mobile**
+
+- **`MobileToolbar.tsx` dihapus**, diganti **`components/HistorySheet.tsx` (baru)**: sheet layar penuh berisi cari + chip workspace tujuan obrolan baru (fungsi persis `<select>` lama) + daftar riwayat berkelompok dengan kebab pin/hapus + tombol "Obrolan baru". Dibuka dari satu ikon riwayat di header.
+- Kontrol lampiran **tidak ikut pindah** — ia sudah ada di composer (tombol "+"), yang selalu tampil di mobile lewat `ChatArea` maupun varian aktif.
+- `TopBar` dirampingkan: ikon riwayat (mobile), judul + baris konteks workspace/skill, pil Artifact, **Bagikan jadi tombol bergaris**, menu titik-tiga, dan "+" (mobile).
+
+**C. Bahasa visual dikunci**
+
+- **Hijau hanya untuk yang bisa diklik atau aktif.** Sidebar dan rail berhenti berlatar hijau tua penuh — keduanya panel netral `--surface-panel`. Satu-satunya tombol berisi hijau di halaman chat sekarang tombol Kirim.
+- **Emas turun pangkat jadi penanda status saja** (kunci tier, badge "Segera hadir", peringatan konteks mepet) — bukan lagi avatar, chip aksi, atau CTA.
+- Skala terkunci: teks 11.5/12.5/13.5/15/17px + serif 33 ke 40px untuk sapaan; `font-medium`/`font-semibold` menggantikan `font-bold` yang bertebaran; radius tinggal 10/12/16px + full; kontrol sentuh minimal 44px (toggle Pemikiran 44x24, baris sheet 56-60px); kolom chat seragam 720px.
+- Token `--c-xxxxxx` warisan konversi habis dari semua komponen yang disentuh.
+- **"Internal Links" dicabut** dari sidebar.
+- Layar sambutan: mark 42px, sapaan rata kiri, dan empat kartu contoh setinggi 104px diganti baris ramping 56px supaya tidak bersaing dengan kotak tulis.
+
+**D. Halaman yang ikut kena karena ia tujuan navigasi**
+
+`/history` masih memakai palet lama `#004d27`/`#f8f9fa`/`#191c1d` yang dinyatakan usang di `CLAUDE.md`, sekaligus jadi jalan buntu tanpa navigasi. `PlaceholderPage` diubah dari `<main>` sendiri jadi isi biasa (satu-satunya pemanggilnya cuma `/history`), lalu halamannya diberi shell + nav bawah.
+
+### Jebakan yang sudah ditangani (jangan diulang)
+
+- **Popover yang membuka ke atas di dalam kontainer scroll akan dipotong, dan scroll tidak menolong.** Menu model composer memakai `absolute bottom-full`. Di varian **sambutan** composer duduk di tengah kolom `overflow-y-auto`, jadi bagian menu yang melewati tepi ATAS kontainer dipotong kontainer itu — bukan sekadar keluar viewport. Karena popover ikut bergerak bersama pemicunya saat digulung, menggulung ke paling atas tidak pernah memunculkannya (persis gejala yang dilaporkan user: "walau sudah paling atas tetap belum terlihat"). Perbaikannya `menuAnchor`/`menuMaxHeight` per varian: **welcome membuka ke bawah** (`top-full`, maks `min(42vh,300px)`), **active tetap ke atas** (`bottom-full`, maks `min(56vh,340px)`) karena di sana composer memang menempel di kaki layar. Jangan diseragamkan.
+- **`justify-center` pada kolom yang isinya lebih tinggi dari kontainer meluber ke DUA arah**, dan bagian atasnya tidak bisa dijangkau dengan scroll — kondisi normal di HP untuk layar sambutan. Diganti `justify-start` + padding atas.
+- **Mencabut popover akun mobile dari `TopBar` sempat memutus akses ke modal Pengaturan.** Akun/kuota/personalisasi punya rumah baru di `/more`, tapi `SettingsModal` (tab Skill saya, Knowledge Base, data) hanya hidup di halaman chat. Ketahuan saat pemeriksaan ulang; dikembalikan sebagai baris "Pengaturan" `md:hidden` di menu titik-tiga. **Jangan hapus baris itu** — di HP itu satu-satunya pintunya.
+- **Komentar JSX tidak boleh berdiri sendiri sesudah `{cond && (`.** Dua kali membuat parse error di `ChatArea.tsx` (`TS1005: ')' expected`). Taruh komentarnya di ATAS baris kondisi.
+
+### Menyimpang dari artboard, disengaja
+
+Di artboard, nav bawah menghilang saat percakapan berjalan. Di kode ia **selalu tampil** di halaman chat. Kalau disembunyikan, pengguna HP yang sedang membuka percakapan tidak punya jalan ke Workspace/Library — persis temuan nomor 2 yang jadi alasan pekerjaan ini. Biayanya 76px tinggi layar.
+
+### Verifikasi
+
+`tsc --noEmit`, `npm run lint`, dan `npm run build` bersih (44 halaman, rute `/more` terbentuk). Smoke test HTTP di dev server: `/` menjawab 200 (landing), sedangkan `/more` `/library` `/hub` `/work` `/research` `/workspace` menjawab 307 ke `/login` tanpa sesi — artinya halaman barunya ter-compile dan penjaga auth-nya jalan. Log dev server tanpa error.
+
+**Yang TIDAK diverifikasi visual: seluruh layar di balik login.** Browser pane tidak ditampilkan di sesi ini sehingga screenshot selalu timeout (gejala sama dengan Langkah 51), dan sesi login pengguna tidak dipakai. Dua hal yang paling perlu dilihat sendiri: tinggi layar sambutan di HP (sapaan + composer + 4 baris contoh + nav bawah), dan sheet Riwayat saat riwayatnya panjang.

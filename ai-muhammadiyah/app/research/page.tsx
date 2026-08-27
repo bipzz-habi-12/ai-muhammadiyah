@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { artifactTypeLabels, type ArtifactType } from "@/lib/artifacts";
 import { formatRelativeTime } from "@/lib/formatting/text";
 import { getEmailInitials } from "@/lib/formatting/text";
@@ -44,7 +45,8 @@ export default async function ResearchPage() {
     <main className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
       <AppShellRail active="research" userInitials={getEmailInitials(user.email ?? "")} />
 
-      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[1060px] px-6 pb-20 pt-11 sm:px-12">
           <header className="mb-6">
             <div className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.05em] text-[var(--gold-ink)]">
@@ -104,6 +106,9 @@ export default async function ResearchPage() {
             </div>
           )}
         </div>
+        </div>
+
+        <BottomNav />
       </div>
     </main>
   );

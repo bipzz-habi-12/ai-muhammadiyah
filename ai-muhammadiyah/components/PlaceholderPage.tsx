@@ -1,5 +1,12 @@
 import Link from "next/link";
 
+// Isi halaman "segera hadir". Bukan lagi <main> sendiri: pemanggilnya yang
+// memasang app shell (AppShellRail + BottomNav), supaya halaman ini tidak jadi
+// jalan buntu tanpa navigasi seperti sebelumnya.
+//
+// Paletnya juga diperbarui ke token Design v2 — versi lama masih memakai
+// #f8f9fa / #191c1d / #004d27 yang sudah usang menurut CLAUDE.md.
+
 interface PlaceholderPageProps {
   eyebrow: string;
   title: string;
@@ -12,23 +19,25 @@ export default function PlaceholderPage({
   description,
 }: PlaceholderPageProps) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[var(--c-f8f9fa)] px-6 text-center text-[var(--c-191c1d)]">
-      <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--c-004d27)]">
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      <p className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-[var(--muted-3)]">
         {eyebrow}
       </p>
-      <h1 className="text-3xl font-bold sm:text-4xl">{title}</h1>
-      <p className="max-w-md text-base leading-relaxed text-[var(--c-3f4940)]">
+      <h1 className="font-serif text-[30px] font-normal leading-tight tracking-[-0.015em] text-[var(--ink-deep)]">
+        {title}
+      </h1>
+      <p className="max-w-[420px] text-[15px] leading-relaxed text-[var(--muted-2)]">
         {description}
       </p>
-      <p className="rounded-full bg-[var(--c-f3f4f5)] px-4 py-2 text-sm font-bold text-[var(--c-6f7a70)]">
-        Fitur ini akan segera hadir
-      </p>
+      <span className="mt-1 rounded-full border border-[var(--hairline)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--muted-2)]">
+        Segera hadir
+      </span>
       <Link
         href="/"
-        className="mt-4 rounded-full bg-[var(--c-004d27)] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[var(--c-006837)]"
+        className="mt-4 flex min-h-[44px] items-center rounded-xl bg-[var(--brand)] px-5 text-[14.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
       >
         Kembali ke chat
       </Link>
-    </main>
+    </div>
   );
 }

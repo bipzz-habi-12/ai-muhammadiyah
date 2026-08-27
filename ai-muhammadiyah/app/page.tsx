@@ -7,7 +7,8 @@ import ArtifactPanel from "@/components/ArtifactPanel";
 import ChatArea from "@/components/ChatArea";
 import Composer from "@/components/Composer";
 import KnowledgeSidebar from "@/components/KnowledgeSidebar";
-import MobileToolbar from "@/components/MobileToolbar";
+import BottomNav from "@/components/BottomNav";
+import HistorySheet from "@/components/HistorySheet";
 import ShareModal from "@/components/ShareModal";
 import Sidebar from "@/components/Sidebar";
 import SettingsModal from "@/components/SettingsModal";
@@ -65,6 +66,10 @@ export default function Home() {
   const [isStudyModeMenuOpen, setIsStudyModeMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
+  // Sheet riwayat mobile — pengganti MobileToolbar lama. Semua kontrol riwayat
+  // (cari, workspace tujuan, daftar chat) pindah ke sini supaya layar chat
+  // berangkat dari sapaan + kotak tulis, bukan dari deretan kontrol.
+  const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false);
   // Deep link from /workspace/[id]: "/?conversationId=<uuid>" opens that chat
   // once after the conversation list finishes its initial load. A ref (not
   // state): consumed exactly once, and the resolve effect is already re-run by
@@ -286,6 +291,15 @@ export default function Home() {
     resetArtifacts,
   ]);
   const userInitials = useMemo(() => getEmailInitials(userEmail), [userEmail]);
+  // Nama workspace aktif — dulu hanya tampil sebagai <select> di MobileToolbar;
+  // sekarang jadi baris konteks di header, dan tetap satu-satunya cara ganti
+  // workspace di mobile (lewat WorkspaceModal).
+  const activeWorkspaceName = useMemo(
+    () =>
+      workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
+        ?.name ?? "General",
+    [selectedWorkspaceId, workspaces],
+  );
   const conversationGroups = useMemo(
     () => groupConversationsByWorkspace(visibleConversations, workspaces),
     [visibleConversations, workspaces],
@@ -701,38 +715,17 @@ export default function Home() {
           setActiveTool={setActiveTool}
           activeConversation={activeConversation}
           selectedSkill={selectedSkill}
+          activeWorkspaceName={activeWorkspaceName}
+          onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
           exportActiveChatMarkdown={exportActiveChatMarkdown}
           openSharePreview={openSharePreview}
+          toggleConversationPin={toggleConversationPin}
+          onOpenHistory={() => setIsHistorySheetOpen(true)}
+          resetMemory={resetMemory}
+          openSettings={openSettings}
           artifactCount={artifacts.length}
           isArtifactPanelOpen={isArtifactPanelOpen}
           setIsArtifactPanelOpen={setIsArtifactPanelOpen}
-          currentTierLabel={currentTierLabel}
-          isAccountMenuOpen={isAccountMenuOpen}
-          setIsAccountMenuOpen={setIsAccountMenuOpen}
-          userInitials={userInitials}
-          openLearningProfile={openLearningProfile}
-          openSettings={openSettings}
-          handleLogout={handleLogout}
-          isLoggingOut={isLoggingOut}
-        />
-
-        <MobileToolbar
-          chatSearch={chatSearch}
-          setChatSearch={setChatSearch}
-          selectedWorkspaceId={selectedWorkspaceId}
-          setSelectedWorkspaceId={setSelectedWorkspaceId}
-          workspaces={workspaces}
-          resetMemory={resetMemory}
-          visibleConversations={visibleConversations}
-          activeConversationId={activeConversationId}
-          loadConversation={loadConversation}
-          activeConversation={activeConversation}
-          toggleConversationPin={toggleConversationPin}
-          exportActiveChatMarkdown={exportActiveChatMarkdown}
-          openSharePreview={openSharePreview}
-          setIsAttachMenuOpen={setIsAttachMenuOpen}
-          renderAttachMenu={renderAttachMenu}
-          renderAttachmentChips={renderAttachmentChips}
         />
 
         {activeTool === "chat" ? (
@@ -821,6 +814,12 @@ export default function Home() {
         ) : (
           <ToolPlaceholder tool={activeTool} />
         )}
+
+        {/* Nav bawah mobile. Sengaja SELALU tampil di halaman chat — termasuk
+            saat percakapan berjalan — supaya tidak ada jalan buntu: sebelum
+            ini, di HP tidak ada satu pun tautan ke Workspace/Library/Lainnya
+            dari layar chat. */}
+        <BottomNav />
       </section>
 
       {/* Artifact panel replaces the knowledge sidebar while open (Master Plan
@@ -844,6 +843,24 @@ export default function Home() {
           openSettings={openSettings}
         />
       ) : null}
+
+      <HistorySheet
+        isOpen={isHistorySheetOpen}
+        onClose={() => setIsHistorySheetOpen(false)}
+        chatSearch={chatSearch}
+        setChatSearch={setChatSearch}
+        workspaces={workspaces}
+        selectedWorkspaceId={selectedWorkspaceId}
+        setSelectedWorkspaceId={setSelectedWorkspaceId}
+        isLoadingConversations={isLoadingConversations}
+        historyError={historyError}
+        conversationGroups={conversationGroups}
+        activeConversationId={activeConversationId}
+        loadConversation={loadConversation}
+        toggleConversationPin={toggleConversationPin}
+        deleteConversation={deleteConversation}
+        resetMemory={resetMemory}
+      />
 
       <WorkspaceModal
         isOpen={isWorkspaceModalOpen}

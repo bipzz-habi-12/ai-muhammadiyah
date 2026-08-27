@@ -180,6 +180,22 @@ export default function Composer({
     }
   }
 
+  // Arah buka menu (model / skill / slash picker).
+  //
+  // Varian "active" duduk menempel di kaki layar, jadi menunya harus membuka ke
+  // ATAS. Varian "welcome" TIDAK: ia berada di tengah kolom sambutan yang bisa
+  // di-scroll, sehingga menu yang membuka ke atas terpotong oleh tepi atas
+  // kontainer scroll — bukan sekadar keluar viewport, jadi menggulung ke atas
+  // pun tidak memunculkannya. Di sana menu membuka ke BAWAH, ke arah ruang yang
+  // memang ada.
+  const menuAnchor =
+    variant === "welcome" ? "top-full mt-2" : "bottom-full mb-2";
+  // Tingginya juga dibatasi berbeda: di varian sambutan menu harus muat di
+  // ruang yang tersisa DI BAWAH composer sebelum tepi kontainer scroll, bukan
+  // setinggi layar.
+  const menuMaxHeight =
+    variant === "welcome" ? "max-h-[min(42vh,300px)]" : "max-h-[min(56vh,340px)]";
+
   function toggleModelMenu() {
     setIsStudyModeMenuOpen(false);
     setIsModelMenuOpen((isOpen) => !isOpen);
@@ -190,14 +206,14 @@ export default function Composer({
     setIsStudyModeMenuOpen((isOpen) => !isOpen);
   }
 
-  // Upward-opening popover (composer sits low on the screen).
+  // Popover model + submenu Upaya/Pemikiran. Arahnya mengikuti menuAnchor.
   function renderModelMenu() {
     if (!isModelMenuOpen) {
       return null;
     }
 
     return (
-      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,380px)] w-[min(86vw,320px)] overflow-y-auto overscroll-contain rounded-[18px] bg-[var(--pure-white)] p-1.5 text-sm shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10">
+      <div className={`scroll absolute ${menuAnchor} ${menuMaxHeight} left-0 z-30 w-[min(86vw,320px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-1.5 text-sm shadow-xl`}>
         {modelOptions.map((model) => {
           const modelInfo = modelCatalog[model];
           const isAllowed = allowedModels.includes(model);
@@ -210,13 +226,13 @@ export default function Composer({
               onClick={() => selectModel(model)}
               className={
                 isSelected
-                  ? "flex w-full items-center gap-2 rounded-[12px] bg-[var(--brand)]/10 px-2.5 py-1.5 text-left"
+                  ? "flex w-full items-center gap-2 rounded-[12px] bg-[var(--brand-soft)] px-2.5 py-1.5 text-left"
                   : "flex w-full items-center gap-2 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
               }
             >
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
-                  <span className="truncate text-[13px] font-bold text-[var(--ink)]">
+                  <span className="truncate text-[13px] font-medium text-[var(--ink)]">
                     {modelInfo.label}
                   </span>
                   <span className="shrink-0 text-[10px] font-semibold text-[var(--muted-3)]">
@@ -239,7 +255,7 @@ export default function Composer({
           );
         })}
 
-        <div className="my-1 h-px bg-[var(--brand-deep)]/10" />
+        <div className="my-1 h-px bg-[var(--hairline)]" />
 
         {/* Baris "Upaya" — membuka submenu level Rendah..Ultra. */}
         <button
@@ -248,8 +264,8 @@ export default function Composer({
           aria-expanded={isEffortMenuOpen}
           className="flex w-full items-center justify-between gap-3 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
         >
-          <span className="text-[13px] font-bold text-[var(--ink)]">Upaya</span>
-          <span className="flex items-center gap-1 text-[11px] font-bold text-[var(--muted-2)]">
+          <span className="text-[13px] font-medium text-[var(--ink)]">Upaya</span>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--muted-2)]">
             {getEffortLabel(effort)}
             <span aria-hidden="true">{isEffortMenuOpen ? "⌄" : "›"}</span>
           </span>
@@ -267,16 +283,16 @@ export default function Composer({
                 onClick={() => setEffort(level.id)}
                 className={
                   effort === level.id
-                    ? "flex w-full items-center justify-between gap-2 rounded-[10px] bg-[var(--brand)]/10 px-2.5 py-1 text-left"
+                    ? "flex w-full items-center justify-between gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-1 text-left"
                     : "flex w-full items-center justify-between gap-2 rounded-[10px] px-2.5 py-1 text-left transition hover:bg-[var(--surface-border)]"
                 }
               >
                 <span className="flex items-center gap-2">
-                  <span className="text-[13px] font-bold text-[var(--ink)]">
+                  <span className="text-[13px] font-medium text-[var(--ink)]">
                     {level.label}
                   </span>
                   {level.isDefault && (
-                    <span className="rounded-full bg-[var(--brand-deep)]/10 px-1.5 py-0.5 text-[9px] font-bold text-[var(--muted-2)]">
+                    <span className="rounded-full bg-[var(--hairline)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--muted-2)]">
                       Bawaan
                     </span>
                   )}
@@ -292,7 +308,7 @@ export default function Composer({
         {/* Toggle "Pemikiran" — mematikannya memaksa upaya minimal (hemat kuota). */}
         <div className="flex items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5">
           <span className="min-w-0">
-            <span className="block text-[13px] font-bold text-[var(--ink)]">
+            <span className="block text-[13px] font-medium text-[var(--ink)]">
               Pemikiran
             </span>
             <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
@@ -307,21 +323,21 @@ export default function Composer({
             aria-label="Pemikiran"
             className={
               isThinkingEnabled
-                ? "relative h-5 w-9 shrink-0 rounded-full bg-[var(--brand)] transition"
-                : "relative h-5 w-9 shrink-0 rounded-full bg-[var(--c-c7ccc8)] transition"
+                ? "relative h-6 w-11 shrink-0 rounded-full bg-[var(--brand)] transition"
+                : "relative h-6 w-11 shrink-0 rounded-full bg-[var(--surface-border)] transition"
             }
           >
             <span
               className={
                 isThinkingEnabled
-                  ? "absolute left-[18px] top-0.5 h-4 w-4 rounded-full bg-[var(--pure-white)] transition-all"
-                  : "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-[var(--pure-white)] transition-all"
+                  ? "absolute left-[22px] top-0.5 h-5 w-5 rounded-full bg-[var(--pure-white)] transition-all"
+                  : "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-[var(--pure-white)] transition-all"
               }
             />
           </button>
         </div>
 
-        <div className="my-1 h-px bg-[var(--brand-deep)]/10" />
+        <div className="my-1 h-px bg-[var(--hairline)]" />
 
         {/* AI Discussion — belum aktif, ditampilkan jujur sebagai "segera hadir". */}
         <div
@@ -329,14 +345,14 @@ export default function Composer({
           className="flex cursor-not-allowed items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 opacity-70"
         >
           <span className="min-w-0">
-            <span className="block text-[13px] font-bold text-[var(--ink)]">
+            <span className="block text-[13px] font-medium text-[var(--ink)]">
               {aiDiscussion.label}
             </span>
             <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
               {aiDiscussion.description}
             </span>
           </span>
-          <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold-ink-2)]">
+          <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--gold-ink-2)]">
             {aiDiscussion.comingSoonLabel}
           </span>
         </div>
@@ -350,7 +366,7 @@ export default function Composer({
     }
 
     return (
-      <div className="scroll absolute bottom-full right-0 z-30 mb-2 max-h-[min(60vh,340px)] w-[min(88vw,300px)] overflow-y-auto overscroll-contain rounded-[18px] bg-[var(--pure-white)] p-1.5 text-sm shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10">
+      <div className={`scroll absolute ${menuAnchor} ${menuMaxHeight} right-0 z-30 w-[min(88vw,300px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-1.5 text-sm shadow-xl`}>
         {skillsLoading && !skills.length && (
           <div className="px-2.5 py-2 text-[11px] font-semibold text-[var(--muted-3)]">
             Memuat skill...
@@ -372,7 +388,7 @@ export default function Composer({
               }
               className={
                 isSelected
-                  ? "flex w-full items-center gap-2 rounded-[10px] bg-[var(--brand)]/10 px-2.5 py-1.5 text-left"
+                  ? "flex w-full items-center gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-1.5 text-left"
                   : "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
               }
             >
@@ -404,19 +420,19 @@ export default function Composer({
   function renderSkillChip() {
     return (
       <div className="relative">
-        <div className="inline-flex items-center gap-1 rounded-full bg-[var(--brand)]/10 px-3 py-1 text-xs font-bold text-[var(--brand)]">
+        <div className="inline-flex h-11 items-center gap-1.5 rounded-full border border-[var(--hairline)] pl-3.5 pr-2.5 text-[13.5px] font-medium text-[var(--ink-soft)] transition hover:bg-[var(--surface-alt)]">
           <button
             type="button"
             onClick={toggleSkillMenu}
-            className="inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1.5"
             aria-label="Pilih skill"
           >
-            <Icon name="book" className="h-4 w-4" />
-            <span className="max-w-[140px] truncate">
+            <Icon name="book" className="h-[15px] w-[15px] text-[var(--muted-2)]" />
+            <span className="max-w-[120px] truncate">
               {selectedSkill ? selectedSkill.name : "Memuat..."}
             </span>
             {selectedSkillBadge && (
-              <span className="text-[10px] font-bold text-[var(--muted-2)]">
+              <span className="text-[10px] text-[var(--muted-3)]">
                 {selectedSkillBadge}
               </span>
             )}
@@ -424,7 +440,7 @@ export default function Composer({
           <button
             type="button"
             onClick={() => setSelectedSkillId(null)}
-            className="transition hover:text-[var(--brand-hover-text)]"
+            className="grid h-6 w-6 place-items-center rounded-full text-[var(--muted-3)] transition hover:text-[var(--ink)]"
             aria-label="Reset skill ke default"
             title="Reset skill ke default"
           >
@@ -442,15 +458,25 @@ export default function Composer({
         <button
           type="button"
           onClick={toggleModelMenu}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--pure-white)] px-3 py-1 text-xs font-bold text-[var(--muted-2)] ring-1 ring-[var(--brand-deep-line)]/10 transition hover:bg-[var(--surface-border)]"
+          className="inline-flex h-11 items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3.5 text-[13.5px] font-medium text-[var(--ink-soft)] transition hover:bg-[var(--surface-alt)]"
           aria-label="Pilih model AI"
           aria-expanded={isModelMenuOpen}
         >
-          <Icon name="idea" className="h-4 w-4" />
           <span className="max-w-[120px] truncate">
             {selectedModelInfo.shortLabel}
           </span>
-          <span className="text-[10px] text-[var(--muted-3)]">⌄</span>
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="h-3 w-3 text-[var(--muted-3)]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </button>
         {renderModelMenu()}
       </div>
@@ -465,8 +491,8 @@ export default function Composer({
     }
 
     return (
-      <div className="scroll absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,340px)] w-[min(88vw,320px)] overflow-y-auto overscroll-contain rounded-[18px] bg-[var(--pure-white)] p-1.5 text-sm shadow-2xl ring-1 ring-[var(--brand-deep-line)]/10">
-        <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--muted-3)]">
+      <div className={`scroll absolute ${menuAnchor} ${menuMaxHeight} left-0 z-30 w-[min(88vw,320px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-1.5 text-sm shadow-xl`}>
+        <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--muted-3)]">
           Skill sekali pakai
         </div>
         {slashMatches.length === 0 ? (
@@ -491,7 +517,7 @@ export default function Composer({
                 }
                 className="flex w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
               >
-                <span className="shrink-0 font-mono text-[11px] font-bold text-[var(--brand)]">
+                <span className="shrink-0 font-mono text-[11px] font-medium text-[var(--brand)]">
                   {skill.slashCommand}
                 </span>
                 <span className="truncate text-[13px] text-[var(--ink)]">
@@ -508,22 +534,23 @@ export default function Composer({
     );
   }
 
-  // Amber pill shown when a one-shot "/" skill is armed for the next message.
+  // Pil skill sekali-pakai saat "/" mengarmingkan satu skill untuk pesan
+  // berikutnya. Dulu emas — sekarang hijau lembut: emas turun pangkat jadi
+  // penanda kategori saja, dan hijau adalah satu-satunya warna "aktif".
   function renderOverrideChip() {
     if (!messageSkillOverride) {
       return null;
     }
 
     return (
-      <div className="inline-flex items-center gap-1 rounded-full bg-[var(--gold)] px-3 py-1 text-xs font-bold text-[var(--gold-ink-2)]">
-        <Icon name="idea" className="h-4 w-4" />
-        <span className="max-w-[160px] truncate">
-          Sekali pakai: {messageSkillOverride.name}
+      <div className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[var(--brand-soft)] pl-3.5 pr-2.5 text-[13.5px] font-semibold text-[var(--brand)]">
+        <span className="max-w-[160px] truncate font-mono text-[13px]">
+          {messageSkillOverride.slashCommand ?? messageSkillOverride.name}
         </span>
         <button
           type="button"
           onClick={() => setMessageSkillOverrideId(null)}
-          className="transition hover:text-[var(--ink)]"
+          className="grid h-6 w-6 place-items-center rounded-full transition hover:bg-[var(--surface-alt)]"
           aria-label="Batalkan skill sekali pakai"
           title="Batalkan skill sekali pakai"
         >
@@ -556,22 +583,35 @@ export default function Composer({
 
   if (variant === "welcome") {
     return (
-      <div className="w-full rounded-[20px] bg-[var(--surface)] p-4 shadow-[0_8px_24px_-20px_rgba(11,61,42,0.5)] ring-1 ring-[var(--brand-deep-line)]/14 focus-within:ring-[var(--brand)]">
+      <div className="w-full rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-4 transition focus-within:border-[var(--brand)]">
         {renderAttachmentChips("mb-3")}
         {renderComposerInput(
-          "h-20 w-full bg-transparent text-xl text-[var(--ink)] outline-none placeholder:text-[var(--muted-3)]",
+          "h-12 w-full bg-transparent text-base text-[var(--ink)] outline-none placeholder:text-[var(--muted-3)]",
           "w-full",
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-[var(--muted-2)]">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
-              className="inline-flex items-center gap-2 rounded-full px-2 py-2 font-bold transition hover:bg-[var(--surface-border)]"
+              className="grid h-11 w-11 place-items-center rounded-full border border-[var(--hairline)] text-[var(--muted-2)] transition hover:bg-[var(--surface-alt)]"
+              title="Lampirkan foto & file"
+              aria-label="Lampirkan foto & file"
             >
-              <span aria-hidden="true" className="text-2xl">⌘</span>
-              Lampirkan
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-[19px] w-[19px]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
             </button>
             {renderAttachMenu()}
           </div>
@@ -586,63 +626,7 @@ export default function Composer({
             disabled={isSending || !input.trim() || !hasMessageQuota}
             aria-label="Kirim pesan"
             title="Kirim pesan"
-            className="ml-auto grid h-14 w-14 place-items-center rounded-full bg-[var(--brand)] text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:bg-[var(--brand)]/40"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              className="h-7 w-7"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-            >
-              <path d="m22 2-7 20-4-9-9-4 20-7Z" />
-              <path d="M22 2 11 13" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gradient-to-t from-[var(--background)] via-[var(--background)] to-transparent p-3 sm:p-4">
-      {renderAttachmentChips("mb-2")}
-      <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          {renderModelTrigger()}
-          {renderSkillChip()}
-          {renderOverrideChip()}
-        </div>
-
-        <div className="flex items-center gap-2 rounded-[16px] bg-[var(--surface)] px-3 py-2 shadow-[0_8px_24px_-20px_rgba(11,61,42,0.5)] ring-1 ring-[var(--brand-deep-line)]/14 focus-within:ring-[var(--brand)] sm:gap-3 sm:px-4">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[var(--muted-2)] transition hover:bg-[var(--surface-border)]"
-              title="Add photos & files"
-              aria-label="Add photos & files"
-            >
-              <span aria-hidden="true" className="text-2xl leading-none">+</span>
-            </button>
-            {renderAttachMenu()}
-          </div>
-
-          {renderComposerInput(
-            "w-full bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted-3)] sm:text-base",
-            "min-w-0 flex-1",
-          )}
-
-          <button
-            type="button"
-            onClick={() => sendMessage()}
-            disabled={isSending || !input.trim() || !hasMessageQuota}
-            aria-label="Kirim pesan"
-            title="Kirim pesan"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--brand)] text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:bg-[var(--brand)]/40"
+            className="ml-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--brand)] text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:bg-[var(--brand)]/40"
           >
             <svg
               viewBox="0 0 24 24"
@@ -654,16 +638,86 @@ export default function Composer({
               strokeLinejoin="round"
               strokeWidth="2"
             >
-              <path d="m22 2-7 20-4-9-9-4 20-7Z" />
-              <path d="M22 2 11 13" />
+              <path d="M12 19V5" />
+              <path d="m5 12 7-7 7 7" />
             </svg>
           </button>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-3 pb-3 pt-1 sm:px-4">
+      {renderAttachmentChips("mb-2")}
+      <div className="mx-auto w-full max-w-[720px]">
+        {/* Kontrol model/skill pindah KE DALAM kartu composer: dulu ia baris
+            terpisah di atas kartu, jadi ada dua blok bersaing di kaki layar. */}
+        <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-3.5 transition focus-within:border-[var(--brand)]">
+          {renderComposerInput(
+            "w-full bg-transparent text-[15px] text-[var(--ink)] outline-none placeholder:text-[var(--muted-3)]",
+            "w-full",
+          )}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsAttachMenuOpen((isOpen) => !isOpen)}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[var(--hairline)] text-[var(--muted-2)] transition hover:bg-[var(--surface-alt)]"
+                title="Lampirkan foto & file"
+                aria-label="Lampirkan foto & file"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-[19px] w-[19px]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
+              {renderAttachMenu()}
+            </div>
+
+            {renderModelTrigger()}
+            {renderSkillChip()}
+            {renderOverrideChip()}
+
+            <button
+              type="button"
+              onClick={() => sendMessage()}
+              disabled={isSending || !input.trim() || !hasMessageQuota}
+              aria-label="Kirim pesan"
+              title="Kirim pesan"
+              className="ml-auto grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--brand)] text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:bg-[var(--brand)]/40"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+              >
+                <path d="M12 19V5" />
+                <path d="m5 12 7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
         {contextUsage && contextUsage.percentUsed >= 1 && (
-          <div className="mt-2 flex items-center justify-center gap-2 text-[11px] font-semibold">
+          <div className="mt-2.5 flex items-center justify-center gap-2 text-[11.5px]">
             <span
-              className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--brand-deep)]/10"
+              className="h-1 w-24 overflow-hidden rounded-full bg-[var(--surface-border)]"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
@@ -692,7 +746,7 @@ export default function Composer({
           </div>
         )}
 
-        <p className="mt-2 text-center text-[11px] leading-relaxed text-[var(--muted-3)]">
+        <p className="mt-2.5 text-center text-[11.5px] leading-relaxed text-[var(--muted-3)]">
           {CHAT_DISCLAIMER}
         </p>
       </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import AppShellRail from "@/components/AppShellRail";
+import BottomNav from "@/components/BottomNav";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { formatRelativeTime } from "@/lib/formatting/text";
@@ -106,51 +108,6 @@ function WorkspaceGlyph({ size = 21 }: { size?: number }) {
       <rect x="3" y="4" width="18" height="6.5" rx="1.6" />
       <rect x="3" y="13.5" width="18" height="6.5" rx="1.6" />
     </svg>
-  );
-}
-
-function ChatGlyph() {
-  return (
-    <svg
-      width="21"
-      height="21"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z" />
-    </svg>
-  );
-}
-
-function RailIcon({
-  href,
-  title,
-  active,
-  children,
-}: {
-  href: string;
-  title: string;
-  active?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      title={title}
-      aria-label={title}
-      className={
-        active
-          ? "grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[var(--surface-tint)]"
-          : "grid h-[42px] w-[42px] place-items-center rounded-[11px] text-[var(--c-9fb3a5)] transition hover:bg-white/[0.08] hover:text-[var(--surface-tint)]"
-      }
-    >
-      {children}
-    </Link>
   );
 }
 
@@ -271,85 +228,10 @@ export default function WorkspaceView({
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--ink)]">
-      {/* ICON RAIL */}
-      <div className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 bg-[var(--brand-deep)] py-4">
-        <Link
-          href="/"
-          aria-label="Beranda"
-          className="mb-3.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-[var(--gold)] text-lg font-bold text-[var(--brand-deep)]"
-        >
-          <span aria-hidden="true">م</span>
-        </Link>
-        <div
-          title="Workspaces"
-          aria-current="page"
-          className="grid h-[42px] w-[42px] place-items-center rounded-[11px] bg-white/[0.14] text-[var(--surface-tint)]"
-        >
-          <WorkspaceGlyph />
-        </div>
-        <RailIcon href="/" title="Chat">
-          <ChatGlyph />
-        </RailIcon>
-        <RailIcon href="/library" title="Library">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H9v16H5.5A1.5 1.5 0 0 1 4 18.5z" />
-            <path d="M11 4h3.5A1.5 1.5 0 0 1 16 5.5v13a1.5 1.5 0 0 1-1.5 1.5H11z" />
-            <path d="M18 6l2 .5-2.5 12L15.5 18" />
-          </svg>
-        </RailIcon>
-        <RailIcon href="/hub" title="Muhammadiyah Hub">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
-          </svg>
-        </RailIcon>
-        <RailIcon href="/history" title="Riwayat">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-            <path d="M3 4v4h4" />
-            <path d="M12 8v4l3 2" />
-          </svg>
-        </RailIcon>
-        <div className="flex-1" />
-        <Link
-          href="/"
-          title="Akun"
-          aria-label="Akun"
-          className="grid h-[38px] w-[38px] place-items-center rounded-full bg-[var(--c-147553)] text-sm font-semibold text-[var(--surface-tint)]"
-        >
-          {userInitials}
-        </Link>
-      </div>
+      {/* Nav antar-halaman — dulu rail ikon hijau tua yang ditulis ulang di
+          file ini (sistem navigasi KETIGA di aplikasi). Sekarang memakai
+          komponen bersama yang sama dengan Library/Hub/Work. */}
+      <AppShellRail active="workspaces" userInitials={userInitials} />
 
       {/* WORKSPACE SIDEBAR */}
       <div className="scroll hidden w-[284px] shrink-0 overflow-y-auto border-r border-[var(--brand-deep-line)]/10 bg-[var(--surface-alt)] px-4 py-6 md:block">
@@ -451,7 +333,8 @@ export default function WorkspaceView({
       </div>
 
       {/* MAIN */}
-      <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="scroll flex-1 overflow-y-auto bg-[var(--background)]">
         <div className="mx-auto max-w-[860px] px-6 pb-20 pt-11 sm:px-11">
           {/* HEADER */}
           <div className="mb-3 flex items-start justify-between gap-6">
@@ -602,7 +485,10 @@ export default function WorkspaceView({
               ))}
             </div>
           )}
+          </div>
         </div>
+
+        <BottomNav />
       </div>
 
       {/* WORKSPACE SYSTEM SLIDE-OVER */}
