@@ -43,15 +43,32 @@ function normalizeForEmbedding(text: string) {
 /**
  * Meng-embed beberapa teks sekaligus. Mengembalikan `null` (bukan melempar)
  * saat key kosong supaya pemanggil bisa lanjut tanpa embedding.
+ *
+ * PENTING: hasilnya selalu sepanjang `texts` dan sejajar indeksnya. Teks yang
+ * jadi string kosong setelah normalisasi tidak ikut dikirim ke API, tapi
+ * posisinya diisi `null` — bukan dibuang. Pemanggil seperti `syncNoteChunks`
+ * memetakan hasil ini dengan indeks potongan aslinya, jadi menggeser posisi
+ * berarti menyimpan vektor milik potongan lain tanpa satu pun error.
  */
 export async function createEmbeddings(
   texts: string[],
-): Promise<number[][] | null> {
+): Promise<(number[] | null)[] | null> {
   if (!apiKey) {
     return null;
   }
 
-  const input = texts.map(normalizeForEmbedding).filter(Boolean);
+  // `sourceIndexes[i]` = posisi asli di `texts` untuk `input[i]`.
+  const sourceIndexes: number[] = [];
+  const input: string[] = [];
+
+  texts.forEach((text, index) => {
+    const normalized = normalizeForEmbedding(text);
+
+    if (normalized) {
+      sourceIndexes.push(index);
+      input.push(normalized);
+    }
+  });
 
   if (!input.length) {
     return null;
@@ -93,8 +110,9 @@ export async function createEmbeddings(
       );
     }
 
-    // Urutan balasan tidak dijamin — pakai `index` kalau ada.
-    const ordered: number[][] = new Array(input.length);
+    // Urutan balasan tidak dijamin — pakai `index` kalau ada. Diisi `null`
+    // dulu supaya lubang array tidak lolos dari `every` di bawah.
+    const ordered: (number[] | null)[] = new Array(input.length).fill(null);
 
     rows.forEach((row, position) => {
       const target = typeof row.index === "number" ? row.index : position;
@@ -104,7 +122,18 @@ export async function createEmbeddings(
       }
     });
 
-    return ordered.every(Boolean) ? ordered : null;
+    if (!ordered.every(Boolean)) {
+      return null;
+    }
+
+    // Kembalikan ke ruang indeks `texts`; posisi yang dilewati tetap null.
+    const aligned: (number[] | null)[] = new Array(texts.length).fill(null);
+
+    sourceIndexes.forEach((sourceIndex, position) => {
+      aligned[sourceIndex] = ordered[position];
+    });
+
+    return aligned;
   } finally {
     clearTimeout(timeout);
   }
