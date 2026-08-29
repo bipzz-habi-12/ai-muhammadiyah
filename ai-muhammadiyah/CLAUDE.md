@@ -156,7 +156,7 @@ Muhammadiyah Hub tetap gratis di semua tier.
 4. **Chat + slash skill picker**: ketik `/` → picker skill → simpan `messages.skill_id`; komposisi 3-lapis konteks (Workspace System + Skill + history).
 5. **Artifacts dasar dulu**: Dokumen → Tabel → Visual (yang tidak eksekusi kode). Panel Artifact + simpan ke `artifacts` + tampil di Library.
 6. **Mini aplikasi (paling akhir)**: riset sandboxing iframe dulu → HTML app → React app.
-7. `npm run lint && npm run build` + smoke test manual (chat streaming, upload, RLS antar-user, slash picker, render artifact) tiap selesai satu tahap.
+7. `npm test && npm run lint && npm run build` + smoke test manual (chat streaming, upload, RLS antar-user, slash picker, render artifact) tiap selesai satu tahap. `npm test` memakai test runner bawaan Node — berkas `*.test.mjs`, tanpa framework tambahan.
 8. Muhammadiyah Hub linking (`hub_links`) — tetap DITUNDA sampai Artifacts inti stabil.
 
 ---
