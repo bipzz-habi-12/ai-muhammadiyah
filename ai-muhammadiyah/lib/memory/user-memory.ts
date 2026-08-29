@@ -158,6 +158,46 @@ function createMemoryPayload(userId: string, memory: UserMemory) {
   };
 }
 
+/**
+ * Menerjemahkan error Supabase jadi kalimat yang bisa dibaca pengguna DAN bisa
+ * dilaporkan.
+ *
+ * Sebelumnya kedua pemanggil (`PersonalizationForm`, `useUserMemory`) hanya
+ * menulis "Belum bisa disimpan. Coba lagi." untuk semua kegagalan, jadi sesi
+ * yang gagal terus-menerus tidak bisa dibedakan penyebabnya dari layar: sesi
+ * kedaluwarsa, CHECK constraint id model yang belum dimigrasi (kode 23514),
+ * kolom yang belum ada (42703), dan RLS yang menolak (42501) semuanya tampil
+ * identik. Kode Postgres-nya ikut ditampilkan karena itulah satu-satunya
+ * petunjuk yang bisa disalin pengguna ke laporan.
+ */
+export function describeMemorySaveError(error: unknown) {
+  const candidate = error as
+    | { message?: string; code?: string; details?: string }
+    | null
+    | undefined;
+  const code = candidate?.code;
+
+  if (code === "42501") {
+    return "Sesi kamu sudah tidak berlaku. Masuk ulang, lalu simpan lagi.";
+  }
+
+  if (code === "23514") {
+    return "Ada pilihan yang belum dikenali database (kemungkinan migrasi id model belum di-apply). Kode: 23514.";
+  }
+
+  if (code === "42703" || code === "42P01") {
+    return `Struktur database belum sesuai versi aplikasi — migrasi belum di-apply. Kode: ${code}.`;
+  }
+
+  const message = candidate?.message?.trim();
+
+  if (!message) {
+    return "Belum bisa disimpan. Coba lagi.";
+  }
+
+  return code ? `Belum bisa disimpan: ${message} (kode ${code}).` : `Belum bisa disimpan: ${message}`;
+}
+
 export async function loadUserMemory(
   supabase: SupabaseClient,
   userId: string,

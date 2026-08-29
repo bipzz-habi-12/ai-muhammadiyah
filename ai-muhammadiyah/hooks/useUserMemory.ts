@@ -10,6 +10,7 @@ import {
 } from "react";
 import { resolveSkillIdFromLegacyValue } from "@/lib/mappers/legacy-study-mode";
 import {
+  describeMemorySaveError,
   emptyUserMemory,
   loadUserMemory,
   sanitizeUserMemory,
@@ -116,7 +117,7 @@ export function useUserMemory(
       setProfileSavedMessage("Learning Profile tersimpan.");
     } catch (error) {
       console.error(error);
-      setProfileError("Learning Profile belum bisa disimpan.");
+      setProfileError(`Learning Profile — ${describeMemorySaveError(error)}`);
     } finally {
       setIsSavingProfile(false);
     }

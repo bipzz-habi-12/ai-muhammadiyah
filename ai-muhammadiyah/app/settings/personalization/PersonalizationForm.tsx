@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { saveUserMemory, type UserMemory } from "@/lib/memory/user-memory";
+import {
+  describeMemorySaveError,
+  saveUserMemory,
+  type UserMemory,
+} from "@/lib/memory/user-memory";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 // Personalization.dc.html port, wired to the REAL learning profile
@@ -96,7 +100,7 @@ export default function PersonalizationForm({
       setStatus({ tone: "ok", text: "Tersimpan." });
     } catch (error) {
       console.error(error);
-      setStatus({ tone: "err", text: "Belum bisa disimpan. Coba lagi." });
+      setStatus({ tone: "err", text: describeMemorySaveError(error) });
     } finally {
       setIsSaving(false);
     }

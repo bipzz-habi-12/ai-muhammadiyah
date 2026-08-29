@@ -63,19 +63,36 @@ export async function GET() {
     const archive = createZip(entries);
     const stamp = new Date().toISOString().slice(0, 10);
 
-    return new NextResponse(archive as unknown as BodyInit, {
+    // Body dikirim sebagai Buffer, bukan Uint8Array yang di-cast paksa ke
+    // BodyInit — runtime nodejs menanganinya sebagai octet stream tanpa
+    // perantara, dan cast `as unknown as` yang menyembunyikan ketidakcocokan
+    // tipe ikut hilang.
+    //
+    // Content-Length SENGAJA TIDAK diisi sendiri. Kalau lapisan hosting
+    // meng-encode ulang badan respons (kompresi, chunked transfer), panjang
+    // yang kita tulis jadi tidak cocok dengan byte yang benar-benar terkirim
+    // dan peramban membatalkan unduhannya sebagai berkas rusak — persis
+    // bentuk kegagalan "tombolnya dipencet tapi gagal terus". Platform yang
+    // menghitung sendiri panjangnya selalu benar.
+    return new NextResponse(Buffer.from(archive), {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="otak-kedua-${stamp}.zip"`,
-        "Content-Length": String(archive.length),
         "Cache-Control": "no-store",
       },
     });
   } catch (error) {
     console.error("Export notes failed:", error);
+
+    // Alasan aslinya ikut dikirim. Tanpa ini, setiap kegagalan ekspor tampil
+    // sebagai satu kalimat yang sama dan tidak bisa didiagnosis dari sisi
+    // pengguna sama sekali.
+    const detail =
+      error instanceof Error ? error.message : String(error ?? "unknown");
+
     return NextResponse.json(
-      { error: "Gagal mengekspor catatan." },
+      { error: `Gagal mengekspor catatan: ${detail}` },
       { status: 500 },
     );
   }

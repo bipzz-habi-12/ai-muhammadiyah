@@ -101,6 +101,18 @@ export function toSuperscriptV2(value: string) {
     .join("");
 }
 
+// Simbol unsur satu huruf. "x2" memang enak dibaca sebagai x², tapi "H2" TIDAK:
+// notasi kimia yang benar adalah subskrip (H₂), bukan superskrip. Daripada
+// menebak-nebak, huruf-huruf ini dikecualikan dari konversi otomatis dan model
+// diminta langsung menulis H₂O / CO₂ lewat blok NUMBERS, SCIENCE, AND PRECISION
+// di `lib/ai/chat.ts`.
+const singleLetterElementSymbols = new Set([
+  "H", "B", "C", "N", "O", "F", "P", "S", "K", "V", "Y", "I", "W", "U",
+]);
+
+// Penanda sementara untuk "$" mata uang, dipulihkan di akhir rantai.
+const currencyDollarSentinel = "\uE010";
+
 export function normalizeMathText(text: string) {
   // Example: "$\\frac{x^2 + 2*x + 1}{3}$" -> "(x² + 2 × x + 1) ÷ 3"
   // Example: "sqrt(x+1)" -> "√(x + 1)"
@@ -110,8 +122,15 @@ export function normalizeMathText(text: string) {
     .replace(/\\\)/g, "")
     .replace(/\\\[/g, "")
     .replace(/\\\]/g, "")
+    // "$" yang langsung diikuti ANGKA dan tidak menempel pada "$"/huruf lain
+    // adalah mata uang ("harga $10"), bukan pembatas LaTeX. Dulu SEMUA "$"
+    // dihapus di sini, jadi setiap harga dolar kehilangan simbolnya di layar.
+    // "$$3,14$$" tetap aman: "$" pertama diikuti "$" (bukan angka) dan "$"
+    // kedua didahului "$", jadi keduanya tidak lolos penjaga ini.
+    .replace(/(?<![\w$])\$(?=\d)/g, currencyDollarSentinel)
     .replace(/\$\$/g, "")
     .replace(/\$/g, "")
+    .replace(new RegExp(currencyDollarSentinel, "g"), () => "$")
     .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1) ÷ ($2)")
     .replace(/\\sqrt\{([^{}]+)\}/g, "√($1)")
     .replace(/\bsqrt\(([^()\n]+)\)/gi, (_, radicand: string) => {
@@ -121,8 +140,12 @@ export function normalizeMathText(text: string) {
     .replace(/\^([+-]?\d+)/g, (_, power: string) => toSuperscriptV2(power))
     .replace(/(\b[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹]+|\))\s*\*\s*(\(?[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹]+)/g, "$1 × $2")
     .replace(/(?<!https?:)(\b[A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹)]+)\s+\/\s+([A-Za-z0-9²³⁰¹⁴⁵⁶⁷⁸⁹(]+)/g, "$1 ÷ $2")
-    .replace(/\b([a-zA-Z])2\b/g, "$1²")
-    .replace(/\b([a-zA-Z])3\b/g, "$1³")
+    .replace(/\b([a-zA-Z])2\b/g, (match, letter: string) =>
+      singleLetterElementSymbols.has(letter) ? match : `${letter}²`,
+    )
+    .replace(/\b([a-zA-Z])3\b/g, (match, letter: string) =>
+      singleLetterElementSymbols.has(letter) ? match : `${letter}³`,
+    )
     .replace(/\s{2,}/g, " ")
     .trim();
 }

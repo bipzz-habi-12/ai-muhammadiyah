@@ -62,13 +62,52 @@ export function titleToLogseqFilename(title: string) {
  *
  * Blok tingkat atas menjadi paragraf; blok bersarang tetap jadi daftar
  * bertingkat supaya strukturnya tidak hilang.
+ *
+ * BLOK KODE dilewatkan apa adanya sampai pagar penutupnya. Tanpa pengecualian
+ * ini tiap baris kode ikut kena `.trim()` dan seluruh indentasi di dalam kode
+ * hilang — kode Python hasil impor bahkan jadi tidak sah. `continuation`
+ * dibiarkan kosong untuk pagar yang tidak berbutir, supaya berkas hasil ekspor
+ * versi LAMA (badan kodenya di kolom 0) tetap terbaca.
  */
 export function logseqToMarkdown(raw: string) {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const output: string[] = [];
   let inLeadingProperties = true;
+  let codeBlock: {
+    continuation: string;
+    markdown: string;
+    resolved: boolean;
+  } | null = null;
 
   for (const line of lines) {
+    if (codeBlock) {
+      // Prefiks lanjutan dipastikan dari baris PERTAMA badan kode, bukan
+      // diasumsikan. Berkas ekspor versi lama menaruh badan kodenya di kolom 0;
+      // kalau prefiksnya tetap dipotong, baris kode yang kebetulan menjorok
+      // dua spasi akan kehilangan indentasinya dan kode Python hasil impor
+      // jadi tidak sah.
+      if (!codeBlock.resolved) {
+        if (!line.startsWith(codeBlock.continuation)) {
+          codeBlock.continuation = "";
+        }
+
+        codeBlock.resolved = true;
+      }
+
+      const body =
+        codeBlock.continuation && line.startsWith(codeBlock.continuation)
+          ? line.slice(codeBlock.continuation.length)
+          : line;
+
+      output.push(body.trim() ? `${codeBlock.markdown}${body}` : "");
+
+      if (body.trimStart().startsWith("```")) {
+        codeBlock = null;
+      }
+
+      continue;
+    }
+
     if (!line.trim()) {
       inLeadingProperties = false;
       output.push("");
@@ -85,6 +124,19 @@ export function logseqToMarkdown(raw: string) {
     }
 
     inLeadingProperties = false;
+
+    if (content.startsWith("```")) {
+      const depth = indent > 0 ? Math.max(1, Math.round(indent / 2)) : 0;
+      const markdown = depth > 0 ? "  ".repeat(depth - 1) : "";
+
+      output.push(`${markdown}${content}`);
+      codeBlock = {
+        continuation: bullet ? `${bullet[1]}  ` : "",
+        markdown,
+        resolved: false,
+      };
+      continue;
+    }
 
     if (!bullet) {
       output.push(content);
@@ -108,24 +160,46 @@ export function logseqToMarkdown(raw: string) {
  * Markdown biasa -> outline Logseq.
  *
  * Tiap baris tingkat atas jadi satu blok `- `; daftar yang sudah ada
- * dipertahankan kedalamannya. Blok kode dilewatkan utuh — memberi butir pada
- * tiap baris kode akan merusak isinya.
+ * dipertahankan kedalamannya.
+ *
+ * BLOK KODE: pagar pembukanya mendapat butir, dan seluruh baris sesudahnya —
+ * badan kode DAN pagar penutupnya — diberi indentasi sejajar dengan isi butir
+ * itu (dua spasi setelah "- "). Ini bukan kosmetik: Logseq menyatukan baris
+ * lanjutan ke bloknya lewat indentasi, jadi versi sebelumnya yang membiarkan
+ * badan kode jatuh ke kolom 0 memecah blok kodenya begitu berkasnya dibuka di
+ * Logseq. Indentasi ASLI di dalam kode dipertahankan dengan memotong dulu
+ * indentasi pagar pembukanya, supaya tidak terhitung dua kali.
  */
 export function markdownToLogseq(content: string) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const output: string[] = [];
-  let inCodeFence = false;
+  let codeBlock: { continuation: string; base: string } | null = null;
 
   for (const line of lines) {
-    if (/^\s*```/.test(line)) {
-      // Pagar pembuka mendapat butir; sisa blok kode mengalir apa adanya.
-      output.push(inCodeFence ? line : `- ${line.trim()}`);
-      inCodeFence = !inCodeFence;
+    if (/^[ \t]*```/.test(line)) {
+      if (codeBlock) {
+        output.push(`${codeBlock.continuation}${line.trim()}`);
+        codeBlock = null;
+        continue;
+      }
+
+      const base = line.match(/^[ \t]*/)?.[0] ?? "";
+      const depth = Math.round(base.replace(/\t/g, "  ").length / 2);
+      const bulletIndent = depth > 0 ? "\t".repeat(depth + 1) : "";
+
+      output.push(`${bulletIndent}- ${line.trim()}`);
+      codeBlock = { continuation: `${bulletIndent}  `, base };
       continue;
     }
 
-    if (inCodeFence) {
-      output.push(line);
+    if (codeBlock) {
+      const body = line.startsWith(codeBlock.base)
+        ? line.slice(codeBlock.base.length)
+        : line;
+
+      // Baris kosong pun tetap diberi indentasi lanjutan; baris kosong di
+      // kolom 0 akan menutup blok itu lebih awal di Logseq.
+      output.push(`${codeBlock.continuation}${body}`);
       continue;
     }
 

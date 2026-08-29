@@ -53,6 +53,68 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
   const [importProgress, setImportProgress] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  /**
+   * Ekspor lewat fetch, BUKAN `<a href="/api/notes/export">`.
+   *
+   * Dengan tautan biasa, setiap kegagalan rute (401 sesi habis, 404 belum ada
+   * catatan, 500) membuat peramban MENINGGALKAN halaman Library dan menampilkan
+   * JSON mentah — pengguna cuma melihat "gagal" tanpa satu pun keterangan, dan
+   * tidak ada tempat untuk menampilkan pesan galat. Di sini badan responsnya
+   * diperiksa dulu: kalau gagal, alasannya tampil di panel status yang sudah
+   * ada; kalau berhasil, unduhan dipicu dari blob.
+   */
+  const handleExport = async () => {
+    if (isExporting) {
+      return;
+    }
+
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      const response = await fetch("/api/notes/export", {
+        headers: { Accept: "application/zip" },
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+
+        setExportError(
+          payload?.error ?? `Ekspor gagal (HTTP ${response.status}).`,
+        );
+        return;
+      }
+
+      const blob = await response.blob();
+
+      if (!blob.size) {
+        setExportError("Ekspor gagal: arsip yang diterima kosong.");
+        return;
+      }
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = objectUrl;
+      link.download = `otak-kedua-${stamp}.zip`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+
+      // Dibebaskan setelah peramban sempat memulai unduhannya.
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch {
+      setExportError("Ekspor gagal. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleImport = async (fileList: FileList | null) => {
     if (!fileList?.length) {
@@ -159,16 +221,14 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
           >
             {importProgress ? "Mengimpor…" : "Impor Logseq"}
           </button>
-          <a
-            href="/api/notes/export"
-            className={
-              notes.length
-                ? "flex h-10 items-center rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] font-medium text-[var(--brand)] transition hover:bg-[var(--c-f0eee5)]"
-                : "pointer-events-none flex h-10 items-center rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] font-medium text-[var(--muted-3)]"
-            }
+          <button
+            type="button"
+            onClick={() => void handleExport()}
+            disabled={!notes.length || isExporting}
+            className="flex h-10 items-center rounded-[10px] border border-[var(--brand-deep-line)]/13 bg-[var(--surface)] px-3.5 text-[13.5px] font-medium text-[var(--brand)] transition hover:bg-[var(--c-f0eee5)] disabled:cursor-default disabled:text-[var(--muted-3)] disabled:hover:bg-[var(--surface)]"
           >
-            Ekspor .zip
-          </a>
+            {isExporting ? "Menyiapkan…" : "Ekspor .zip"}
+          </button>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -180,10 +240,11 @@ export default function NotesView({ notes }: { notes: NoteItem[] }) {
 
       <SyncDevices />
 
-      {(importProgress || importSummary || importError) && (
+      {(importProgress || importSummary || importError || exportError) && (
         <div className="mb-5 rounded-[10px] border border-[rgba(20,40,30,0.1)] bg-[var(--surface-panel)] px-4 py-3 text-[13px]">
           {importProgress && <p className="text-[var(--muted-2)]">{importProgress}</p>}
           {importError && <p className="text-[var(--danger-ink)]">{importError}</p>}
+          {exportError && <p className="text-[var(--danger-ink)]">{exportError}</p>}
           {importSummary && (
             <div className="text-[var(--ink-soft)]">
               <p>
