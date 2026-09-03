@@ -3186,6 +3186,68 @@ export async function streamChatReply(
     });
   }
 
+  // Langkah 54c: Anthropic juga jadi CADANGAN, bukan cuma pilihan utama.
+  //
+  // Aturannya sekarang simetris — apa pun yang dipilih pengguna, DUA penyedia
+  // lain menjadi cadangannya:
+  //   Google   -> Gemini    -> OpenAI    -> Anthropic -> OpenRouter
+  //   OpenAI   -> OpenAI    -> Gemini    -> Anthropic -> OpenRouter
+  //   Anthropic-> Anthropic -> OpenAI    -> Gemini    -> OpenRouter
+  //
+  // Sebelum ini Anthropic hanya pernah dicoba kalau ia yang dipilih, jadi
+  // pengguna Gemini/OpenAI tidak pernah mendapat jaring pengamannya.
+  //
+  // `prefersAnthropic` berarti ia SUDAH dicoba di awal dan gagal — mengulangnya
+  // di sini hanya membuang waktu dan kuota. Pencarian web tetap dikecualikan:
+  // jalur itu menuntut tool grounding milik Gemini.
+  const canFallBackToAnthropic =
+    !prefersAnthropic &&
+    !shouldSearchWeb &&
+    Boolean(resolveEngineApiKey("anthropic", normalizedModel)) &&
+    Boolean(resolveEngineModelId("anthropic", normalizedModel));
+
+  if (canFallBackToAnthropic) {
+    const anthropicModel = resolveEngineModelId("anthropic", normalizedModel);
+
+    console.warn("M-Agent streaming fallback to Anthropic:", {
+      route,
+      anthropicModel,
+      tier: access.tier,
+    });
+
+    const anthropicFallback = await streamAnthropicReply(
+      recentMessages,
+      pdfContext,
+      onChunk,
+      systemPrompt,
+      memory,
+      options?.knowledgeContext,
+      options?.documentContexts,
+      options?.imageContexts,
+      normalizedModel,
+      effortRuntime,
+    );
+
+    if (anthropicFallback?.reply) {
+      logAiSuccess("M-Agent provider streamed request:", {
+        route,
+        provider: "anthropic",
+        model: anthropicModel,
+        tier: access.tier,
+      });
+
+      return {
+        reply: anthropicFallback.reply,
+        provider: "anthropic" as const,
+        model: anthropicModel,
+        fallbackEvent: prefersGemini
+          ? "gemini_to_anthropic"
+          : "openai_to_anthropic",
+        finishReason: anthropicFallback.finishReason,
+      };
+    }
+  }
+
   if (!process.env.OPENROUTER_API_KEY) {
     const reply = createGenericAiFallback();
 

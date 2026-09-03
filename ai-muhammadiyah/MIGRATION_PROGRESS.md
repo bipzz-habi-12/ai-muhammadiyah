@@ -1704,3 +1704,17 @@ Ditulis atas permintaan user selagi masih bisa dikerjakan, meski akun Anthropic-
 - `provider_used: "anthropic"` aman masuk `usage_logs`: kolomnya JSONB metadata, tanpa constraint nilai.
 
 **Yang harus diuji begitu saldonya ada** (belum satu pun dijalankan): satu balasan biasa mengalir sampai selesai; balasan yang memuat artifact; pertanyaan dengan lampiran gambar; dan satu kegagalan sengaja (id model salah) untuk memastikan jatuhnya ke OpenAI mulus tanpa jawaban ganda.
+
+### Rantai cadangan dibuat simetris (Langkah 54c)
+
+User menegaskan aturan yang ia mau: apa pun yang dipilih, DUA penyedia lain jadi cadangannya. Pemeriksaan menunjukkan kode baru memenuhi satu dari tiga kasus — Anthropic tidak pernah dicoba kecuali ia yang dipilih.
+
+Sekarang:
+
+```
+Google    -> Gemini    -> OpenAI    -> Anthropic -> OpenRouter
+OpenAI    -> OpenAI    -> Gemini    -> Anthropic -> OpenRouter
+Anthropic -> Anthropic -> OpenAI    -> Gemini    -> OpenRouter
+```
+
+Ditambahkan satu tahap `canFallBackToAnthropic` tepat sebelum OpenRouter, dengan dua penjaga: `!prefersAnthropic` (kalau ia sudah dicoba di awal dan gagal, mengulangnya cuma membuang kuota) dan `!shouldSearchWeb` (jalur pencarian menuntut tool grounding milik Gemini). `fallbackEvent` mencatat asalnya: `gemini_to_anthropic` atau `openai_to_anthropic`, jadi bisa dibaca lagi dari `usage_logs`.
