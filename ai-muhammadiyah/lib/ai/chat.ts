@@ -4,13 +4,19 @@ import {
   trimHistoryToTokenBudget,
 } from "@/lib/ai/context-window";
 import {
+  resolveEngineApiKey,
+  resolveEngineModelId,
+} from "@/lib/ai/model-env";
+import {
   createUserMemorySystemPrompt,
   type UserMemory,
 } from "@/lib/memory/user-memory";
 import {
   defaultModelId,
+  defaultModelProvider,
   normalizeEffortLevel,
   type EffortLevel,
+  type ModelProviderId,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { SubscriptionTier } from "@/lib/usage/limits";
@@ -94,6 +100,13 @@ type ChatContextOptions = {
    * mengisinya — tool membaca data milik pengguna, dan RLS-lah pembatasnya.
    */
   toolContext?: ToolContext;
+  /**
+   * Penyedia mesin pilihan pengguna (Langkah 54) — SUDAH divalidasi server
+   * lewat resolveUsableProvider(), jadi di sini ia dianggap benar. Ini yang
+   * membuat urutan "GPT dulu" bisa dibalik: kalau pengguna memilih Google,
+   * Gemini dicoba lebih dulu dan OpenAI turun jadi cadangan pertama.
+   */
+  modelProvider?: ModelProviderId;
 };
 type SelectedModel = PlanModelId;
 /**
@@ -1791,8 +1804,10 @@ async function streamGeminiReply(
   documentContexts: DocumentContext[] = [],
   imageContexts: ImageContext[] = [],
   enableWebSearch = false,
+  // Kunci per model (Langkah 54). Kosong = pakai kunci bersama seperti dulu.
+  apiKeyOverride?: string,
 ): Promise<StreamProviderResult | null> {
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = apiKeyOverride || process.env.GEMINI_API_KEY;
   const geminiModel = modelOverride ?? resolveGeminiModel(route, tier);
   let streamedText = "";
   let streamedFinishReason: string | undefined;
@@ -2097,6 +2112,19 @@ async function streamGeminiReplyWithTools(
   return null;
 }
 
+/**
+ * Model Gemini saat PENGGUNA memilih Google (bukan jalur cadangan otomatis).
+ * Aether dipetakan ke model Pro, tiga nama lainnya ke Flash — sama dengan peta
+ * mesin di lib/subscriptions/plans.ts. Flash selalu ikut sebagai cadangan
+ * kedua supaya kuota Pro yang habis tidak mematikan percakapan.
+ */
+function resolveUserChosenGeminiModels(model: SelectedModel): string[] {
+  const chosen = resolveEngineModelId("google", model);
+  const flash = geminiFlashModel.replace(/^models\//, "");
+
+  return chosen && chosen !== flash ? [chosen, flash] : [flash];
+}
+
 function resolveGeminiFallbackModels(
   route: AiRoute,
   tier: SubscriptionTier,
@@ -2169,8 +2197,12 @@ async function streamGeminiReplyWithFallback(
   documentContexts: DocumentContext[] = [],
   imageContexts: ImageContext[] = [],
   enableWebSearch = false,
+  modelOverrides?: string[],
+  apiKeyOverride?: string,
 ) {
-  const models = resolveGeminiFallbackModels(route, tier);
+  const models = modelOverrides?.length
+    ? modelOverrides
+    : resolveGeminiFallbackModels(route, tier);
 
   for (const [index, model] of models.entries()) {
     const result = await streamGeminiReply(
@@ -2186,6 +2218,7 @@ async function streamGeminiReplyWithFallback(
       documentContexts,
       imageContexts,
       enableWebSearch,
+      apiKeyOverride,
     );
 
     if (result) {
@@ -2657,7 +2690,18 @@ export async function streamChatReply(
   }
 
   const routeConfig = aiRouteConfig[route];
-  const triedOpenAi = shouldTryOpenAiFirst(normalizedModel) && !shouldSearchWeb;
+  // Langkah 54: penyedia pilihan pengguna menentukan siapa yang dicoba DULU.
+  // Ini satu-satunya hal yang membalik urutan "GPT dulu" selain pengecualian
+  // pencarian web di atas — dan tetap hanya urutan: penyedia lain tidak
+  // dihapus, mereka turun jadi cadangan.
+  const preferredProvider = options?.modelProvider ?? defaultModelProvider;
+  const geminiApiKeyForModel = resolveEngineApiKey("google", normalizedModel);
+  const prefersGemini =
+    preferredProvider === "google" &&
+    Boolean(geminiApiKeyForModel) &&
+    !shouldSearchWeb;
+  const triedOpenAi =
+    shouldTryOpenAiFirst(normalizedModel) && !shouldSearchWeb && !prefersGemini;
   const effortRuntime = resolveEffortRuntime(options, normalizedModel);
 
   if (triedOpenAi) {
@@ -2753,6 +2797,10 @@ export async function streamChatReply(
             options?.documentContexts,
             options?.imageContexts,
             shouldSearchWeb,
+            prefersGemini
+              ? resolveUserChosenGeminiModels(normalizedModel)
+              : undefined,
+            prefersGemini ? geminiApiKeyForModel : undefined,
           );
 
     if (geminiResult) {
@@ -2781,6 +2829,38 @@ export async function streamChatReply(
         searchQueries: geminiResult.searchQueries,
         toolsUsed: geminiResult.toolsUsed,
       };
+    }
+
+    if (prefersGemini && hasAnyOpenAiKey()) {
+      console.warn("M-Agent streaming fallback from Gemini to OpenAI:", {
+        route,
+        geminiModel: resolveGeminiModel(route, access.tier),
+        openAiModel: resolveOpenAiModel(normalizedModel),
+        tier: access.tier,
+      });
+
+      const openAiFallback = await streamOpenAiGptReply(
+        recentMessages,
+        pdfContext,
+        onChunk,
+        systemPrompt,
+        memory,
+        options?.knowledgeContext,
+        options?.documentContexts,
+        options?.imageContexts,
+        normalizedModel,
+        effortRuntime,
+      );
+
+      if (openAiFallback?.reply) {
+        return {
+          reply: openAiFallback.reply,
+          provider: "openai" as const,
+          model: resolveOpenAiModel(normalizedModel),
+          fallbackEvent: "gemini_to_openai",
+          finishReason: openAiFallback.finishReason,
+        };
+      }
     }
 
     console.warn("M-Agent streaming fallback from Gemini to OpenRouter:", {

@@ -102,6 +102,7 @@ export default function Home() {
     loadUsage: loadUsageSnapshot,
     currentTierLabel,
     allowedModels,
+    availableProviders,
     currentPlan,
     hasMessageQuota,
     hasUploadQuota,
@@ -128,6 +129,9 @@ export default function Home() {
   const {
     selectedModel,
     setSelectedModel,
+    selectedProvider,
+    selectProvider,
+    selectedEngineLabel,
     isModelMenuOpen,
     setIsModelMenuOpen,
     isEffortMenuOpen,
@@ -142,7 +146,7 @@ export default function Home() {
     setEffort,
     isThinkingEnabled,
     toggleThinking,
-  } = useModelSelection(allowedModels);
+  } = useModelSelection(allowedModels, availableProviders);
   const {
     learningProfile,
     profileDraft,
@@ -274,6 +278,7 @@ export default function Home() {
     setMessageSkillOverrideId,
     saveArtifacts,
     loadArtifacts,
+    selectedProvider,
   );
   const resetMemory = useCallback(() => {
     setActiveConversationId("");
@@ -749,6 +754,10 @@ export default function Home() {
               selectedModel={selectedModel}
               selectModel={selectModel}
               allowedModels={allowedModels}
+              selectedProvider={selectedProvider}
+              selectProvider={selectProvider}
+              availableProviders={availableProviders}
+              selectedEngineLabel={selectedEngineLabel}
               isModelMenuOpen={isModelMenuOpen}
               modelOptions={modelOptions}
               selectedModelInfo={selectedModelInfo}
@@ -789,6 +798,10 @@ export default function Home() {
                 selectedModel={selectedModel}
                 selectModel={selectModel}
                 allowedModels={allowedModels}
+                selectedProvider={selectedProvider}
+                selectProvider={selectProvider}
+                availableProviders={availableProviders}
+                selectedEngineLabel={selectedEngineLabel}
                 isModelMenuOpen={isModelMenuOpen}
                 modelOptions={modelOptions}
                 selectedModelInfo={selectedModelInfo}

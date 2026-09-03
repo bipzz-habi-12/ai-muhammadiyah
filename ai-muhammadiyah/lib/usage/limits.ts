@@ -1,5 +1,7 @@
 import { contextWindowTokens } from "@/lib/ai/context-window";
 
+import type { ModelProviderId } from "@/lib/subscriptions/plans";
+
 export type SubscriptionTier =
   | "free"
   | "kader_pintar"
@@ -31,6 +33,12 @@ export type UsageWindow = {
 export type UsageSnapshot = {
   tier: SubscriptionTier;
   allowedModels: string[];
+  /**
+   * Penyedia model yang kuncinya benar-benar terpasang di server (Langkah 54).
+   * Dihitung di `/api/usage`, bukan dari RPC — klien memakainya untuk mematikan
+   * baris penyedia di pemilih model, dan server tetap memvalidasi ulang.
+   */
+  availableProviders: ModelProviderId[];
   contextWindowTokens: number;
   /** Satu meteran untuk semua pemakaian: TOKEN (pesan & upload sekaligus). */
   tokens: Record<UsageWindowKey, UsageWindow>;
@@ -210,6 +218,20 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
     ? rawAllowedModels.map(String)
     : fallback.allowedModels;
 
+  const rawProviders = getSnapshotValue(
+    snapshot,
+    "available_providers",
+    "availableProviders",
+  );
+  // Tanpa daftar dari server, anggap hanya OpenAI yang hidup — itu perilaku
+  // sebelum Langkah 54, jadi kegagalan membaca tidak pernah membuka penyedia.
+  const availableProviders = (
+    Array.isArray(rawProviders) ? rawProviders : ["openai"]
+  ).filter(
+    (provider): provider is ModelProviderId =>
+      provider === "google" || provider === "openai" || provider === "anthropic",
+  );
+
   const sessionTokenLimit = getPositiveNumber(
     getSnapshotValue(snapshot, "session_token_limit", "sessionTokenLimit"),
     fallback.sessionTokenLimit,
@@ -236,6 +258,7 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
   return {
     tier,
     allowedModels: allowedModels.length ? allowedModels : fallback.allowedModels,
+    availableProviders,
     contextWindowTokens: getPositiveNumber(
       getSnapshotValue(snapshot, "context_window_tokens", "contextWindowTokens"),
       contextWindowTokens,

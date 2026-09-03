@@ -8,7 +8,12 @@ import {
   type SetStateAction,
 } from "react";
 import { resolveAllowedSkill, type Skill } from "@/lib/skills";
-import { getPlanByTier, type PlanModelId } from "@/lib/subscriptions/plans";
+import {
+  defaultModelProvider,
+  getPlanByTier,
+  type ModelProviderId,
+  type PlanModelId,
+} from "@/lib/subscriptions/plans";
 import {
   fetchUsageSnapshot,
   getTightestWindow,
@@ -44,6 +49,11 @@ export function useUsage() {
     ? tierLabels[usageSnapshot.tier]
     : "Memuat";
   const allowedModels = usageSnapshot?.allowedModels ?? ["auto", "fast"];
+  // Sebelum snapshot tiba, anggap hanya OpenAI yang hidup: itu perilaku
+  // sebelum Langkah 54, jadi pemilih model tidak pernah sempat menawarkan
+  // penyedia yang kuncinya kosong.
+  const availableProviders: ModelProviderId[] =
+    usageSnapshot?.availableProviders ?? [defaultModelProvider];
   const currentPlan = usageSnapshot ? getPlanByTier(usageSnapshot.tier) : null;
   // Satu meteran token untuk semuanya: pesan & upload memakai kolam yang sama.
   const hasMessageQuota = !usageSnapshot || hasQuota(usageSnapshot.tokens);
@@ -60,6 +70,7 @@ export function useUsage() {
     loadUsage,
     currentTierLabel,
     allowedModels,
+    availableProviders,
     currentPlan,
     hasMessageQuota,
     hasUploadQuota,

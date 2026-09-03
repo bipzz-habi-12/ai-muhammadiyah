@@ -1,6 +1,6 @@
 # M-Agent Project Status
 
-Last updated: August 26, 2026 (Langkah 53)
+Last updated: August 26, 2026 (Langkah 54)
 
 > This file describes the state of the code as it exists now. For the reasoning
 > behind each change — including traps hit along the way — read
@@ -89,14 +89,16 @@ UI shell (Langkah 51, reworked in Langkah 53):
 
 ## Model System
 
-Since Langkah 39 the UI exposes **four named models**, all of them OpenAI routes with their own API key so rate limits do not knock each other over. Gemini and then OpenRouter remain the automatic fallback for every model.
+Since Langkah 39 the UI exposes **four named models**, each with its own OpenAI API key so rate limits do not knock each other over. Since Langkah 54 each name can also be run by an engine from another provider, chosen by the user; OpenAI stays the default, and the unchosen providers remain the automatic fallback chain.
 
-| Model | Engine | Internal route | Minimum tier |
-| --- | --- | --- | --- |
-| Aether | `gpt-5.6-sol` | fast | Muallim Pro |
-| Cosmos | `gpt-5.6-terra` | smart | Muallim Pro |
-| Prism | `gpt-5.6-luna` | smart | Free |
-| Velo | `gpt-5.5-pro` | document | Free |
+| Model | Google | OpenAI (default) | Anthropic | Internal route | Minimum tier |
+| --- | --- | --- | --- | --- | --- |
+| Aether | Gemini 3.1 Pro | `gpt-5.6-sol` | Claude Fable 5 | fast | Muallim Pro |
+| Cosmos | Gemini 3.7 Flash | `gpt-5.6-terra` | Claude Opus 5 | smart | Muallim Pro |
+| Prism | Gemini 3.7 Flash | `gpt-5.6-luna` | Claude Opus 4.8 | smart | Free |
+| Velo | Gemini 3.7 Flash | `gpt-5.5-pro` | Claude Sonnet 5 | document | Free |
+
+Within a provider the engines run from the deepest-thinking to the fastest, paired to the named models in the same order. Gemini only ships two engines, so 3.7 Flash covers the three names below Aether. The Anthropic column is declared but **not callable yet** — see the routing note below. The picker is a two-column popover: model names on the left, that model's engines on the right.
 
 Effort levels per message: **Rendah, Sedang (default), Tinggi, Ekstra, Ultra** — higher effort thinks longer and burns quota faster.
 
@@ -104,9 +106,15 @@ Effort levels per message: **Rendah, Sedang (default), Tinggi, Ekstra, Ultra** �
 
 ### Routing order
 
-**OpenAI is tried first on every route for every tier, including Free**, whenever a key is set. Tier affects which models the picker offers and the quality of the Gemini fallback (Pro vs Flash), not whether GPT answers.
+**Since Langkah 54 the user picks which provider runs each named model**, and that choice decides who is tried first. The default is still OpenAI, so anyone who never opens the picker gets the previous behaviour unchanged: OpenAI first on every route for every tier, including Free, whenever a key is set.
 
-One documented exception: time-sensitive questions detected by `needsWebSearch()` go straight to Gemini, because the OpenAI Responses API has no direct search tool and Gemini does. Since Langkah 50, that path runs through tool calling — web search is now the `cari_web` tool, which makes a *separate* nested Gemini call with `google_search` enabled. This exists because Gemini rejects built-in tools and function declarations in the same request (HTTP 400, verified against the live API).
+- Picking **Google** flips the order to Gemini first, then OpenAI, then OpenRouter. Nothing is removed — the others become fallbacks.
+- The client's choice is a *suggestion*. `resolveUsableProvider()` (`lib/ai/providers.ts`) checks the model has an engine there and the key is set, and falls back to OpenAI otherwise. A forged request body cannot force a dead provider.
+- **Anthropic is reported unavailable on purpose** until `streamAnthropicReply` exists — see `anthropicStreamingImplemented` in `lib/ai/providers.ts`. The picker shows the Claude rows greyed out rather than promising an engine the server would not use.
+
+The model to engine map lives in `modelEngines` (`lib/subscriptions/plans.ts`) and is the single source of truth for both the picker and the server. Tier still decides which named models the picker offers and the quality of the Gemini fallback (Pro vs Flash).
+
+One documented exception, which **outranks the user's provider choice**: time-sensitive questions detected by `needsWebSearch()` go straight to Gemini, because the OpenAI Responses API has no direct search tool and Gemini does. Since Langkah 50, that path runs through tool calling — web search is now the `cari_web` tool, which makes a *separate* nested Gemini call with `google_search` enabled. This exists because Gemini rejects built-in tools and function declarations in the same request (HTTP 400, verified against the live API).
 
 ### Provider defaults
 
@@ -221,6 +229,16 @@ Not usable until the operator does three things: create the Google Cloud OAuth c
 
 Conversations with no workspace stay in the General group.
 
+## Artifact panel
+
+Rewritten in Langkah 54 (`components/ArtifactPanel.tsx`; props, `useArtifacts`, `lib/artifacts.ts` and the sandbox untouched).
+
+- Header carries the artifact title, its type chip and the actions (copy, download, overflow, expand, close). No footer on desktop, so the content gets the full height; below `lg` copy/download become a bottom action bar and the panel is a full-screen sheet.
+- **Delete lives in the overflow menu**, not next to Copy — it used to sit one miss away from the most-used button.
+- The artifact switcher is a single "Artifact N of M" row with a scrollable list, replacing a pill row that overflowed once a conversation had several artifacts.
+- **Expand** (lg and up) makes the panel full-screen and adds a third tab, **Berdampingan**, showing code and preview side by side. Collapsing falls back to preview — a two-column split does not fit 460px.
+- Mini-app tabs carry a **Sandbox** chip; the isolation was already real, it was just never stated to the user.
+
 ## UI Shell
 
 Reworked in Langkah 53 against a "premium" brief; `MIGRATION_PROGRESS.md` carries the audit and the traps.
@@ -280,6 +298,30 @@ Back up before applying anything, per `CLAUDE.md`.
 
 Every variable the code actually reads (`process.env`), grouped by purpose.
 
+### Installing a model: key + model id, nothing else
+
+Since Langkah 54 all three providers follow one naming pattern, defined in one place (`lib/ai/model-env.ts`):
+
+```
+<PROVIDER>_API_KEY_<MODEL>    key used only by that model
+<PROVIDER>_MODEL_<MODEL>      engine id that model runs on
+```
+
+`<PROVIDER>` is `OPENAI` | `GEMINI` | `ANTHROPIC`; `<MODEL>` is `AETHER` | `COSMOS` | `PRISM` | `VELO`. So `GEMINI_MODEL_AETHER=gemini-3.1-pro` and `ANTHROPIC_API_KEY_VELO=sk-ant-…` are both valid on their own. Per-model keys exist so one model hitting a rate limit cannot take the other three down with it.
+
+Falling back is deliberate and safe:
+
+1. `<PROVIDER>_API_KEY_<MODEL>` — if empty →
+2. the provider's shared key (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
+
+Model ids resolve the same way, ending at a built-in default for OpenAI and Gemini. **Anthropic has no built-in default on purpose** — Claude engine ids have never been verified in this project, and guessing one would send an invented id to the API. All four `ANTHROPIC_MODEL_*` must be filled in.
+
+A provider is only offered in the picker when it can run **all four** models, because the picker shows the same provider row under every model name. Setting just the shared key satisfies all four at once.
+
+**Locally (VS Code):** put them in `ai-muhammadiyah/.env.local` (gitignored, never commit it), then restart `npm run dev` — Next.js reads env files at boot, so edits are not picked up by hot reload.
+
+**On Vercel:** Project → Settings → Environment Variables → add each name/value, tick the environments (Production / Preview / Development), then **redeploy** — existing deployments keep the values they were built with. Keys are server-only; never prefix them with `NEXT_PUBLIC_`, which would ship them to the browser.
+
 ```bash
 # Supabase (required to boot)
 NEXT_PUBLIC_SUPABASE_URL=
@@ -305,11 +347,37 @@ OPENAI_MODEL_VELO=gpt-5.5-pro
 OPENAI_API_KEY_EMBED=
 OPENAI_EMBED_MODEL=text-embedding-3-small
 
-# Gemini + OpenRouter
+# Gemini / Google — kunci bersama (cadangan untuk keempat model)
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_FLASH_MODEL=gemini-2.5-flash
 GEMINI_PRO_MODEL=gemini-2.5-pro
+
+# Gemini — per model (Langkah 54; menang atas pasangan bersama di atas)
+GEMINI_API_KEY_AETHER=
+GEMINI_MODEL_AETHER=
+GEMINI_API_KEY_COSMOS=
+GEMINI_MODEL_COSMOS=
+GEMINI_API_KEY_PRISM=
+GEMINI_MODEL_PRISM=
+GEMINI_API_KEY_VELO=
+GEMINI_MODEL_VELO=
+
+# Anthropic — kunci bersama + per model (Langkah 54)
+# Tidak ada id model bawaan di sini: id Claude belum pernah diverifikasi di
+# proyek ini, jadi menebaknya sama dengan mengirim id karangan ke API. Keempat
+# ANTHROPIC_MODEL_* HARUS diisi sebelum Anthropic dianggap terpasang.
+ANTHROPIC_API_KEY=
+ANTHROPIC_API_KEY_AETHER=
+ANTHROPIC_MODEL_AETHER=
+ANTHROPIC_API_KEY_COSMOS=
+ANTHROPIC_MODEL_COSMOS=
+ANTHROPIC_API_KEY_PRISM=
+ANTHROPIC_MODEL_PRISM=
+ANTHROPIC_API_KEY_VELO=
+ANTHROPIC_MODEL_VELO=
+
+# OpenRouter (cadangan terakhir)
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL=openrouter/free
 

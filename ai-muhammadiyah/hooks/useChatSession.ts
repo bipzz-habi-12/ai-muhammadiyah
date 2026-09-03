@@ -47,7 +47,9 @@ import type { PlanModelId } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
 import {
   defaultModelId,
+  defaultModelProvider,
   type EffortLevel,
+  type ModelProviderId,
 } from "@/lib/subscriptions/plans";
 
 const streamUiFlushMs = 48;
@@ -95,6 +97,11 @@ export function useChatSession(
     drafts: ArtifactDraft[],
   ) => Promise<boolean>,
   loadArtifacts: (conversationId: string) => Promise<void>,
+  /**
+   * Penyedia mesin pilihan pengguna (Langkah 54). Ikut dikirim per pesan; server
+   * tetap memvalidasi ulang, jadi nilai ini murni usulan.
+   */
+  modelProvider: ModelProviderId = defaultModelProvider,
 ) {
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [input, setInput] = useState("");
@@ -393,6 +400,7 @@ export function useChatSession(
           documentContexts,
           imageContexts,
           selectedModel,
+          modelProvider,
           effort,
           thinking: isThinkingEnabled,
           skillId: activeSkill.id,

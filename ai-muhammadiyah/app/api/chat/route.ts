@@ -24,9 +24,13 @@ import {
   getSkillSystemPrompt,
   resolveAllowedSkill,
 } from "@/lib/skills";
+import { resolveUsableProvider } from "@/lib/ai/providers";
+import { normalizeSelectedModel } from "@/lib/mappers/conversation";
 import {
   defaultModelId,
+  defaultModelProvider,
   normalizeEffortLevel,
+  normalizeModelProvider,
 } from "@/lib/subscriptions/plans";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import {
@@ -42,6 +46,8 @@ type ChatRequestBody = {
   documentContexts?: DocumentContext[];
   imageContexts?: ImageContext[];
   selectedModel?: string;
+  /** Penyedia mesin pilihan pengguna (Langkah 54). Divalidasi ulang di server. */
+  modelProvider?: string;
   skillId?: string;
   effort?: string;
   thinking?: boolean;
@@ -115,6 +121,14 @@ export async function POST(request: Request) {
     const documentContexts = body.documentContexts ?? [];
     const imageContexts = body.imageContexts ?? [];
     const selectedModel = body.selectedModel ?? defaultModelId;
+    // Penyedia mesin: pilihan klien hanya USULAN. Server memeriksa apakah model
+    // itu punya mesin di sana DAN kuncinya terpasang, lalu jatuh ke OpenAI bila
+    // tidak — jadi body yang dipalsukan tidak bisa memaksa penyedia yang mati.
+    const modelProvider =
+      resolveUsableProvider(
+        normalizeSelectedModel(selectedModel),
+        normalizeModelProvider(body.modelProvider),
+      ) ?? defaultModelProvider;
     // Level Upaya & toggle Pemikiran: divalidasi di server supaya body yang
     // aneh tidak bisa memaksa plafon token di luar peta yang kita tentukan.
     const effort = normalizeEffortLevel(body.effort);
@@ -356,6 +370,7 @@ export async function POST(request: Request) {
               imageContexts,
               effort,
               thinking,
+              modelProvider,
               // Mengaktifkan jalur tool calling (Tahap 1 subsistem). Rute ini
               // punya klien Supabase ber-sesi, jadi tool membaca data lewat
               // RLS milik pengguna yang sedang login — bukan service role.

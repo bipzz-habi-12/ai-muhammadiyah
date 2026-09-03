@@ -156,6 +156,105 @@ export const modelCatalog: Record<
   },
 };
 
+// ---------------------------------------------------------------------------
+// Mesin per model (Langkah 54)
+//
+// Nama produknya tetap empat. Yang bertambah: tiap nama bisa dijalankan oleh
+// mesin dari tiga penyedia, dan PENGGUNA yang memilih. Ini menggantikan asumsi
+// lama "keempat model = rute GPT" — lihat catatan routing di CLAUDE.md.
+//
+// Pemetaannya mengikuti satu aturan: dalam satu penyedia, mesin diurutkan dari
+// yang paling dalam berpikir ke yang paling cepat, lalu dipasangkan ke nama
+// model dengan urutan yang sama (Aether paling canggih → Velo generasi
+// sebelumnya). Gemini hanya punya dua mesin, jadi 3.7 Flash dipakai ulang untuk
+// tiga nama di bawah Aether.
+//
+// Berkas ini client-safe: hanya label dan id, tidak pernah menyentuh API key.
+// Ketersediaan penyedia diputuskan di server (lib/ai/providers.ts) dan dikirim
+// ke klien lewat snapshot pemakaian.
+// ---------------------------------------------------------------------------
+
+export type ModelProviderId = "google" | "openai" | "anthropic";
+
+export const modelProviderOrder: ModelProviderId[] = [
+  "google",
+  "openai",
+  "anthropic",
+];
+
+export const modelProviderLabels: Record<ModelProviderId, string> = {
+  google: "Google",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+};
+
+export type ModelEngine = {
+  provider: ModelProviderId;
+  /** Nama mesin yang ditampilkan, mis. "Gemini 3.1 Pro". */
+  engineLabel: string;
+};
+
+export const modelEngines: Record<PlanModelId, ModelEngine[]> = {
+  aether: [
+    { provider: "google", engineLabel: "Gemini 3.1 Pro" },
+    { provider: "openai", engineLabel: "GPT-5.6 Sol" },
+    { provider: "anthropic", engineLabel: "Claude Fable 5" },
+  ],
+  cosmos: [
+    { provider: "google", engineLabel: "Gemini 3.7 Flash" },
+    { provider: "openai", engineLabel: "GPT-5.6 Terra" },
+    { provider: "anthropic", engineLabel: "Claude Opus 5" },
+  ],
+  prism: [
+    { provider: "google", engineLabel: "Gemini 3.7 Flash" },
+    { provider: "openai", engineLabel: "GPT-5.6 Luna" },
+    { provider: "anthropic", engineLabel: "Claude Opus 4.8" },
+  ],
+  velo: [
+    { provider: "google", engineLabel: "Gemini 3.7 Flash" },
+    { provider: "openai", engineLabel: "GPT-5.5 Pro" },
+    { provider: "anthropic", engineLabel: "Claude Sonnet 5" },
+  ],
+};
+
+/**
+ * Penyedia bawaan. Tetap OpenAI: itu perilaku yang sudah berjalan di produksi,
+ * jadi pengguna yang belum pernah memilih apa pun tidak berubah pengalamannya.
+ */
+export const defaultModelProvider: ModelProviderId = "openai";
+
+export function normalizeModelProvider(value: unknown): ModelProviderId {
+  return value === "google" || value === "openai" || value === "anthropic"
+    ? value
+    : defaultModelProvider;
+}
+
+export function getModelEngine(
+  model: PlanModelId,
+  provider: ModelProviderId,
+): ModelEngine | null {
+  return (
+    (modelEngines[model] ?? []).find((engine) => engine.provider === provider) ??
+    null
+  );
+}
+
+/**
+ * Label mesin yang benar-benar dipakai. Kalau penyedia pilihan pengguna tidak
+ * punya padanan untuk model itu, jatuh ke OpenAI — sama dengan yang dilakukan
+ * server saat merutekan.
+ */
+export function resolveEngineLabel(
+  model: PlanModelId,
+  provider: ModelProviderId,
+) {
+  return (
+    getModelEngine(model, provider)?.engineLabel ??
+    getModelEngine(model, defaultModelProvider)?.engineLabel ??
+    modelCatalog[model].engineLabel
+  );
+}
+
 /**
  * Fitur diskusi antar-AI. Belum aktif — ditampilkan di pemilih model sebagai
  * entri "segera hadir" (tidak bisa dipilih), bukan halaman terpisah.

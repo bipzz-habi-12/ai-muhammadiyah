@@ -19,7 +19,10 @@ import {
   effortLevels,
   getEffortLabel,
   modelCatalog,
+  modelEngines,
+  modelProviderLabels,
   type EffortLevel,
+  type ModelProviderId,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
@@ -45,8 +48,16 @@ interface ComposerProps {
 
   // model dropdown (moved here from the old header)
   selectedModel: PlanModelId;
-  selectModel: (model: PlanModelId) => void;
+  // `keepMenuOpen` dipakai pemilih dua kolom: memilih nama model TIDAK menutup
+  // menu, supaya pengguna bisa langsung memilih mesinnya di kolom kanan.
+  selectModel: (model: PlanModelId, keepMenuOpen?: boolean) => void;
   allowedModels: string[];
+
+  // mesin per model (Langkah 54)
+  selectedProvider: ModelProviderId;
+  selectProvider: (model: PlanModelId, provider: ModelProviderId) => void;
+  availableProviders: ModelProviderId[];
+  selectedEngineLabel: string;
   isModelMenuOpen: boolean;
   setIsModelMenuOpen: Dispatch<SetStateAction<boolean>>;
   modelOptions: PlanModelId[];
@@ -93,6 +104,10 @@ export default function Composer({
   selectedModel,
   selectModel,
   allowedModels,
+  selectedProvider,
+  selectProvider,
+  availableProviders,
+  selectedEngineLabel,
   isModelMenuOpen,
   setIsModelMenuOpen,
   modelOptions,
@@ -122,6 +137,10 @@ export default function Composer({
   // this flag to dismiss it without wiping the text; typing anything that no
   // longer starts with "/" re-arms it.
   const [isSlashDismissed, setIsSlashDismissed] = useState(false);
+  // Model yang mesinnya sedang ditampilkan di kolom kanan. Tidak sama dengan
+  // model terpilih: pengguna boleh mengintip mesin milik model lain sebelum
+  // memutuskan.
+  const [previewModel, setPreviewModel] = useState<PlanModelId>(selectedModel);
 
   const isSlashCommand = input.startsWith("/");
   const isSlashPickerOpen = isSlashCommand && !isSlashDismissed;
@@ -198,6 +217,8 @@ export default function Composer({
 
   function toggleModelMenu() {
     setIsStudyModeMenuOpen(false);
+    // Tiap kali menu dibuka, kolom kanan kembali ke model yang sedang dipakai.
+    setPreviewModel(selectedModel);
     setIsModelMenuOpen((isOpen) => !isOpen);
   }
 
@@ -206,155 +227,238 @@ export default function Composer({
     setIsStudyModeMenuOpen((isOpen) => !isOpen);
   }
 
-  // Popover model + submenu Upaya/Pemikiran. Arahnya mengikuti menuAnchor.
+  // Popover model — DUA KOLOM MENYAMPING (Langkah 54).
+  //
+  // Kiri: nama model. Kanan: mesin yang menjalankan model yang sedang disorot.
+  // Sengaja bukan akordeon yang membuka ke bawah: dengan 4 model x 3 mesin,
+  // versi menurun jadi daftar 12 baris yang harus digulung, dan pengguna
+  // kehilangan konteks "aku sedang melihat mesin milik model yang mana".
+  //
+  // Upaya / Pemikiran / AI Discussion tetap di kaki popover selebar penuh —
+  // ketiganya berlaku lintas model, jadi tidak masuk kolom mana pun.
   function renderModelMenu() {
     if (!isModelMenuOpen) {
       return null;
     }
 
-    return (
-      <div className={`scroll absolute ${menuAnchor} ${menuMaxHeight} left-0 z-30 w-[min(86vw,320px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-1.5 text-sm shadow-xl`}>
-        {modelOptions.map((model) => {
-          const modelInfo = modelCatalog[model];
-          const isAllowed = allowedModels.includes(model);
-          const isSelected = selectedModel === model;
+    const engines = modelEngines[previewModel];
 
-          return (
-            <button
-              key={model}
-              type="button"
-              onClick={() => selectModel(model)}
-              className={
-                isSelected
-                  ? "flex w-full items-center gap-2 rounded-[12px] bg-[var(--brand-soft)] px-2.5 py-1.5 text-left"
-                  : "flex w-full items-center gap-2 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
-              }
-            >
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5">
-                  <span className="truncate text-[13px] font-medium text-[var(--ink)]">
+    return (
+      <div
+        className={`scroll absolute ${menuAnchor} ${menuMaxHeight} left-0 z-30 w-[min(94vw,468px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] text-sm shadow-xl`}
+      >
+        <div className="flex items-stretch">
+          <div className="flex w-[150px] shrink-0 flex-col gap-0.5 border-r border-[var(--hairline)] p-1.5">
+            <div className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--muted-3)]">
+              Model
+            </div>
+            {modelOptions.map((model) => {
+              const modelInfo = modelCatalog[model];
+              const isAllowed = allowedModels.includes(model);
+              const isPreviewed = previewModel === model;
+              const isSelected = selectedModel === model;
+
+              return (
+                <button
+                  key={model}
+                  type="button"
+                  onClick={() => {
+                    setPreviewModel(model);
+                    selectModel(model, true);
+                  }}
+                  onMouseEnter={() => setPreviewModel(model)}
+                  title={
+                    isAllowed
+                      ? modelInfo.description
+                      : getLockedModelRequirement(model)
+                  }
+                  className={
+                    isPreviewed
+                      ? "flex items-center gap-1.5 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-2 text-left"
+                      : "flex items-center gap-1.5 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-[var(--surface-alt)]"
+                  }
+                >
+                  <span
+                    className={
+                      isSelected
+                        ? "min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--brand)]"
+                        : "min-w-0 flex-1 truncate text-[13px] text-[var(--ink-soft)]"
+                    }
+                  >
                     {modelInfo.label}
                   </span>
-                  <span className="shrink-0 text-[10px] font-semibold text-[var(--muted-3)]">
-                    {modelInfo.engineLabel}
-                  </span>
                   {!isAllowed && (
-                    <Icon name="lock" className="h-3 w-3 shrink-0 text-[var(--gold-ink-2)]" />
+                    <Icon
+                      name="lock"
+                      className="h-3 w-3 shrink-0 text-[var(--gold-ink-2)]"
+                    />
                   )}
-                </span>
-                <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
-                  {isAllowed
-                    ? modelInfo.description
-                    : getLockedModelRequirement(model)}
-                </span>
-              </span>
-              {isSelected && (
-                <Icon name="check" className="h-4 w-4 shrink-0 text-[var(--brand)]" />
-              )}
-            </button>
-          );
-        })}
+                  {isSelected && (
+                    <Icon
+                      name="check"
+                      className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="my-1 h-px bg-[var(--hairline)]" />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-1.5">
+            <div className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--muted-3)]">
+              Mesin {modelCatalog[previewModel].label}
+            </div>
+            {engines.map((engine) => {
+              const isReady = availableProviders.includes(engine.provider);
+              const isCurrent =
+                selectedModel === previewModel &&
+                selectedProvider === engine.provider;
 
-        {/* Baris "Upaya" — membuka submenu level Rendah..Ultra. */}
-        <button
-          type="button"
-          onClick={() => setIsEffortMenuOpen((isOpen) => !isOpen)}
-          aria-expanded={isEffortMenuOpen}
-          className="flex w-full items-center justify-between gap-3 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
-        >
-          <span className="text-[13px] font-medium text-[var(--ink)]">Upaya</span>
-          <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--muted-2)]">
-            {getEffortLabel(effort)}
-            <span aria-hidden="true">{isEffortMenuOpen ? "⌄" : "›"}</span>
-          </span>
-        </button>
-
-        {isEffortMenuOpen && (
-          <div className="mb-1 rounded-[12px] bg-[var(--surface-panel)] p-1">
-            <p className="px-2.5 pb-1 pt-1.5 text-[10px] leading-snug text-[var(--muted-2)]">
-              Makin tinggi: makin menyeluruh, makin lama, makin boros kuota.
-            </p>
-            {effortLevels.map((level) => (
-              <button
-                key={level.id}
-                type="button"
-                onClick={() => setEffort(level.id)}
-                className={
-                  effort === level.id
-                    ? "flex w-full items-center justify-between gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-1 text-left"
-                    : "flex w-full items-center justify-between gap-2 rounded-[10px] px-2.5 py-1 text-left transition hover:bg-[var(--surface-border)]"
-                }
-              >
-                <span className="flex items-center gap-2">
-                  <span className="text-[13px] font-medium text-[var(--ink)]">
-                    {level.label}
+              return (
+                <button
+                  key={engine.provider}
+                  type="button"
+                  onClick={() => selectProvider(previewModel, engine.provider)}
+                  disabled={!isReady}
+                  title={
+                    isReady
+                      ? engine.engineLabel
+                      : modelProviderLabels[engine.provider] +
+                        " belum terpasang di server."
+                  }
+                  className={
+                    isCurrent
+                      ? "flex items-center gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-2 text-left"
+                      : isReady
+                        ? "flex items-center gap-2 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-[var(--surface-alt)]"
+                        : "flex cursor-not-allowed items-center gap-2 rounded-[10px] px-2.5 py-2 text-left opacity-55"
+                  }
+                >
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-[13px] font-medium text-[var(--ink)]">
+                      {engine.engineLabel}
+                    </span>
+                    <span className="truncate text-[10.5px] text-[var(--muted-3)]">
+                      {modelProviderLabels[engine.provider]}
+                    </span>
                   </span>
-                  {level.isDefault && (
-                    <span className="rounded-full bg-[var(--hairline)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--muted-2)]">
-                      Bawaan
+                  {!isReady && (
+                    <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--gold-ink-2)]">
+                      Belum tersedia
                     </span>
                   )}
-                </span>
-                {effort === level.id && (
-                  <Icon name="check" className="h-3.5 w-3.5 text-[var(--brand)]" />
-                )}
-              </button>
-            ))}
+                  {isCurrent && (
+                    <Icon
+                      name="check"
+                      className="h-4 w-4 shrink-0 text-[var(--brand)]"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
-        )}
-
-        {/* Toggle "Pemikiran" — mematikannya memaksa upaya minimal (hemat kuota). */}
-        <div className="flex items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5">
-          <span className="min-w-0">
-            <span className="block text-[13px] font-medium text-[var(--ink)]">
-              Pemikiran
-            </span>
-            <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
-              Berpikir untuk tugas yang lebih kompleks
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={toggleThinking}
-            role="switch"
-            aria-checked={isThinkingEnabled}
-            aria-label="Pemikiran"
-            className={
-              isThinkingEnabled
-                ? "relative h-6 w-11 shrink-0 rounded-full bg-[var(--brand)] transition"
-                : "relative h-6 w-11 shrink-0 rounded-full bg-[var(--surface-border)] transition"
-            }
-          >
-            <span
-              className={
-                isThinkingEnabled
-                  ? "absolute left-[22px] top-0.5 h-5 w-5 rounded-full bg-[var(--pure-white)] transition-all"
-                  : "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-[var(--pure-white)] transition-all"
-              }
-            />
-          </button>
         </div>
 
-        <div className="my-1 h-px bg-[var(--hairline)]" />
+        <div className="border-t border-[var(--hairline)] p-1.5">
+          {/* Baris "Upaya" — membuka submenu level Rendah..Ultra. */}
+          <button
+            type="button"
+            onClick={() => setIsEffortMenuOpen((isOpen) => !isOpen)}
+            aria-expanded={isEffortMenuOpen}
+            className="flex w-full items-center justify-between gap-3 rounded-[12px] px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-alt)]"
+          >
+            <span className="text-[13px] font-medium text-[var(--ink)]">Upaya</span>
+            <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--muted-2)]">
+              {getEffortLabel(effort)}
+              <span aria-hidden="true">{isEffortMenuOpen ? "⌄" : "›"}</span>
+            </span>
+          </button>
 
-        {/* AI Discussion — belum aktif, ditampilkan jujur sebagai "segera hadir". */}
-        <div
-          aria-disabled="true"
-          className="flex cursor-not-allowed items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 opacity-70"
-        >
-          <span className="min-w-0">
-            <span className="block text-[13px] font-medium text-[var(--ink)]">
-              {aiDiscussion.label}
+          {isEffortMenuOpen && (
+            <div className="mb-1 rounded-[12px] bg-[var(--surface-panel)] p-1">
+              <p className="px-2.5 pb-1 pt-1.5 text-[10px] leading-snug text-[var(--muted-2)]">
+                Makin tinggi: makin menyeluruh, makin lama, makin boros kuota.
+              </p>
+              {effortLevels.map((level) => (
+                <button
+                  key={level.id}
+                  type="button"
+                  onClick={() => setEffort(level.id)}
+                  className={
+                    effort === level.id
+                      ? "flex w-full items-center justify-between gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-1 text-left"
+                      : "flex w-full items-center justify-between gap-2 rounded-[10px] px-2.5 py-1 text-left transition hover:bg-[var(--surface-border)]"
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-[13px] font-medium text-[var(--ink)]">
+                      {level.label}
+                    </span>
+                    {level.isDefault && (
+                      <span className="rounded-full bg-[var(--surface-border)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--muted-2)]">
+                        Bawaan
+                      </span>
+                    )}
+                  </span>
+                  {effort === level.id && (
+                    <Icon name="check" className="h-3.5 w-3.5 text-[var(--brand)]" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Toggle "Pemikiran" — mematikannya memaksa upaya minimal (hemat kuota). */}
+          <div className="flex items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5">
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-[var(--ink)]">
+                Pemikiran
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
+                Berpikir untuk tugas yang lebih kompleks
+              </span>
             </span>
-            <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
-              {aiDiscussion.description}
+            <button
+              type="button"
+              onClick={toggleThinking}
+              role="switch"
+              aria-checked={isThinkingEnabled}
+              aria-label="Pemikiran"
+              className={
+                isThinkingEnabled
+                  ? "relative h-6 w-11 shrink-0 rounded-full bg-[var(--brand)] transition"
+                  : "relative h-6 w-11 shrink-0 rounded-full bg-[var(--surface-border)] transition"
+              }
+            >
+              <span
+                className={
+                  isThinkingEnabled
+                    ? "absolute left-[22px] top-0.5 h-5 w-5 rounded-full bg-[var(--pure-white)] transition-all"
+                    : "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-[var(--pure-white)] transition-all"
+                }
+              />
+            </button>
+          </div>
+
+          <div className="my-1 h-px bg-[var(--hairline)]" />
+
+          {/* AI Discussion — belum aktif, ditampilkan jujur sebagai "segera hadir". */}
+          <div
+            aria-disabled="true"
+            className="flex cursor-not-allowed items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 opacity-70"
+          >
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-[var(--ink)]">
+                {aiDiscussion.label}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--muted-2)]">
+                {aiDiscussion.description}
+              </span>
             </span>
-          </span>
-          <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--gold-ink-2)]">
-            {aiDiscussion.comingSoonLabel}
-          </span>
+            <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--gold-ink-2)]">
+              {aiDiscussion.comingSoonLabel}
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -462,8 +566,11 @@ export default function Composer({
           aria-label="Pilih model AI"
           aria-expanded={isModelMenuOpen}
         >
-          <span className="max-w-[120px] truncate">
+          <span className="max-w-[150px] truncate">
             {selectedModelInfo.shortLabel}
+          </span>
+          <span className="hidden max-w-[130px] truncate text-[11px] text-[var(--muted-3)] sm:inline">
+            {selectedEngineLabel}
           </span>
           <svg
             viewBox="0 0 24 24"

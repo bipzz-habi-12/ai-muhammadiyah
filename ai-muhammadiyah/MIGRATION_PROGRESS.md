@@ -1603,3 +1603,86 @@ Di artboard, nav bawah menghilang saat percakapan berjalan. Di kode ia **selalu 
 `tsc --noEmit`, `npm run lint`, dan `npm run build` bersih (44 halaman, rute `/more` terbentuk). Smoke test HTTP di dev server: `/` menjawab 200 (landing), sedangkan `/more` `/library` `/hub` `/work` `/research` `/workspace` menjawab 307 ke `/login` tanpa sesi — artinya halaman barunya ter-compile dan penjaga auth-nya jalan. Log dev server tanpa error.
 
 **Yang TIDAK diverifikasi visual: seluruh layar di balik login.** Browser pane tidak ditampilkan di sesi ini sehingga screenshot selalu timeout (gejala sama dengan Langkah 51), dan sesi login pengguna tidak dipakai. Dua hal yang paling perlu dilihat sendiri: tinggi layar sambutan di HP (sapaan + composer + 4 baris contoh + nav bawah), dan sheet Riwayat saat riwayatnya panjang.
+
+## Langkah 54: Panel artifact baru + mesin per model lintas penyedia — SELESAI di kode (jalur Anthropic BELUM)
+
+Dua permintaan berurutan dari satu sesi desain: panel artifact "seperti artifact di Claude, bukan yang sekarang", dan pemilihan model yang tidak lagi terkunci ke GPT. Digambar dulu sebagai kanvas artboard, disetujui (Opsi A), baru diterapkan.
+
+Tidak ada perubahan DB dan tidak ada migrasi. Ada satu route API yang berubah bentuk responsnya (`/api/usage`) dan satu yang menerima field baru (`/api/chat`).
+
+### A. Panel artifact ditulis ulang
+
+`components/ArtifactPanel.tsx` — props, `useArtifacts`, `lib/artifacts.ts`, dan sandbox tidak disentuh sama sekali.
+
+- **Judul jadi elemen utama.** Dulu header cuma label `ARTIFACT` huruf besar 10px di pojok, dan judul artifact turun ke baris ketiga.
+- **Aksi pindah ke header** (Salin/Unduh sebagai ikon), footer dihapus → isi dapat tinggi penuh. Di layar kecil keduanya jadi baris aksi bawah (Salin 48px + Unduh). **Hapus** pindah ke menu titik-tiga: sebelumnya ia duduk sebaris dengan Salin di footer, satu meleset dari tombol yang paling sering dipakai.
+- **Pemilih artifact** dari deretan pil (meluber saat artifact-nya banyak) jadi satu baris "Artifact 2 dari 3" dengan daftar bergulir berisi judul, tipe, dan waktu.
+- **Perlebar** (baru, lg ke atas): panel jadi layar penuh dengan tab ketiga **Berdampingan** — kode kiri, pratinjau kanan. `renderCodeBlock(fill)` membedakan dua konteks: hanya di split kolom kodenya punya tinggi sendiri; di panel biasa kontainer luar yang menggulung, dan `h-full` di sana justru memotong blok kode.
+- Menutup panel me-reset keadaan diperlebar + menu (`handleClose`), supaya membuka lagi tidak mendarat di layar penuh yang tidak diminta.
+- Chip bahasa ungu `#e0e0ff`/`#343d96` — dua warna di luar palet — dibuang; bahasa jadi teks muted di baris meta.
+- Chip **Sandbox** ditambahkan di tab mini aplikasi. Isolasinya sudah nyata sejak Langkah 27, tapi tidak pernah disebut ke pengguna.
+
+### B. Mesin per model (perubahan aturan routing)
+
+Ini bagian yang mengubah aturan yang mengikat di `CLAUDE.md`, jadi dicatat lengkap.
+
+**Sebelum:** empat nama model = empat rute GPT. Urutan provider "GPT dulu → Gemini → OpenRouter" berlaku untuk semua rute dan semua tier, dengan satu pengecualian terdokumentasi (pencarian web).
+
+**Sesudah:** tiap nama model bisa dijalankan mesin dari tiga penyedia, dan penggunalah yang memilih.
+
+| Model | Google | OpenAI | Anthropic |
+|---|---|---|---|
+| Aether | Gemini 3.1 Pro | GPT-5.6 Sol | Claude Fable 5 |
+| Cosmos | Gemini 3.7 Flash | GPT-5.6 Terra | Claude Opus 5 |
+| Prism | Gemini 3.7 Flash | GPT-5.6 Luna | Claude Opus 4.8 |
+| Velo | Gemini 3.7 Flash | GPT-5.5 Pro | Claude Sonnet 5 |
+
+Aturannya: dalam satu penyedia, mesin diurutkan dari yang paling dalam berpikir ke yang paling cepat, lalu dipasangkan ke nama model dengan urutan yang sama. Gemini cuma punya dua mesin, jadi 3.7 Flash dipakai ulang untuk tiga nama di bawah Aether. Urutan Anthropic ditentukan langsung oleh user: **Fable 5 > Opus 5 > Opus 4.8 > Sonnet 5**.
+
+### Skema env: satu pola untuk ketiga penyedia
+
+`lib/ai/model-env.ts` (baru) jadi satu-satunya tempat nama env kunci & id mesin didefinisikan:
+
+```
+<PENYEDIA>_API_KEY_<MODEL>    kunci khusus model itu
+<PENYEDIA>_MODEL_<MODEL>      id mesin yang dijalankan model itu
+```
+
+`<PENYEDIA>` = OPENAI | GEMINI | ANTHROPIC, `<MODEL>` = AETHER | COSMOS | PRISM | VELO. Pola OpenAI memang sudah begitu sejak Langkah 39; yang ditambahkan sekarang adalah padanannya untuk Gemini dan Anthropic, plus jalur kodenya:
+
+- `streamGeminiReply` menerima `apiKeyOverride`, jadi kunci per model benar-benar dipakai — bukan cuma tercatat di dokumen.
+- `resolveUserChosenGeminiModels()` membaca `GEMINI_MODEL_<MODEL>` lebih dulu, dengan Flash tetap jadi cadangan kedua.
+- **Anthropic sengaja tanpa id bawaan.** Id model Claude belum pernah diverifikasi di proyek ini, dan menebaknya berarti mengirim id karangan ke API. Selama `ANTHROPIC_MODEL_<MODEL>` kosong, mesin itu dianggap belum terpasang.
+- `isProviderConfigured()` sekarang menuntut penyedia bisa menjalankan **keempat** model. Sengaja sekaku itu: pemilih menampilkan baris penyedia yang sama di bawah setiap nama model, jadi penyedia setengah terpasang akan menjanjikan mesin yang diam-diam dialihkan ke OpenAI. Memasang kunci bersama memenuhi keempatnya sekaligus.
+
+Cara pasangnya (lokal + Vercel) ditulis di `PROJECT_STATUS.md` bagian "Installing a model".
+
+Berkas yang berubah:
+
+- **`lib/subscriptions/plans.ts`** — `modelEngines`, `modelProviderLabels`, `normalizeModelProvider()`, `getModelEngine()`, `resolveEngineLabel()`. Client-safe: hanya label, tidak pernah menyentuh API key. Ini sumber kebenaran untuk UI DAN server.
+- **`lib/ai/providers.ts` (baru, server-only)** — `isProviderConfigured()`, `listConfiguredProviders()`, `resolveUsableProvider()`. Membaca env; menentukan penyedia mana yang boleh ditawarkan dan mana yang benar-benar dipakai.
+- **`/api/usage`** — menempelkan `availableProviders` ke snapshot. Sengaja tidak lewat RPC: ini diturunkan dari env server, bukan dari data langganan. `normalizeUsageSnapshot` membacanya kembali di klien dengan bawaan `["openai"]` — kegagalan membaca tidak pernah membuka penyedia.
+- **`hooks/useModelSelection.ts`** — pilihan mesin disimpan PER MODEL (`ai-mu-model-provider`, sebuah peta), bukan satu nilai global: pengguna bisa menjalankan Aether di Gemini sambil tetap memakai GPT untuk Prism. `selectModel(model, keepMenuOpen)` menambah argumen kedua supaya pemilih dua kolom tidak menutup menu saat nama model diklik.
+- **`components/Composer.tsx`** — pemilih **DUA KOLOM MENYAMPING**: kiri nama model, kanan mesin milik model yang sedang disorot. Versi menurun ditolak user, dan memang salah: 4 model x 3 mesin = 12 baris yang harus digulung, dan konteks "ini mesin milik model yang mana" hilang. Upaya / Pemikiran / AI Discussion tetap di kaki popover selebar penuh karena berlaku lintas model.
+- **`/api/chat`** — menerima `modelProvider`, lalu `resolveUsableProvider()` memvalidasinya ulang.
+- **`lib/ai/chat.ts`** — `ChatContextOptions.modelProvider`; `prefersGemini` membalik urutan; `resolveUserChosenGeminiModels()` memetakan Aether ke model Pro dan sisanya ke Flash; `streamGeminiReplyWithFallback` menerima `modelOverrides`; dan saat pengguna memilih Google tapi Gemini kosong, **OpenAI jadi cadangan pertama** (`gemini_to_openai`), bukan langsung OpenRouter.
+
+Yang TIDAK berubah, dan itu disengaja:
+
+- **Bawaannya tetap OpenAI.** Pengguna yang tidak pernah menyentuh menu mengalami persis urutan lama. Perubahan ini tidak boleh mengubah perilaku siapa pun yang diam.
+- **Pengecualian pencarian web menang atas pilihan pengguna.** Pesan time-sensitive tetap langsung ke Gemini dengan `google_search`; `prefersGemini` sengaja dimatikan saat `shouldSearchWeb` supaya dua jalur itu tidak saling menimpa.
+- **Klien tidak pernah memutuskan.** Pilihan dari body cuma usulan; server yang memeriksa mesin + kunci. Memalsukan body tidak bisa memaksa penyedia yang mati.
+
+### Anthropic: ADA di UI, BELUM ada jalurnya
+
+Permintaan user: "tambahkan dulu agar saya tinggal apply jika sudah ada (tidak perlu perubahan kode lagi)". Yang terpenuhi sekarang: katalognya lengkap, barisnya ada di menu, keadaan matinya dirancang (redup + pil emas "Belum tersedia"), dan validasi server sudah mengenali `anthropic`.
+
+Yang **belum**: `streamAnthropicReply` di `lib/ai/chat.ts`. Karena itu `lib/ai/providers.ts` memasang penjaga `anthropicStreamingImplemented = false` — Anthropic dilaporkan MATI meski `ANTHROPIC_API_KEY` sudah dipasang.
+
+Penjaga itu bukan kemalasan, itu kejujuran: tanpa dia, memasang kunci membuat menu menawarkan Claude sementara server diam-diam menjawab dengan OpenAI — pengguna diberi tahu satu hal, dijawab hal lain. **Cabut flag-nya bersamaan dengan menulis jalurnya, jangan lebih dulu.** Artinya janji "tinggal apply" belum sepenuhnya terpenuhi, dan itu harus dikatakan apa adanya.
+
+### Verifikasi
+
+`tsc --noEmit`, `npm run lint`, dan `npm run build` bersih di tiap tahap (44 halaman). Perilaku bawaan tidak berubah: tanpa pilihan tersimpan, `preferredProvider` = `openai` dan `triedOpenAi` bernilai sama persis dengan sebelum langkah ini.
+
+**Yang TIDAK diverifikasi:** jalur Gemini-dulu belum diuji dengan permintaan sungguhan — butuh sesi login dan `GEMINI_API_KEY` hidup. Yang sudah dipastikan hanya bahwa cabangnya tidak pernah aktif untuk pengguna yang belum memilih. Panel artifact juga belum dilihat secara visual: layarnya di balik login dan Browser pane di sesi ini tidak bisa mengambil screenshot (gejala yang sama sejak Langkah 51).

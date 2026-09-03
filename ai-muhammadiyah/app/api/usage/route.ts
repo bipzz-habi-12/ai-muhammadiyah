@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { listConfiguredProviders } from "@/lib/ai/providers";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { normalizeUsageSnapshot } from "@/lib/usage/limits";
 
@@ -23,5 +24,15 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(normalizeUsageSnapshot(data));
+  // Ketersediaan penyedia ditempel di sini, bukan di RPC: ia diturunkan dari
+  // env server (API key), bukan dari data langganan. Klien memakainya untuk
+  // mematikan baris penyedia di pemilih model — dan `/api/chat` tetap
+  // memvalidasi ulang, jadi daftar ini murni petunjuk tampilan.
+  const snapshot = normalizeUsageSnapshot(data);
+
+  return NextResponse.json(
+    snapshot
+      ? { ...snapshot, availableProviders: listConfiguredProviders() }
+      : snapshot,
+  );
 }
