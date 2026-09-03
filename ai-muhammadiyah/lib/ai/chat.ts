@@ -114,7 +114,7 @@ type SelectedModel = PlanModelId;
  * (Aether/Cosmos/Prism/Velo) dipetakan ke rute ini lewat `modelRouteMap`.
  */
 type AiRoute = "fast" | "smart" | "document";
-type AiProvider = "mock" | "openrouter" | "openai" | "gemini";
+type AiProvider = "mock" | "openrouter" | "openai" | "gemini" | "anthropic";
 type RoutingAccess = {
   tier?: SubscriptionTier;
   allowedModels?: string[];
@@ -2246,6 +2246,277 @@ async function streamGeminiReplyWithFallback(
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Anthropic / Claude (Langkah 54)
+//
+// Dipanggil lewat fetch + SSE, TANPA menambah dependency: `streamSseJson` yang
+// sama dengan jalur OpenRouter dipakai ulang, dan bentuk balasannya
+// (StreamProviderResult) sama dengan Gemini maupun OpenAI, jadi orkestrasi di
+// streamChatReply tidak perlu tahu bedanya.
+//
+// BELUM PERNAH DIUJI DENGAN KUNCI SUNGGUHAN. Karena itu setiap kegagalan
+// —status non-2xx, event error, exception— mengembalikan null selama belum ada
+// teks yang terlanjur di-stream, sehingga penyedia berikutnya mengambil alih
+// dan pengguna tetap dapat jawaban. Kalau teks SUDAH mengalir ke pengguna,
+// potongan itulah yang dikembalikan: menjatuhkannya ke penyedia lain akan
+// menempelkan jawaban kedua di atas jawaban pertama.
+// ---------------------------------------------------------------------------
+
+const anthropicApiVersion = "2023-06-01";
+const anthropicMessagesUrl = "https://api.anthropic.com/v1/messages";
+// Plafon aman. Tiap model Claude punya batas max_tokens sendiri dan melewatinya
+// dibalas 400, jadi angka dari level Upaya (bisa 64.000) dijepit di sini.
+// Naikkan lewat ANTHROPIC_MAX_OUTPUT_TOKENS kalau modelmu memang mengizinkan —
+// tanpa menyentuh kode.
+const anthropicDefaultMaxOutputTokens = 8_192;
+
+type AnthropicContentBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "image";
+      source: { type: "base64"; media_type: string; data: string };
+    };
+
+type AnthropicMessage = {
+  role: "user" | "assistant";
+  content: AnthropicContentBlock[];
+};
+
+function resolveAnthropicMaxOutputTokens(requested: number) {
+  const configured = Number.parseInt(
+    process.env.ANTHROPIC_MAX_OUTPUT_TOKENS ?? "",
+    10,
+  );
+  const ceiling =
+    Number.isFinite(configured) && configured > 0
+      ? configured
+      : anthropicDefaultMaxOutputTokens;
+
+  return Math.max(1_024, Math.min(requested, ceiling));
+}
+
+/**
+ * Konteks dokumen/gambar/pengetahuan ditempelkan dengan aturan yang PERSIS SAMA
+ * dengan createGeminiContents — supaya jawaban tidak berubah bentuk hanya
+ * karena pengguna mengganti penyedia.
+ */
+function createAnthropicMessages(
+  messages: ChatMessage[],
+  pdfContext: string,
+  knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
+): AnthropicMessage[] {
+  const recentMessages = prepareChatHistory(messages);
+  const preparedPdfContext = createCombinedDocumentContext(
+    pdfContext,
+    documentContexts,
+  );
+  const preparedKnowledgeContext = knowledgeContext.trim();
+  const latestUserIndex = recentMessages.findLastIndex(
+    (message) => message.role === "user",
+  );
+
+  const mapped = recentMessages.map((message, index) => {
+    const shouldAttachPdfContext =
+      Boolean(preparedPdfContext) &&
+      index === latestUserIndex &&
+      isDocumentQuestion(message.text);
+    const shouldAttachImageContext =
+      imageContexts.length > 0 &&
+      index === latestUserIndex &&
+      (isImageQuestion(message.text) || !shouldAttachPdfContext);
+    const shouldAttachKnowledgeContext =
+      Boolean(preparedKnowledgeContext) && index === latestUserIndex;
+    const text = shouldAttachImageContext
+      ? createImageAnalysisPrompt(
+          message.text,
+          imageContexts,
+          shouldAttachPdfContext
+            ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
+            : "",
+        )
+      : shouldAttachPdfContext
+        ? createPdfAnalysisPrompt(preparedPdfContext, message.text)
+        : shouldAttachKnowledgeContext
+          ? createKnowledgeGroundedPrompt(
+              preparedKnowledgeContext,
+              message.text,
+            )
+          : message.text;
+
+    const content: AnthropicContentBlock[] = [];
+
+    // Gambar didahulukan: itu urutan yang direkomendasikan Anthropic supaya
+    // pertanyaannya terbaca sesudah lampirannya.
+    if (shouldAttachImageContext) {
+      for (const image of imageContexts) {
+        content.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: image.mimeType,
+            data: image.data,
+          },
+        });
+      }
+    }
+
+    content.push({ type: "text", text: text || "(kosong)" });
+
+    return {
+      role: message.role === "ai" ? ("assistant" as const) : ("user" as const),
+      content,
+    };
+  });
+
+  // API menolak percakapan yang dibuka giliran assistant, dan menggabungkan
+  // giliran beruntun berperan sama jauh lebih aman daripada mengirim apa adanya.
+  const trimmed = mapped.slice(
+    Math.max(
+      0,
+      mapped.findIndex((message) => message.role === "user"),
+    ),
+  );
+
+  return trimmed.reduce<AnthropicMessage[]>((accumulator, message) => {
+    const previous = accumulator.at(-1);
+
+    if (previous && previous.role === message.role) {
+      previous.content.push(...message.content);
+      return accumulator;
+    }
+
+    accumulator.push(message);
+    return accumulator;
+  }, []);
+}
+
+async function streamAnthropicReply(
+  messages: ChatMessage[],
+  pdfContext = "",
+  onChunk: StreamChunkHandler,
+  systemPrompt?: string,
+  memory?: UserMemory,
+  knowledgeContext = "",
+  documentContexts: DocumentContext[] = [],
+  imageContexts: ImageContext[] = [],
+  selectedModel: SelectedModel = defaultModelId,
+  effortRuntime?: EffortRuntime,
+): Promise<StreamProviderResult | null> {
+  const apiKey = resolveEngineApiKey("anthropic", selectedModel);
+  const model = resolveEngineModelId("anthropic", selectedModel);
+
+  // Tanpa salah satunya, penyedia ini memang belum terpasang — bukan error.
+  if (!apiKey || !model) {
+    return null;
+  }
+
+  const anthropicMessages = createAnthropicMessages(
+    messages,
+    pdfContext,
+    knowledgeContext,
+    documentContexts,
+    imageContexts,
+  );
+
+  if (!anthropicMessages.length) {
+    return null;
+  }
+
+  let streamedText = "";
+  let streamedFinishReason: string | undefined;
+
+  try {
+    const response = await fetch(anthropicMessagesUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": anthropicApiVersion,
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: resolveAnthropicMaxOutputTokens(
+          effortRuntime?.maxOutputTokens ?? anthropicDefaultMaxOutputTokens,
+        ),
+        // Prompt sistemnya identik dengan jalur lain — builder-nya memang
+        // netral penyedia meski namanya menyebut Gemini.
+        system: createGeminiSystemInstruction(memory, systemPrompt, false),
+        messages: anthropicMessages,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+
+      console.error("Anthropic request failed:", {
+        model,
+        status: response.status,
+        detail: detail.slice(0, 300),
+      });
+
+      return null;
+    }
+
+    await streamSseJson(response, async (raw) => {
+      if (!raw || raw === "[DONE]") {
+        return;
+      }
+
+      let event: {
+        type?: string;
+        delta?: { type?: string; text?: string; stop_reason?: string };
+        error?: { message?: string; type?: string };
+      };
+
+      try {
+        event = JSON.parse(raw);
+      } catch {
+        return;
+      }
+
+      if (event.type === "error") {
+        console.error("Anthropic stream error:", {
+          model,
+          error: event.error?.type,
+          message: event.error?.message?.slice(0, 200),
+        });
+        return;
+      }
+
+      if (
+        event.type === "content_block_delta" &&
+        event.delta?.type === "text_delta" &&
+        event.delta.text
+      ) {
+        streamedText += event.delta.text;
+        await onChunk(event.delta.text);
+        return;
+      }
+
+      if (event.type === "message_delta" && event.delta?.stop_reason) {
+        streamedFinishReason = event.delta.stop_reason;
+      }
+    });
+
+    if (!streamedText.trim()) {
+      return null;
+    }
+
+    return { reply: streamedText, finishReason: streamedFinishReason };
+  } catch (error) {
+    console.error("Anthropic request failed:", { model, error });
+
+    // Teks yang sudah terlanjur sampai ke pengguna tidak boleh ditimpa jawaban
+    // penyedia lain.
+    return streamedText.trim()
+      ? { reply: streamedText, finishReason: streamedFinishReason }
+      : null;
+  }
+}
+
 async function streamOpenAiGptReply(
   messages: ChatMessage[],
   pdfContext = "",
@@ -2700,9 +2971,53 @@ export async function streamChatReply(
     preferredProvider === "google" &&
     Boolean(geminiApiKeyForModel) &&
     !shouldSearchWeb;
+  // Anthropic tidak mematikan `triedOpenAi`: kalau jalurnya gagal, OpenAI tetap
+  // mengambil alih di blok berikutnya, jadi pengguna selalu dapat jawaban.
+  const prefersAnthropic =
+    preferredProvider === "anthropic" &&
+    !shouldSearchWeb &&
+    Boolean(resolveEngineApiKey("anthropic", normalizedModel)) &&
+    Boolean(resolveEngineModelId("anthropic", normalizedModel));
   const triedOpenAi =
     shouldTryOpenAiFirst(normalizedModel) && !shouldSearchWeb && !prefersGemini;
   const effortRuntime = resolveEffortRuntime(options, normalizedModel);
+
+  if (prefersAnthropic) {
+    const anthropicResult = await streamAnthropicReply(
+      recentMessages,
+      pdfContext,
+      onChunk,
+      systemPrompt,
+      memory,
+      options?.knowledgeContext,
+      options?.documentContexts,
+      options?.imageContexts,
+      normalizedModel,
+      effortRuntime,
+    );
+
+    if (anthropicResult?.reply) {
+      logAiSuccess("M-Agent provider streamed request:", {
+        route,
+        provider: "anthropic",
+        model: resolveEngineModelId("anthropic", normalizedModel),
+        tier: access.tier,
+      });
+
+      return {
+        reply: anthropicResult.reply,
+        provider: "anthropic" as const,
+        model: resolveEngineModelId("anthropic", normalizedModel),
+        finishReason: anthropicResult.finishReason,
+      };
+    }
+
+    console.warn("M-Agent streaming fallback from Anthropic:", {
+      route,
+      anthropicModel: resolveEngineModelId("anthropic", normalizedModel),
+      tier: access.tier,
+    });
+  }
 
   if (triedOpenAi) {
     const openAiResult = await streamOpenAiGptReply(

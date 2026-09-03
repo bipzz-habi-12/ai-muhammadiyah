@@ -24,18 +24,16 @@ import {
 const allModelIds = Object.keys(modelEngines) as PlanModelId[];
 
 /**
- * Jalur panggilan Anthropic BELUM ditulis di `lib/ai/chat.ts` (belum ada
- * `streamAnthropicReply`). Selama itu belum ada, penyedia ini dilaporkan MATI
- * meskipun kuncinya sudah dipasang.
+ * Jalur panggilan Anthropic (`streamAnthropicReply` di `lib/ai/chat.ts`) sudah
+ * ditulis, jadi penjaga ini dibuka. Sebelumnya ia sengaja melaporkan Anthropic
+ * MATI meski kuncinya terpasang, supaya menu tidak menawarkan Claude sementara
+ * server diam-diam menjawab dengan OpenAI.
  *
- * Ini disengaja dan penting: tanpa penjaga ini, memasang kunci akan membuat
- * menu menawarkan Claude sementara server diam-diam menjawab dengan OpenAI —
- * pengguna diberi tahu satu hal, dijawab hal lain. Lebih baik barisnya tetap
- * "Belum tersedia".
- *
- * Cabut konstanta ini BERSAMAAN dengan menyalakan jalurnya, bukan sebelumnya.
+ * Catatan jujur: jalurnya BELUM PERNAH diuji dengan kunci beraliran dana, jadi
+ * ketersediaan di sini berarti "kunci + id model ada", bukan "sudah terbukti
+ * menjawab". Kegagalan apa pun jatuh ke OpenAI, jadi chat tetap hidup.
  */
-const anthropicStreamingImplemented = false;
+const anthropicStreamingImplemented = true;
 
 /**
  * Satu penyedia ditawarkan hanya kalau ia bisa menjalankan KEEMPAT model.

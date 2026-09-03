@@ -179,4 +179,5 @@ Muhammadiyah Hub tetap gratis di semua tier.
   - **Emas = penanda status** (kunci tier, "Segera hadir", peringatan kuota/konteks). Bukan avatar, bukan chip aksi, bukan CTA.
   - **Skala terkunci:** radius 10/12/16px + full; teks 11.5/12.5/13.5/15/17px + serif untuk heading; `font-medium`/`font-semibold` (hindari `font-bold` untuk label sekunder); target sentuh minimal 44px.
   - **Mobile wajib punya jalan keluar.** Tiap halaman ber-shell memasang `<BottomNav />`; shell desktop `hidden md:flex`. Jangan bikin halaman ber-shell tanpa nav bawah.
+  - **Anthropic aktif tapi belum teruji (Langkah 54).** `streamAnthropicReply` (`lib/ai/chat.ts`) memanggil Messages API lewat `fetch` + `streamSseJson`, tanpa dependency baru. Ia BELUM PERNAH menerima permintaan sungguhan, jadi setiap kegagalan sengaja jatuh ke OpenAI — `prefersAnthropic` tidak mematikan `triedOpenAi`. Jangan mengubah aturan itu tanpa menguji jalurnya lebih dulu, dan jangan mengaktifkan extended thinking sebelum batasannya diverifikasi ke API.
   - **Popover composer: arah menu ikut varian** (`welcome` ke bawah, `active` ke atas) — lihat jebakan di Langkah 53 sebelum menyeragamkannya.

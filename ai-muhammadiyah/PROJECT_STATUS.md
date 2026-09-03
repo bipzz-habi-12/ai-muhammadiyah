@@ -314,7 +314,7 @@ Falling back is deliberate and safe:
 1. `<PROVIDER>_API_KEY_<MODEL>` — if empty →
 2. the provider's shared key (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
 
-Model ids resolve the same way, ending at a built-in default for OpenAI and Gemini. **Anthropic has no built-in default on purpose** — Claude engine ids have never been verified in this project, and guessing one would send an invented id to the API. All four `ANTHROPIC_MODEL_*` must be filled in.
+Model ids resolve the same way, ending at a built-in default for OpenAI and Gemini. The Anthropic call path (`streamAnthropicReply`) is written but **has never received a real request** — a key plus a model id makes it selectable, not proven. Any failure falls back to OpenAI. **Anthropic has no built-in default on purpose** — Claude engine ids have never been verified in this project, and guessing one would send an invented id to the API. All four `ANTHROPIC_MODEL_*` must be filled in.
 
 A provider is only offered in the picker when it can run **all four** models, because the picker shows the same provider row under every model name. Setting just the shared key satisfies all four at once.
 

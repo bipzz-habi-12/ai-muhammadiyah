@@ -1604,7 +1604,7 @@ Di artboard, nav bawah menghilang saat percakapan berjalan. Di kode ia **selalu 
 
 **Yang TIDAK diverifikasi visual: seluruh layar di balik login.** Browser pane tidak ditampilkan di sesi ini sehingga screenshot selalu timeout (gejala sama dengan Langkah 51), dan sesi login pengguna tidak dipakai. Dua hal yang paling perlu dilihat sendiri: tinggi layar sambutan di HP (sapaan + composer + 4 baris contoh + nav bawah), dan sheet Riwayat saat riwayatnya panjang.
 
-## Langkah 54: Panel artifact baru + mesin per model lintas penyedia — SELESAI di kode (jalur Anthropic BELUM)
+## Langkah 54: Panel artifact baru + mesin per model lintas penyedia — SELESAI di kode
 
 Dua permintaan berurutan dari satu sesi desain: panel artifact "seperti artifact di Claude, bukan yang sekarang", dan pemilihan model yang tidak lagi terkunci ke GPT. Digambar dulu sebagai kanvas artboard, disetujui (Opsi A), baru diterapkan.
 
@@ -1686,3 +1686,21 @@ Penjaga itu bukan kemalasan, itu kejujuran: tanpa dia, memasang kunci membuat me
 `tsc --noEmit`, `npm run lint`, dan `npm run build` bersih di tiap tahap (44 halaman). Perilaku bawaan tidak berubah: tanpa pilihan tersimpan, `preferredProvider` = `openai` dan `triedOpenAi` bernilai sama persis dengan sebelum langkah ini.
 
 **Yang TIDAK diverifikasi:** jalur Gemini-dulu belum diuji dengan permintaan sungguhan — butuh sesi login dan `GEMINI_API_KEY` hidup. Yang sudah dipastikan hanya bahwa cabangnya tidak pernah aktif untuk pengguna yang belum memilih. Panel artifact juga belum dilihat secara visual: layarnya di balik login dan Browser pane di sesi ini tidak bisa mengambil screenshot (gejala yang sama sejak Langkah 51).
+
+### Jalur Anthropic ditulis — penjaganya dibuka
+
+Ditulis atas permintaan user selagi masih bisa dikerjakan, meski akun Anthropic-nya belum punya saldo. **Belum pernah menerima satu permintaan pun ke API sungguhan** — itu batas yang harus diingat saat membaca bagian ini.
+
+- **Tanpa dependency baru.** `streamAnthropicReply` memanggil `https://api.anthropic.com/v1/messages` lewat `fetch` dan memakai ulang `streamSseJson` yang sama dengan jalur OpenRouter. Bentuk kembaliannya `StreamProviderResult`, identik dengan Gemini dan OpenAI, jadi orkestrasi di `streamChatReply` tidak perlu tahu bedanya.
+- **Konteksnya dibangun dengan aturan yang PERSIS SAMA** dengan `createGeminiContents` — dokumen, gambar, dan knowledge menempel di giliran user terakhir dengan syarat yang sama. Tujuannya satu: jawaban tidak berubah bentuk hanya karena pengguna berganti penyedia.
+- **Dua penyesuaian bentuk yang dituntut API Claude**, dan keduanya sengaja:
+  - Percakapan tidak boleh dibuka giliran assistant, jadi giliran assistant di depan dipangkas.
+  - Giliran beruntun berperan sama digabung isinya, bukan dikirim apa adanya.
+- **`max_tokens` dijepit.** Level Upaya bisa meminta 64.000, sementara tiap model Claude punya batas sendiri dan melewatinya dibalas 400. Plafonnya 8.192, bisa dinaikkan lewat `ANTHROPIC_MAX_OUTPUT_TOKENS` tanpa menyentuh kode.
+- **Extended thinking TIDAK dipakai.** Ia menuntut `budget_tokens` di bawah `max_tokens` plus batasan parameter lain yang tidak bisa diverifikasi tanpa akun beraliran dana. Toggle "Pemikiran" dan level Upaya untuk sekarang hanya memengaruhi plafon token di jalur ini.
+- **Kegagalan selalu jatuh ke penyedia lain.** Status non-2xx, event `error`, atau exception mengembalikan `null` selama belum ada teks yang mengalir — `prefersAnthropic` sengaja TIDAK mematikan `triedOpenAi`, jadi OpenAI langsung mengambil alih dan pengguna tetap dapat jawaban.
+- **Kecuali kalau teks sudah terlanjur mengalir.** Kalau sebagian jawaban sudah sampai ke layar pengguna lalu koneksinya putus, potongan itulah yang dikembalikan. Menjatuhkannya ke penyedia lain akan menempelkan jawaban kedua di atas jawaban pertama — cacat yang jauh lebih buruk daripada jawaban yang terpotong.
+- `anthropicStreamingImplemented` di `lib/ai/providers.ts` dibuka jadi `true`. Sejak ini, "Anthropic tersedia" berarti **kunci + id model ada**, bukan "sudah terbukti menjawab".
+- `provider_used: "anthropic"` aman masuk `usage_logs`: kolomnya JSONB metadata, tanpa constraint nilai.
+
+**Yang harus diuji begitu saldonya ada** (belum satu pun dijalankan): satu balasan biasa mengalir sampai selesai; balasan yang memuat artifact; pertanyaan dengan lampiran gambar; dan satu kegagalan sengaja (id model salah) untuk memastikan jatuhnya ke OpenAI mulus tanpa jawaban ganda.
