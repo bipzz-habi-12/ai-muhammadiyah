@@ -26,6 +26,7 @@ import {
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
+import type { CredentialMode } from "@/lib/ai/model-catalog";
 
 // Sapaan layar sambutan — diacak tiap kali layar sambutan muncul (chat baru /
 // ganti chat). Campuran salam Islami dan sapaan netral supaya tetap terbuka
@@ -149,11 +150,19 @@ interface ChatAreaProps {
 
   // model + skill selection (forwarded to the welcome composer)
   selectedModel: PlanModelId;
-  selectModel: (model: PlanModelId, keepMenuOpen?: boolean) => void;
+  selectModel: (
+    model: PlanModelId,
+    keepMenuOpen?: boolean,
+    mode?: CredentialMode,
+  ) => void;
   allowedModels: string[];
   selectedProvider: ModelProviderId;
   selectProvider: (model: PlanModelId, provider: ModelProviderId) => void;
   availableProviders: ModelProviderId[];
+  byokProviders: ModelProviderId[];
+  credentialMode: CredentialMode;
+  setCredentialMode: (mode: CredentialMode) => void;
+  canUseModel: (model: PlanModelId, mode?: CredentialMode) => boolean;
   selectedEngineLabel: string;
   isModelMenuOpen: boolean;
   modelOptions: PlanModelId[];
@@ -201,6 +210,10 @@ export default function ChatArea({
   selectedProvider,
   selectProvider,
   availableProviders,
+  byokProviders,
+  credentialMode,
+  setCredentialMode,
+  canUseModel,
   selectedEngineLabel,
   isModelMenuOpen,
   modelOptions,
@@ -268,6 +281,10 @@ export default function ChatArea({
             selectedProvider={selectedProvider}
             selectProvider={selectProvider}
             availableProviders={availableProviders}
+            byokProviders={byokProviders}
+            credentialMode={credentialMode}
+            setCredentialMode={setCredentialMode}
+            canUseModel={canUseModel}
             selectedEngineLabel={selectedEngineLabel}
             isModelMenuOpen={isModelMenuOpen}
             modelOptions={modelOptions}

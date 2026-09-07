@@ -14,6 +14,7 @@ import {
   type ModelProviderId,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
+import type { CredentialMode } from "@/lib/ai/model-catalog";
 import {
   fetchUsageSnapshot,
   getTightestWindow,
@@ -54,6 +55,7 @@ export function useUsage() {
   // penyedia yang kuncinya kosong.
   const availableProviders: ModelProviderId[] =
     usageSnapshot?.availableProviders ?? [defaultModelProvider];
+  const byokProviders: ModelProviderId[] = usageSnapshot?.byokProviders ?? [];
   const currentPlan = usageSnapshot ? getPlanByTier(usageSnapshot.tier) : null;
   // Satu meteran token untuk semuanya: pesan & upload memakai kolam yang sama.
   const hasMessageQuota = !usageSnapshot || hasQuota(usageSnapshot.tokens);
@@ -71,6 +73,7 @@ export function useUsage() {
     currentTierLabel,
     allowedModels,
     availableProviders,
+    byokProviders,
     currentPlan,
     hasMessageQuota,
     hasUploadQuota,
@@ -83,9 +86,12 @@ export function applyUsageConstraints(
   skillsRef: MutableRefObject<Skill[]>,
   setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
   setSelectedSkillId: Dispatch<SetStateAction<string | null>>,
+  credentialMode: CredentialMode = "platform",
 ) {
   setSelectedModel((currentModel) =>
-    snapshot && !snapshot.allowedModels.includes(currentModel)
+    credentialMode === "platform" &&
+    snapshot &&
+    !snapshot.allowedModels.includes(currentModel)
       ? defaultModelId
       : currentModel,
   );

@@ -75,6 +75,12 @@ const sections: {
         glyph: <Icon name="user" className="h-5 w-5" />,
       },
       {
+        href: "/settings/providers",
+        label: "API key pribadi",
+        description: "Hubungkan OpenAI, Google, atau Anthropic",
+        glyph: <Icon name="settings" className="h-5 w-5" />,
+      },
+      {
         href: "/plans",
         label: "Paket & harga",
         description: "Bandingkan paket dan ubah langganan",

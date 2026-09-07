@@ -25,7 +25,13 @@ import {
   resolveAllowedSkill,
 } from "@/lib/skills";
 import { resolveUsableProvider } from "@/lib/ai/providers";
+import { loadUserProviderApiKey } from "@/lib/ai/user-credentials";
 import { normalizeSelectedModel } from "@/lib/mappers/conversation";
+import {
+  getModelProvider,
+  isModelId,
+  normalizeCredentialMode,
+} from "@/lib/ai/model-catalog";
 import {
   defaultModelId,
   defaultModelProvider,
@@ -48,6 +54,7 @@ type ChatRequestBody = {
   selectedModel?: string;
   /** Penyedia mesin pilihan pengguna (Langkah 54). Divalidasi ulang di server. */
   modelProvider?: string;
+  credentialMode?: string;
   skillId?: string;
   effort?: string;
   thinking?: boolean;
@@ -55,6 +62,16 @@ type ChatRequestBody = {
 };
 
 const maxWorkspaceSystemInstructionsLength = 4000;
+const legacyModelIds = new Set([
+  "aether",
+  "cosmos",
+  "prism",
+  "velo",
+  "auto",
+  "fast",
+  "smart",
+  "document",
+]);
 
 function isChatMessage(message: unknown): message is ChatMessage {
   if (!message || typeof message !== "object") {
@@ -120,15 +137,20 @@ export async function POST(request: Request) {
     const pdfContext = body.pdfContext ?? "";
     const documentContexts = body.documentContexts ?? [];
     const imageContexts = body.imageContexts ?? [];
-    const selectedModel = body.selectedModel ?? defaultModelId;
-    // Penyedia mesin: pilihan klien hanya USULAN. Server memeriksa apakah model
-    // itu punya mesin di sana DAN kuncinya terpasang, lalu jatuh ke OpenAI bila
-    // tidak — jadi body yang dipalsukan tidak bisa memaksa penyedia yang mati.
+    const requestedModel = body.selectedModel ?? defaultModelId;
+    const selectedModel = normalizeSelectedModel(requestedModel);
+    const credentialMode = normalizeCredentialMode(body.credentialMode);
+    const nativeProvider = getModelProvider(selectedModel);
+    // Client lama masih mengirim alias + provider terpisah. Request katalog
+    // native selalu mengikuti provider yang tertanam di model ID.
+    const requestedProvider = isModelId(requestedModel)
+      ? nativeProvider
+      : normalizeModelProvider(body.modelProvider);
     const modelProvider =
-      resolveUsableProvider(
-        normalizeSelectedModel(selectedModel),
-        normalizeModelProvider(body.modelProvider),
-      ) ?? defaultModelProvider;
+      credentialMode === "byok"
+        ? nativeProvider
+        : (resolveUsableProvider(selectedModel, requestedProvider) ??
+          defaultModelProvider);
     // Level Upaya & toggle Pemikiran: divalidasi di server supaya body yang
     // aneh tidak bisa memaksa plafon token di luar peta yang kita tentukan.
     const effort = normalizeEffortLevel(body.effort);
@@ -168,7 +190,10 @@ export async function POST(request: Request) {
       );
     }
 
-    if (typeof selectedModel !== "string") {
+    if (
+      typeof requestedModel !== "string" ||
+      (!isModelId(requestedModel) && !legacyModelIds.has(requestedModel))
+    ) {
       return NextResponse.json(
         { error: "Pilihan model tidak valid." },
         { status: 400 },
@@ -207,32 +232,65 @@ export async function POST(request: Request) {
       combinedDocumentContext,
       imageContexts.map((image) => image.fileName).join(" "),
     );
-    const { data: limitCheck, error: limitError } = await supabase.rpc(
-      "check_usage_limits",
-      {
-        p_action: "message",
-        p_model_used: selectedModel,
-        p_estimated_tokens: estimatedInputTokens,
-      },
-    );
+    let userApiKey: string | null = null;
+    let usageSnapshot: ReturnType<typeof normalizeUsageSnapshot>;
 
-    if (limitError) {
-      console.error("Usage limit check failed:", limitError);
+    if (credentialMode === "byok") {
+      userApiKey = await loadUserProviderApiKey(
+        user.id,
+        nativeProvider,
+      ).catch((error) => {
+        console.error("BYOK key load failed:", {
+          userId: user.id,
+          provider: nativeProvider,
+          error,
+        });
+        return null;
+      });
 
-      return NextResponse.json(
-        { error: "Limit penggunaan belum bisa dicek." },
-        { status: 500 },
+      if (!userApiKey) {
+        return NextResponse.json(
+          {
+            error: `API key pribadi ${nativeProvider} belum terpasang atau perlu disambungkan ulang.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const { data: snapshotData, error: snapshotError } =
+        await supabase.rpc("get_usage_snapshot");
+      if (snapshotError) {
+        console.error("BYOK usage snapshot failed:", snapshotError);
+      }
+      usageSnapshot = normalizeUsageSnapshot(snapshotData);
+    } else {
+      const { data: limitCheck, error: limitError } = await supabase.rpc(
+        "check_usage_limits",
+        {
+          p_action: "message",
+          p_model_used: selectedModel,
+          p_estimated_tokens: estimatedInputTokens,
+        },
       );
-    }
 
-    const canUse = Boolean(limitCheck?.allowed);
-    const usageSnapshot = normalizeUsageSnapshot(limitCheck);
+      if (limitError) {
+        console.error("Usage limit check failed:", limitError);
 
-    if (!canUse) {
-      return NextResponse.json(
-        { error: getLimitErrorMessage(limitCheck?.reason) },
-        { status: 429 },
-      );
+        return NextResponse.json(
+          { error: "Limit penggunaan belum bisa dicek." },
+          { status: 500 },
+        );
+      }
+
+      const canUse = Boolean(limitCheck?.allowed);
+      usageSnapshot = normalizeUsageSnapshot(limitCheck);
+
+      if (!canUse) {
+        return NextResponse.json(
+          { error: getLimitErrorMessage(limitCheck?.reason) },
+          { status: 429 },
+        );
+      }
     }
 
     const skills = await fetchSkills(supabase, user.id).catch((error) => {
@@ -371,6 +429,8 @@ export async function POST(request: Request) {
               effort,
               thinking,
               modelProvider,
+              apiKeyOverride: userApiKey ?? undefined,
+              strictProvider: credentialMode === "byok",
               // Mengaktifkan jalur tool calling (Tahap 1 subsistem). Rute ini
               // punya klien Supabase ber-sesi, jadi tool membaca data lewat
               // RLS milik pengguna yang sedang login — bukan service role.
@@ -417,53 +477,64 @@ export async function POST(request: Request) {
             isClarifyingQuestionOnlyReply(finalReply) &&
             parseArtifactBlocks(finalReply).length === 0;
           const chargedTokens = isFreeClarifyingTurn ? 1 : estimatedTotalTokens;
-          const { data: usageData, error: usageError } = await supabase.rpc(
-            "increment_usage",
-            {
-              p_action: "message",
-              p_model_used: selectedModel,
-              p_document_count: 0,
-              p_estimated_tokens: chargedTokens,
-              p_metadata: {
-                clarifying_question_only: isFreeClarifyingTurn,
-                waived_estimated_tokens: isFreeClarifyingTurn
-                  ? estimatedTotalTokens
-                  : 0,
-                has_document_context: Boolean(combinedDocumentContext.trim()),
-                document_count: documentContexts.length,
-                image_count: imageContexts.length,
-                has_image_context: imageContexts.length > 0,
-                uploaded_documents: documentContexts.map((document) => ({
-                  file_name: document.fileName,
-                  file_type: document.fileType,
-                  text_length: document.text.length,
-                })),
-                uploaded_images: imageContexts.map((image) => ({
-                  file_name: image.fileName,
-                  mime_type: image.mimeType,
-                  data_length: image.data.length,
-                })),
-                has_knowledge_context: Boolean(knowledgeContext),
-                knowledge_sources: knowledgeChunks.map((chunk) => ({
-                  source_id: chunk.sourceId,
-                  title: chunk.sourceTitle,
-                  chunk: chunk.chunkOrder + 1,
-                })),
-                has_user_memory: Boolean(userMemory),
-                provider_used: chatResult.provider,
-                model_used: chatResult.model,
-                skill_id: activeSkill.id,
-                skill_name: activeSkill.name,
-                fallback_event: chatResult.fallbackEvent ?? null,
-                finish_reason: chatResult.finishReason ?? null,
-                streamed_reply_length: finalReply.length,
-                web_search_used: Boolean(chatResult.sources?.length),
-                web_search_source_count: chatResult.sources?.length ?? 0,
-                tools_used: chatResult.toolsUsed ?? [],
-              },
-              p_user_id: user.id,
-            },
-          );
+          const usageMetadata = {
+            billing_mode: credentialMode,
+            catalog_model_id: selectedModel,
+            clarifying_question_only: isFreeClarifyingTurn,
+            waived_estimated_tokens: isFreeClarifyingTurn
+              ? estimatedTotalTokens
+              : 0,
+            has_document_context: Boolean(combinedDocumentContext.trim()),
+            document_count: documentContexts.length,
+            image_count: imageContexts.length,
+            has_image_context: imageContexts.length > 0,
+            uploaded_documents: documentContexts.map((document) => ({
+              file_name: document.fileName,
+              file_type: document.fileType,
+              text_length: document.text.length,
+            })),
+            uploaded_images: imageContexts.map((image) => ({
+              file_name: image.fileName,
+              mime_type: image.mimeType,
+              data_length: image.data.length,
+            })),
+            has_knowledge_context: Boolean(knowledgeContext),
+            knowledge_sources: knowledgeChunks.map((chunk) => ({
+              source_id: chunk.sourceId,
+              title: chunk.sourceTitle,
+              chunk: chunk.chunkOrder + 1,
+            })),
+            has_user_memory: Boolean(userMemory),
+            provider_used: chatResult.provider,
+            model_used: chatResult.model,
+            skill_id: activeSkill.id,
+            skill_name: activeSkill.name,
+            fallback_event: chatResult.fallbackEvent ?? null,
+            finish_reason: chatResult.finishReason ?? null,
+            streamed_reply_length: finalReply.length,
+            web_search_used: Boolean(chatResult.sources?.length),
+            web_search_source_count: chatResult.sources?.length ?? 0,
+            tools_used: chatResult.toolsUsed ?? [],
+          };
+          const usageResult =
+            credentialMode === "byok"
+              ? await supabase.rpc("record_byok_usage", {
+                  p_model_used: selectedModel,
+                  p_provider: nativeProvider,
+                  p_api_model_id: chatResult.model,
+                  p_estimated_tokens: estimatedTotalTokens,
+                  p_metadata: usageMetadata,
+                  p_user_id: user.id,
+                })
+              : await supabase.rpc("increment_usage", {
+                  p_action: "message",
+                  p_model_used: selectedModel,
+                  p_document_count: 0,
+                  p_estimated_tokens: chargedTokens,
+                  p_metadata: usageMetadata,
+                  p_user_id: user.id,
+                });
+          const { data: usageData, error: usageError } = usageResult;
 
           if (usageError) {
             console.error("Chat usage increment failed:", {
@@ -492,7 +563,11 @@ export async function POST(request: Request) {
           }
         } catch (error) {
           console.error("AI chat stream failed:", error);
-          enqueueText("Maaf, chat AI sedang bermasalah. Silakan coba lagi.");
+          enqueueText(
+            credentialMode === "byok"
+              ? "API key pribadi atau provider gagal memproses permintaan ini. Periksa status key dan billing provider, lalu coba lagi."
+              : "Maaf, chat AI sedang bermasalah. Silakan coba lagi.",
+          );
         } finally {
           request.signal.removeEventListener("abort", abortStream);
           closeStream();

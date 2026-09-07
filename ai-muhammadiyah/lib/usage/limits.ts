@@ -1,6 +1,9 @@
 import { contextWindowTokens } from "@/lib/ai/context-window";
-
-import type { ModelProviderId } from "@/lib/subscriptions/plans";
+import {
+  modelCatalog,
+  modelOptions,
+  type ModelProviderId,
+} from "@/lib/ai/model-catalog";
 
 export type SubscriptionTier =
   | "free"
@@ -39,6 +42,8 @@ export type UsageSnapshot = {
    * baris penyedia di pemilih model, dan server tetap memvalidasi ulang.
    */
   availableProviders: ModelProviderId[];
+  /** Provider yang punya key pribadi aktif untuk user ini. */
+  byokProviders: ModelProviderId[];
   contextWindowTokens: number;
   /** Satu meteran untuk semua pemakaian: TOKEN (pesan & upload sekaligus). */
   tokens: Record<UsageWindowKey, UsageWindow>;
@@ -66,31 +71,46 @@ export type TierLimits = {
   allowedModels: string[];
 };
 
+const includedModelIds = modelOptions.filter(
+  (model) => modelCatalog[model].minimumTier === "free",
+);
+const allModelIds = [...modelOptions];
+const legacyAllowedModelMap: Record<string, string> = {
+  aether: "openai:gpt-5.6-sol",
+  cosmos: "openai:gpt-5.6-terra",
+  prism: "openai:gpt-5.6-luna",
+  velo: "openai:gpt-5.5-pro",
+  auto: "openai:gpt-5.6-terra",
+  fast: "openai:gpt-5.6-sol",
+  smart: "openai:gpt-5.6-terra",
+  document: "openai:gpt-5.5-pro",
+};
+
 export const tierLimits: Record<SubscriptionTier, TierLimits> = {
   free: {
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
-    allowedModels: ["prism", "velo"],
+    allowedModels: includedModelIds,
   },
   kader_pintar: {
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
-    allowedModels: ["prism", "velo"],
+    allowedModels: includedModelIds,
   },
   muallim_pro: {
     sessionTokenLimit: 2_400_000,
     weeklyTokenLimit: 16_000_000,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: allModelIds,
   },
   dakwah_digital: {
     sessionTokenLimit: 4_800_000,
     weeklyTokenLimit: 32_000_000,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: allModelIds,
   },
   sinergi_ranting: {
     sessionTokenLimit: 16_000_000,
     weeklyTokenLimit: 112_000_000,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: allModelIds,
   },
 };
 
@@ -215,7 +235,10 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
     "allowedModels",
   );
   const allowedModels = Array.isArray(rawAllowedModels)
-    ? rawAllowedModels.map(String)
+    ? rawAllowedModels.map((model) => {
+        const id = String(model);
+        return legacyAllowedModelMap[id] ?? id;
+      })
     : fallback.allowedModels;
 
   const rawProviders = getSnapshotValue(
@@ -228,6 +251,15 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
   const availableProviders = (
     Array.isArray(rawProviders) ? rawProviders : ["openai"]
   ).filter(
+    (provider): provider is ModelProviderId =>
+      provider === "google" || provider === "openai" || provider === "anthropic",
+  );
+  const rawByokProviders = getSnapshotValue(
+    snapshot,
+    "byok_providers",
+    "byokProviders",
+  );
+  const byokProviders = (Array.isArray(rawByokProviders) ? rawByokProviders : []).filter(
     (provider): provider is ModelProviderId =>
       provider === "google" || provider === "openai" || provider === "anthropic",
   );
@@ -259,6 +291,7 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
     tier,
     allowedModels: allowedModels.length ? allowedModels : fallback.allowedModels,
     availableProviders,
+    byokProviders,
     contextWindowTokens: getPositiveNumber(
       getSnapshotValue(snapshot, "context_window_tokens", "contextWindowTokens"),
       contextWindowTokens,

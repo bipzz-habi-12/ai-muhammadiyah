@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listConfiguredProviders } from "@/lib/ai/providers";
+import { listUserProviderCredentials } from "@/lib/ai/user-credentials";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { normalizeUsageSnapshot } from "@/lib/usage/limits";
 
@@ -29,10 +30,18 @@ export async function GET() {
   // mematikan baris penyedia di pemilih model — dan `/api/chat` tetap
   // memvalidasi ulang, jadi daftar ini murni petunjuk tampilan.
   const snapshot = normalizeUsageSnapshot(data);
+  const credentials = await listUserProviderCredentials(user.id).catch((error) => {
+    console.error("BYOK provider status failed:", { userId: user.id, error });
+    return [];
+  });
 
   return NextResponse.json(
     snapshot
-      ? { ...snapshot, availableProviders: listConfiguredProviders() }
+      ? {
+          ...snapshot,
+          availableProviders: listConfiguredProviders(),
+          byokProviders: credentials.map((credential) => credential.provider),
+        }
       : snapshot,
   );
 }

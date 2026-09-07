@@ -51,6 +51,28 @@ The migration creates:
 - Row Level Security policies so authenticated users can only read, create,
   update, or delete their own conversations and messages
 
+## API key pribadi (BYOK)
+
+Pengguna dapat menghubungkan OpenAI, Google, dan Anthropic dari
+`/settings/providers`. Mode **API key saya** dipilih secara eksplisit: biaya
+ditagih langsung oleh provider, tidak memotong kuota M-Agent, dan tidak pernah
+fallback ke key platform.
+
+Sebelum deploy fitur ini:
+
+1. Buat backup database Supabase produksi.
+2. Review lalu apply
+   `supabase/migrations/20260907000000_byok_and_native_model_catalog.sql`.
+3. Tambahkan env server-only berikut dengan nilai acak minimal 32 karakter:
+
+```bash
+USER_API_KEY_ENCRYPTION_KEY=nilai-acak-minimal-32-karakter
+```
+
+Key provider disimpan dengan AES-256-GCM di tabel ber-RLS deny-all. Browser
+hanya menerima provider, status validasi, dan empat karakter terakhir; plaintext
+dan ciphertext tidak pernah dikirim kembali.
+
 ## Otak Kedua (Second Brain)
 
 Catatan pribadi yang **hidup lintas percakapan**. Berbeda dari riwayat chat

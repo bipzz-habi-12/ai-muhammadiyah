@@ -31,7 +31,7 @@ export function useConversations(
     const { data, error } = await supabase
       .from("conversations")
       .select(
-        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+        "id,title,created_at,updated_at,selected_model,credential_mode,study_mode,document_metadata,workspace_id,is_pinned",
       )
       .order("updated_at", { ascending: false })
       .limit(40);
@@ -184,7 +184,7 @@ export function useConversations(
       const titleMatches = await supabase
         .from("conversations")
         .select(
-          "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+          "id,title,created_at,updated_at,selected_model,credential_mode,study_mode,document_metadata,workspace_id,is_pinned",
         )
         .ilike("title", `%${query}%`)
         .limit(30);
@@ -211,7 +211,7 @@ export function useConversations(
         ? await supabase
             .from("conversations")
             .select(
-              "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+              "id,title,created_at,updated_at,selected_model,credential_mode,study_mode,document_metadata,workspace_id,is_pinned",
             )
             .in("id", conversationIds)
         : { data: [], error: null };
