@@ -1,0 +1,11 @@
+{
+  "name": "M-Agent (ai-muhammadiyah)",
+  "install": "export NVM_DIR=\"$HOME/.nvm\"; . \"$NVM_DIR/nvm.sh\"; export PATH=\"$(dirname \"$(nvm which default)\"):$PATH\"; node --version; cd ai-muhammadiyah && npm ci",
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "export NVM_DIR=\"$HOME/.nvm\"; . \"$NVM_DIR/nvm.sh\"; export PATH=\"$(dirname \"$(nvm which default)\"):$PATH\"; cd ai-muhammadiyah && npm run dev"
+    }
+  ],
+  "ports": [3000]
+}
