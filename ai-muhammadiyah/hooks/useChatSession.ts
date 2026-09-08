@@ -76,7 +76,6 @@ export function useChatSession(
   selectedSkill: Skill | null,
   selectedModel: PlanModelId,
   setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
-  setCredentialMode: (mode: CredentialMode) => void,
   effort: EffortLevel,
   isThinkingEnabled: boolean,
   uploadedAttachments: UploadedAttachment[],
@@ -155,12 +154,11 @@ export function useChatSession(
     setActiveConversationId(conversation.id);
     void loadArtifacts(conversation.id);
     setSelectedModel(
-      conversation.credentialMode === "byok" ||
+      credentialMode === "byok" ||
         allowedModels.includes(conversation.model)
         ? conversation.model
         : defaultModelId,
     );
-    setCredentialMode(conversation.credentialMode);
     setSelectedSkillId(
       resolveAllowedSkill(conversation.skillId, usageSnapshot?.tier, skills)?.id ??
         null,

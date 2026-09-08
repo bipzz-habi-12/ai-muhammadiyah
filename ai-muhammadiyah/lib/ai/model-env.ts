@@ -31,6 +31,19 @@ const modelEnvSuffix: Record<LegacyModelSlot, string> = {
   velo: "VELO",
 };
 
+const legacyEnvSlots: Partial<Record<PlanModelId, LegacyModelSlot>> = {
+  "openai:gpt-5.6-sol": "aether",
+  "openai:gpt-5.6-terra": "cosmos",
+  "openai:gpt-5.6-luna": "prism",
+  "openai:gpt-5.5-pro": "velo",
+  "google:gemini-2.5-pro": "aether",
+  "google:gemini-2.5-flash": "prism",
+  "anthropic:claude-fable-5": "aether",
+  "anthropic:claude-opus-5": "cosmos",
+  "anthropic:claude-opus-4-8": "prism",
+  "anthropic:claude-sonnet-5": "velo",
+};
+
 const providerEnvPrefix: Record<ModelProviderId, string> = {
   openai: "OPENAI",
   google: "GEMINI",
@@ -48,22 +61,36 @@ function readEnv(name: string) {
   return process.env[name]?.trim() ?? "";
 }
 
+function nativeEnvSuffix(model: PlanModelId) {
+  return modelCatalog[model].apiModelId
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function legacyEnvName(
+  provider: ModelProviderId,
+  model: PlanModelId,
+  kind: "API_KEY" | "MODEL",
+) {
+  const slot = legacyEnvSlots[model];
+  return slot
+    ? `${providerEnvPrefix[provider]}_${kind}_${modelEnvSuffix[slot]}`
+    : "";
+}
+
 export function engineApiKeyEnvName(
   provider: ModelProviderId,
   model: PlanModelId,
 ) {
-  return `${providerEnvPrefix[provider]}_API_KEY_${
-    modelEnvSuffix[modelCatalog[model].legacySlot]
-  }`;
+  return `${providerEnvPrefix[provider]}_API_KEY_${nativeEnvSuffix(model)}`;
 }
 
 export function engineModelEnvName(
   provider: ModelProviderId,
   model: PlanModelId,
 ) {
-  return `${providerEnvPrefix[provider]}_MODEL_${
-    modelEnvSuffix[modelCatalog[model].legacySlot]
-  }`;
+  return `${providerEnvPrefix[provider]}_MODEL_${nativeEnvSuffix(model)}`;
 }
 
 /**
@@ -79,8 +106,15 @@ export function resolveEngineApiKey(
     return userApiKey.trim();
   }
 
+  const equivalentModel = getEquivalentModel(model, provider);
+  if (!equivalentModel) {
+    return "";
+  }
+  const oldKeyEnv = legacyEnvName(provider, equivalentModel, "API_KEY");
+
   return (
-    readEnv(engineApiKeyEnvName(provider, model)) ||
+    readEnv(engineApiKeyEnvName(provider, equivalentModel)) ||
+    (oldKeyEnv ? readEnv(oldKeyEnv) : "") ||
     readEnv(providerSharedKeyEnv[provider])
   );
 }
@@ -95,25 +129,29 @@ export function resolveEngineModelId(
   provider: ModelProviderId,
   model: PlanModelId,
 ) {
-  const perModel = readEnv(engineModelEnvName(provider, model));
+  const equivalentModel = getEquivalentModel(model, provider);
+  if (!equivalentModel) {
+    return "";
+  }
+  const oldModelEnv = legacyEnvName(provider, equivalentModel, "MODEL");
+  const perModel =
+    readEnv(engineModelEnvName(provider, equivalentModel)) ||
+    (oldModelEnv ? readEnv(oldModelEnv) : "");
 
   if (perModel) {
     return perModel.replace(/^models\//, "");
   }
 
-  const equivalentModel = getEquivalentModel(model, provider);
-  const catalogModelId = equivalentModel
-    ? modelCatalog[equivalentModel].apiModelId
-    : "";
+  const catalogModelId = modelCatalog[equivalentModel].apiModelId;
+  const legacySlot = legacyEnvSlots[equivalentModel];
 
-  if (provider === "openai") {
+  if (provider === "openai" && legacySlot) {
     return readEnv("OPENAI_MODEL") || catalogModelId;
   }
 
-  if (provider === "google") {
-    const slot = modelCatalog[model].legacySlot;
+  if (provider === "google" && legacySlot) {
     const legacy =
-      slot === "aether"
+      legacySlot === "aether"
         ? readEnv("GEMINI_PRO_MODEL")
         : readEnv("GEMINI_FLASH_MODEL") || readEnv("GEMINI_MODEL");
 

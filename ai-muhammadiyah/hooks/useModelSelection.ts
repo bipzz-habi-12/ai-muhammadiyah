@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   getEquivalentModel,
   getModelProvider,
+  credentialModeStorageKey,
   modelOptions,
   normalizeCredentialMode,
   type CredentialMode,
@@ -22,7 +23,6 @@ import {
 
 const EFFORT_STORAGE_KEY = "ai-mu-effort";
 const THINKING_STORAGE_KEY = "ai-mu-thinking";
-const CREDENTIAL_MODE_STORAGE_KEY = "ai-mu-credential-mode";
 
 export function useModelSelection(
   allowedModels: string[],
@@ -60,7 +60,7 @@ export function useModelSelection(
     typeof window === "undefined"
       ? "platform"
       : normalizeCredentialMode(
-          window.localStorage.getItem(CREDENTIAL_MODE_STORAGE_KEY),
+          window.localStorage.getItem(credentialModeStorageKey),
         ),
   );
 
@@ -138,7 +138,7 @@ export function useModelSelection(
     }
 
     setCredentialModeState(mode);
-    window.localStorage.setItem(CREDENTIAL_MODE_STORAGE_KEY, mode);
+    window.localStorage.setItem(credentialModeStorageKey, mode);
   }
 
   const selectedProvider = resolveProvider(selectedModel);

@@ -29,6 +29,15 @@ test("nama alias lama bukan lagi model publik", () => {
   assert.equal(isModelId(defaultModelId), true);
 });
 
+test("katalog hanya memuat model Claude yang masih aktif", () => {
+  assert.equal(modelOptions.length, 43);
+  assert.equal(isModelId("anthropic:claude-fable-5-1"), true);
+  assert.equal(isModelId("anthropic:claude-opus-5"), true);
+  assert.equal(isModelId("anthropic:claude-sonnet-5"), true);
+  assert.equal(isModelId("anthropic:claude-opus-4-1-20250805"), false);
+  assert.equal(isModelId("anthropic:claude-3-7-sonnet-20250219"), false);
+});
+
 test("fallback lintas provider selalu menunjuk model katalog nyata", () => {
   for (const modelId of modelOptions) {
     for (const provider of ["openai", "google", "anthropic"]) {

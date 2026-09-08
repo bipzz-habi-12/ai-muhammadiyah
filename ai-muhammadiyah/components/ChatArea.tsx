@@ -22,7 +22,6 @@ import type { Skill } from "@/lib/skills";
 import {
   modelCatalog,
   type EffortLevel,
-  type ModelProviderId,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
@@ -156,14 +155,8 @@ interface ChatAreaProps {
     mode?: CredentialMode,
   ) => void;
   allowedModels: string[];
-  selectedProvider: ModelProviderId;
-  selectProvider: (model: PlanModelId, provider: ModelProviderId) => void;
-  availableProviders: ModelProviderId[];
-  byokProviders: ModelProviderId[];
   credentialMode: CredentialMode;
-  setCredentialMode: (mode: CredentialMode) => void;
   canUseModel: (model: PlanModelId, mode?: CredentialMode) => boolean;
-  selectedEngineLabel: string;
   isModelMenuOpen: boolean;
   modelOptions: PlanModelId[];
   selectedModelInfo: (typeof modelCatalog)[PlanModelId];
@@ -207,14 +200,8 @@ export default function ChatArea({
   selectedModel,
   selectModel,
   allowedModels,
-  selectedProvider,
-  selectProvider,
-  availableProviders,
-  byokProviders,
   credentialMode,
-  setCredentialMode,
   canUseModel,
-  selectedEngineLabel,
   isModelMenuOpen,
   modelOptions,
   selectedModelInfo,
@@ -278,14 +265,8 @@ export default function ChatArea({
             selectedModel={selectedModel}
             selectModel={selectModel}
             allowedModels={allowedModels}
-            selectedProvider={selectedProvider}
-            selectProvider={selectProvider}
-            availableProviders={availableProviders}
-            byokProviders={byokProviders}
             credentialMode={credentialMode}
-            setCredentialMode={setCredentialMode}
             canUseModel={canUseModel}
-            selectedEngineLabel={selectedEngineLabel}
             isModelMenuOpen={isModelMenuOpen}
             modelOptions={modelOptions}
             selectedModelInfo={selectedModelInfo}

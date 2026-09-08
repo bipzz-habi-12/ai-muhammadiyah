@@ -10,7 +10,6 @@ import {
 } from "react";
 import { Icon } from "@/components/icons";
 import {
-  credentialModeLabels,
   getModelProvider,
   modelProviderOrder,
   type CredentialMode,
@@ -27,7 +26,6 @@ import {
   modelCatalog,
   modelProviderLabels,
   type EffortLevel,
-  type ModelProviderId,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
 import type { UsageSnapshot } from "@/lib/usage/limits";
@@ -62,15 +60,8 @@ interface ComposerProps {
   ) => void;
   allowedModels: string[];
 
-  // mesin per model (Langkah 54)
-  selectedProvider: ModelProviderId;
-  selectProvider: (model: PlanModelId, provider: ModelProviderId) => void;
-  availableProviders: ModelProviderId[];
-  byokProviders: ModelProviderId[];
   credentialMode: CredentialMode;
-  setCredentialMode: (mode: CredentialMode) => void;
   canUseModel: (model: PlanModelId, mode?: CredentialMode) => boolean;
-  selectedEngineLabel: string;
   isModelMenuOpen: boolean;
   setIsModelMenuOpen: Dispatch<SetStateAction<boolean>>;
   modelOptions: PlanModelId[];
@@ -117,9 +108,7 @@ export default function Composer({
   selectedModel,
   selectModel,
   allowedModels,
-  byokProviders,
   credentialMode,
-  setCredentialMode,
   canUseModel,
   isModelMenuOpen,
   setIsModelMenuOpen,
@@ -260,31 +249,6 @@ export default function Composer({
         className={`scroll absolute ${menuAnchor} ${menuMaxHeight} left-0 z-30 w-[min(94vw,468px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] text-sm shadow-xl`}
       >
         <div className="sticky top-0 z-10 space-y-2 border-b border-[var(--hairline)] bg-[var(--surface)] p-2.5">
-          <div className="grid grid-cols-2 rounded-xl bg-[var(--surface-panel)] p-1">
-            {(["platform", "byok"] as CredentialMode[]).map((mode) => {
-              const isDisabled = mode === "byok" && byokProviders.length === 0;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => {
-                    if (isDisabled) {
-                      router.push("/settings/providers");
-                      return;
-                    }
-                    setCredentialMode(mode);
-                  }}
-                  className={
-                    credentialMode === mode
-                      ? "min-h-9 rounded-[10px] bg-[var(--surface)] px-2 text-[12px] font-semibold text-[var(--brand)]"
-                      : "min-h-9 rounded-[10px] px-2 text-[12px] font-medium text-[var(--muted-2)] transition hover:bg-[var(--surface-alt)]"
-                  }
-                >
-                  {credentialModeLabels[mode]}
-                </button>
-              );
-            })}
-          </div>
           <input
             type="search"
             value={modelSearch}
@@ -332,7 +296,7 @@ export default function Composer({
                             ? getLockedModelRequirement(model)
                             : credentialMode === "byok"
                               ? `Pasang API key ${modelProviderLabels[provider]}`
-                              : "Model belum tersedia melalui kuota M-Agent."
+                              : "Model belum tersedia untuk paket ini."
                       }
                       className={
                         isSelected
@@ -581,9 +545,6 @@ export default function Composer({
         >
           <span className="max-w-[150px] truncate">
             {selectedModelInfo.shortLabel}
-          </span>
-          <span className="hidden max-w-[130px] truncate text-[11px] text-[var(--muted-3)] sm:inline">
-            {credentialModeLabels[credentialMode]}
           </span>
           <svg
             viewBox="0 0 24 24"
