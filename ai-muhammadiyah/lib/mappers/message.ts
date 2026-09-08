@@ -4,6 +4,7 @@ import {
   truncateToTokens,
 } from "@/lib/ai/context-window";
 import type { Skill } from "@/lib/skills";
+import { normalizeCredentialMode } from "@/lib/ai/model-catalog";
 import { normalizeSelectedModel } from "./conversation";
 import { resolveSkillIdFromLegacyValue } from "./legacy-study-mode";
 import type { Message, MessageRow } from "./types";
@@ -15,6 +16,7 @@ export function mapMessageRow(row: MessageRow, skills: Skill[]): Message {
     text: row.content,
     createdAt: row.created_at,
     model: normalizeSelectedModel(row.selected_model),
+    credentialMode: normalizeCredentialMode(row.credential_mode),
     skillId: resolveSkillIdFromLegacyValue(row.study_mode, skills),
     documentMetadata: row.document_metadata,
   };

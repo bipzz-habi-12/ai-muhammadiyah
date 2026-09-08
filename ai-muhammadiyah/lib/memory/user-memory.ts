@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isModelId } from "@/lib/ai/model-catalog";
 import { normalizeStudyMode, type StudyModeId } from "@/lib/study-modes";
 import { defaultModelId, type PlanModelId } from "@/lib/subscriptions/plans";
 
@@ -91,13 +92,23 @@ function normalizeThemePreference(value: string | undefined) {
 }
 
 function normalizeDefaultModel(value: string | undefined) {
-  if (
-    value === "aether" ||
-    value === "cosmos" ||
-    value === "prism" ||
-    value === "velo"
-  ) {
+  if (isModelId(value)) {
     return value;
+  }
+
+  const legacyModels: Record<string, PlanModelId> = {
+    aether: "openai:gpt-5.6-sol",
+    cosmos: "openai:gpt-5.6-terra",
+    prism: "openai:gpt-5.6-luna",
+    velo: "openai:gpt-5.5-pro",
+    auto: "openai:gpt-5.6-terra",
+    fast: "openai:gpt-5.6-sol",
+    smart: "openai:gpt-5.6-terra",
+    document: "openai:gpt-5.5-pro",
+  };
+
+  if (value && legacyModels[value]) {
+    return legacyModels[value];
   }
 
   return defaultModelId;

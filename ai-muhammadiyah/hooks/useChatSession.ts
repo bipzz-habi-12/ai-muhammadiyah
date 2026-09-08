@@ -44,6 +44,7 @@ import { formatNoteTextForDisplay } from "@/lib/second-brain/parse";
 import { resolveAllowedSkill, type Skill } from "@/lib/skills";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { PlanModelId } from "@/lib/subscriptions/plans";
+import type { CredentialMode } from "@/lib/ai/model-catalog";
 import type { UsageSnapshot } from "@/lib/usage/limits";
 import {
   defaultModelId,
@@ -75,6 +76,7 @@ export function useChatSession(
   selectedSkill: Skill | null,
   selectedModel: PlanModelId,
   setSelectedModel: Dispatch<SetStateAction<PlanModelId>>,
+  setCredentialMode: (mode: CredentialMode) => void,
   effort: EffortLevel,
   isThinkingEnabled: boolean,
   uploadedAttachments: UploadedAttachment[],
@@ -102,6 +104,7 @@ export function useChatSession(
    * tetap memvalidasi ulang, jadi nilai ini murni usulan.
    */
   modelProvider: ModelProviderId = defaultModelProvider,
+  credentialMode: CredentialMode = "platform",
 ) {
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [input, setInput] = useState("");
@@ -152,10 +155,12 @@ export function useChatSession(
     setActiveConversationId(conversation.id);
     void loadArtifacts(conversation.id);
     setSelectedModel(
-      allowedModels.includes(conversation.model)
+      conversation.credentialMode === "byok" ||
+        allowedModels.includes(conversation.model)
         ? conversation.model
         : defaultModelId,
     );
+    setCredentialMode(conversation.credentialMode);
     setSelectedSkillId(
       resolveAllowedSkill(conversation.skillId, usageSnapshot?.tier, skills)?.id ??
         null,
@@ -166,7 +171,7 @@ export function useChatSession(
     const { data, error } = await supabase
       .from("messages")
       .select(
-        "id,conversation_id,role,content,created_at,selected_model,study_mode,document_metadata",
+        "id,conversation_id,role,content,created_at,selected_model,credential_mode,study_mode,document_metadata",
       )
       .eq("conversation_id", conversation.id)
       .order("created_at", { ascending: true });
@@ -227,12 +232,13 @@ export function useChatSession(
       .insert({
         title,
         selected_model: selectedModel,
+        credential_mode: credentialMode,
         study_mode: skillToLegacyStudyMode(selectedSkill),
         document_metadata: documentMetadata,
         workspace_id: selectedWorkspaceId || null,
       })
       .select(
-        "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+        "id,title,created_at,updated_at,selected_model,credential_mode,study_mode,document_metadata,workspace_id,is_pinned",
       )
       .single();
 
@@ -313,6 +319,7 @@ export function useChatSession(
       role: "user",
       text: userText,
       model: selectedModel,
+      credentialMode,
       skillId: activeSkill.id,
       documentMetadata,
     };
@@ -368,6 +375,7 @@ export function useChatSession(
         role: "user",
         content: userText,
         selected_model: selectedModel,
+        credential_mode: credentialMode,
         study_mode: skillToLegacyStudyMode(activeSkill),
         skill_id: activeSkill.id,
         document_metadata: documentMetadata,
@@ -401,6 +409,7 @@ export function useChatSession(
           imageContexts,
           selectedModel,
           modelProvider,
+          credentialMode,
           effort,
           thinking: isThinkingEnabled,
           skillId: activeSkill.id,
@@ -476,6 +485,7 @@ export function useChatSession(
           role: "assistant",
           content: finalAssistantText,
           selected_model: selectedModel,
+          credential_mode: credentialMode,
           study_mode: skillToLegacyStudyMode(activeSkill),
           skill_id: activeSkill.id,
           document_metadata: documentMetadata,
@@ -513,6 +523,7 @@ export function useChatSession(
         .from("conversations")
         .update({
           selected_model: selectedModel,
+          credential_mode: credentialMode,
           study_mode: skillToLegacyStudyMode(sessionSkill),
           document_metadata: documentMetadata,
           workspace_id:
@@ -528,6 +539,7 @@ export function useChatSession(
               ? {
                   ...item,
                   model: selectedModel,
+                  credentialMode,
                   skillId: sessionSkill.id,
                   documentMetadata,
                   workspaceId:
@@ -572,6 +584,7 @@ export function useChatSession(
           role: "assistant",
           content: errorText,
           selected_model: selectedModel,
+          credential_mode: credentialMode,
           study_mode: skillToLegacyStudyMode(activeSkill),
           skill_id: activeSkill.id,
           document_metadata: documentMetadata,

@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import {
+  getEquivalentModel,
+  getModelProvider,
+  modelOptions,
+  normalizeCredentialMode,
+  type CredentialMode,
+} from "@/lib/ai/model-catalog";
+import {
   defaultEffortLevel,
   defaultModelId,
   defaultModelProvider,
-  getModelEngine,
   getUpgradePlanForModel,
   modelCatalog,
   normalizeEffortLevel,
-  normalizeModelProvider,
-  resolveEngineLabel,
   type EffortLevel,
   type ModelProviderId,
   type PlanModelId,
@@ -18,47 +22,12 @@ import {
 
 const EFFORT_STORAGE_KEY = "ai-mu-effort";
 const THINKING_STORAGE_KEY = "ai-mu-thinking";
-// Mesin dipilih PER MODEL (Langkah 54), jadi yang disimpan sebuah peta, bukan
-// satu nilai: pengguna bisa menjalankan Aether di Gemini sambil tetap memakai
-// GPT untuk Prism.
-const PROVIDER_STORAGE_KEY = "ai-mu-model-provider";
-
-function readStoredProviders(): Partial<Record<PlanModelId, ModelProviderId>> {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const raw = window.localStorage.getItem(PROVIDER_STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-
-    if (!parsed || typeof parsed !== "object") {
-      return {};
-    }
-
-    const entries = Object.entries(parsed as Record<string, unknown>).filter(
-      ([model]) =>
-        model === "aether" ||
-        model === "cosmos" ||
-        model === "prism" ||
-        model === "velo",
-    );
-
-    return Object.fromEntries(
-      entries.map(([model, provider]) => [
-        model,
-        normalizeModelProvider(provider),
-      ]),
-    );
-  } catch (error) {
-    console.error(error);
-    return {};
-  }
-}
+const CREDENTIAL_MODE_STORAGE_KEY = "ai-mu-credential-mode";
 
 export function useModelSelection(
   allowedModels: string[],
   availableProviders: ModelProviderId[] = [defaultModelProvider],
+  byokProviders: ModelProviderId[] = [],
 ) {
   const [selectedModel, setSelectedModel] =
     useState<PlanModelId>(defaultModelId);
@@ -87,6 +56,13 @@ export function useModelSelection(
 
     return window.localStorage.getItem(THINKING_STORAGE_KEY) !== "off";
   });
+  const [credentialMode, setCredentialModeState] = useState<CredentialMode>(() =>
+    typeof window === "undefined"
+      ? "platform"
+      : normalizeCredentialMode(
+          window.localStorage.getItem(CREDENTIAL_MODE_STORAGE_KEY),
+        ),
+  );
 
   function setEffort(level: EffortLevel) {
     setEffortState(level);
@@ -102,23 +78,35 @@ export function useModelSelection(
     });
   }
 
-  const [providerByModel, setProviderByModel] = useState<
-    Partial<Record<PlanModelId, ModelProviderId>>
-  >(readStoredProviders);
-
   function openUpgradeModal(model: PlanModelId = defaultModelId) {
     setUpgradeTargetModel(model);
     setIsUpgradeOpen(true);
     setIsModelMenuOpen(false);
   }
 
-  function selectModel(model: PlanModelId, keepMenuOpen = false) {
-    if (!allowedModels.includes(model)) {
+  function canUseModel(model: PlanModelId, mode = credentialMode) {
+    const provider = getModelProvider(model);
+    return mode === "byok"
+      ? byokProviders.includes(provider)
+      : allowedModels.includes(model) && availableProviders.includes(provider);
+  }
+
+  function selectModel(
+    model: PlanModelId,
+    keepMenuOpen = false,
+    mode = credentialMode,
+  ) {
+    if (mode === "platform" && !allowedModels.includes(model)) {
       openUpgradeModal(model);
       return;
     }
 
+    if (!canUseModel(model, mode)) {
+      return;
+    }
+
     setSelectedModel(model);
+    setCredentialMode(mode);
 
     // Pemilih dua kolom memanggil ini dengan keepMenuOpen: memilih NAMA model
     // belum tentu keputusan akhir — pengguna mungkin mau ganti mesinnya juga.
@@ -128,44 +116,34 @@ export function useModelSelection(
     }
   }
 
-  // Pilihan yang tersimpan bisa jadi menunjuk penyedia yang kuncinya SUDAH
-  // dicabut lagi. Server tetap yang memutuskan, tapi UI tidak boleh memamerkan
-  // mesin yang tidak akan dipakai — jadi di sini pun jatuh ke bawaan.
   function resolveProvider(model: PlanModelId): ModelProviderId {
-    const stored = providerByModel[model];
-
-    if (stored && availableProviders.includes(stored)) {
-      return stored;
-    }
-
-    return availableProviders.includes(defaultModelProvider)
-      ? defaultModelProvider
-      : availableProviders[0] ?? defaultModelProvider;
+    return getModelProvider(model);
   }
 
   function selectProvider(model: PlanModelId, provider: ModelProviderId) {
-    if (!allowedModels.includes(model)) {
-      openUpgradeModal(model);
+    const equivalent = getEquivalentModel(model, provider);
+    if (!equivalent) {
       return;
     }
 
-    // Penyedia tanpa mesin untuk model itu, atau tanpa kunci, tidak bisa
-    // dipilih — barisnya memang dirender mati di menu.
-    if (!getModelEngine(model, provider) || !availableProviders.includes(provider)) {
-      return;
+    selectModel(equivalent);
+  }
+
+  function setCredentialMode(mode: CredentialMode) {
+    if (!canUseModel(selectedModel, mode)) {
+      const fallbackModel = modelOptions.find((model) => canUseModel(model, mode));
+      if (fallbackModel) {
+        setSelectedModel(fallbackModel);
+      }
     }
 
-    const next = { ...providerByModel, [model]: provider };
-    setProviderByModel(next);
-    window.localStorage.setItem(PROVIDER_STORAGE_KEY, JSON.stringify(next));
-    setSelectedModel(model);
-    setIsModelMenuOpen(false);
-    setIsEffortMenuOpen(false);
+    setCredentialModeState(mode);
+    window.localStorage.setItem(CREDENTIAL_MODE_STORAGE_KEY, mode);
   }
 
   const selectedProvider = resolveProvider(selectedModel);
   const selectedModelInfo = modelCatalog[selectedModel];
-  const selectedEngineLabel = resolveEngineLabel(selectedModel, selectedProvider);
+  const selectedEngineLabel = selectedModelInfo.label;
   const upgradePlan = getUpgradePlanForModel(upgradeTargetModel);
 
   return {
@@ -173,6 +151,11 @@ export function useModelSelection(
     setSelectedModel,
     selectedProvider,
     selectedEngineLabel,
+    credentialMode,
+    setCredentialMode,
+    canUseModel,
+    byokProviders,
+    modelOptions,
     resolveProvider,
     selectProvider,
     isModelMenuOpen,

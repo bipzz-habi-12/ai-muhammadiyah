@@ -37,11 +37,7 @@ import {
 } from "@/lib/mappers/conversation";
 import type { ActiveTool, ConversationRow } from "@/lib/mappers/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { type PlanModelId } from "@/lib/subscriptions/plans";
-
-type SelectedModel = PlanModelId;
-
-const modelOptions: SelectedModel[] = ["aether", "cosmos", "prism", "velo"];
+import { modelOptions as catalogModelOptions } from "@/lib/ai/model-catalog";
 
 const supportedDocumentAccept =
   "application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp";
@@ -103,6 +99,7 @@ export default function Home() {
     currentTierLabel,
     allowedModels,
     availableProviders,
+    byokProviders,
     currentPlan,
     hasMessageQuota,
     hasUploadQuota,
@@ -132,6 +129,9 @@ export default function Home() {
     selectedProvider,
     selectProvider,
     selectedEngineLabel,
+    credentialMode,
+    setCredentialMode,
+    canUseModel,
     isModelMenuOpen,
     setIsModelMenuOpen,
     isEffortMenuOpen,
@@ -146,7 +146,7 @@ export default function Home() {
     setEffort,
     isThinkingEnabled,
     toggleThinking,
-  } = useModelSelection(allowedModels, availableProviders);
+  } = useModelSelection(allowedModels, availableProviders, byokProviders);
   const {
     learningProfile,
     profileDraft,
@@ -171,9 +171,21 @@ export default function Home() {
   );
   const loadUsage = useCallback(async () => {
     const snapshot = await loadUsageSnapshot();
-    applyUsageConstraints(snapshot, skillsRef, setSelectedModel, setSelectedSkillId);
+    applyUsageConstraints(
+      snapshot,
+      skillsRef,
+      setSelectedModel,
+      setSelectedSkillId,
+      credentialMode,
+    );
     return snapshot;
-  }, [loadUsageSnapshot, skillsRef, setSelectedModel, setSelectedSkillId]);
+  }, [
+    credentialMode,
+    loadUsageSnapshot,
+    skillsRef,
+    setSelectedModel,
+    setSelectedSkillId,
+  ]);
   const {
     uploadedAttachments,
     setUploadedAttachments,
@@ -229,6 +241,7 @@ export default function Home() {
     deleteArtifact,
     resetArtifacts,
   } = useArtifacts();
+  const canSendMessage = credentialMode === "byok" || hasMessageQuota;
   const {
     messages,
     input,
@@ -250,7 +263,7 @@ export default function Home() {
     setSelectedWorkspaceId,
     workspaces,
     usageSnapshot,
-    hasMessageQuota,
+    canSendMessage,
     allowedModels,
     loadUsage,
     skills,
@@ -259,6 +272,7 @@ export default function Home() {
     selectedSkill,
     selectedModel,
     setSelectedModel,
+    setCredentialMode,
     effort,
     isThinkingEnabled,
     uploadedAttachments,
@@ -279,6 +293,7 @@ export default function Home() {
     saveArtifacts,
     loadArtifacts,
     selectedProvider,
+    credentialMode,
   );
   const resetMemory = useCallback(() => {
     setActiveConversationId("");
@@ -439,7 +454,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from("conversations")
         .select(
-          "id,title,created_at,updated_at,selected_model,study_mode,document_metadata,workspace_id,is_pinned",
+          "id,title,created_at,updated_at,selected_model,credential_mode,study_mode,document_metadata,workspace_id,is_pinned",
         )
         .eq("id", pendingConversationId)
         .maybeSingle();
@@ -742,7 +757,7 @@ export default function Home() {
               sendMessage={sendMessage}
               isSending={isSending}
               isAwaitingFirstChunk={isAwaitingFirstChunk}
-              hasMessageQuota={hasMessageQuota}
+              hasMessageQuota={canSendMessage}
               messagesEndRef={messagesEndRef}
               setIsAttachMenuOpen={setIsAttachMenuOpen}
               renderAttachMenu={renderAttachMenu}
@@ -757,9 +772,13 @@ export default function Home() {
               selectedProvider={selectedProvider}
               selectProvider={selectProvider}
               availableProviders={availableProviders}
+              byokProviders={byokProviders}
+              credentialMode={credentialMode}
+              setCredentialMode={setCredentialMode}
+              canUseModel={canUseModel}
               selectedEngineLabel={selectedEngineLabel}
               isModelMenuOpen={isModelMenuOpen}
-              modelOptions={modelOptions}
+              modelOptions={catalogModelOptions}
               selectedModelInfo={selectedModelInfo}
               isEffortMenuOpen={isEffortMenuOpen}
               setIsEffortMenuOpen={setIsEffortMenuOpen}
@@ -787,7 +806,7 @@ export default function Home() {
                 setInput={setInput}
                 sendMessage={sendMessage}
                 isSending={isSending}
-                hasMessageQuota={hasMessageQuota}
+                hasMessageQuota={canSendMessage}
                 setIsAttachMenuOpen={setIsAttachMenuOpen}
                 renderAttachMenu={renderAttachMenu}
                 renderAttachmentChips={renderAttachmentChips}
@@ -801,9 +820,13 @@ export default function Home() {
                 selectedProvider={selectedProvider}
                 selectProvider={selectProvider}
                 availableProviders={availableProviders}
+                byokProviders={byokProviders}
+                credentialMode={credentialMode}
+                setCredentialMode={setCredentialMode}
+                canUseModel={canUseModel}
                 selectedEngineLabel={selectedEngineLabel}
                 isModelMenuOpen={isModelMenuOpen}
-                modelOptions={modelOptions}
+                modelOptions={catalogModelOptions}
                 selectedModelInfo={selectedModelInfo}
                 isEffortMenuOpen={isEffortMenuOpen}
                 setIsEffortMenuOpen={setIsEffortMenuOpen}
@@ -906,7 +929,7 @@ export default function Home() {
         setActiveSettingsTab={setActiveSettingsTab}
         profileDraft={profileDraft}
         updateProfileDraft={updateProfileDraft}
-        modelOptions={modelOptions}
+        modelOptions={catalogModelOptions}
         skills={skills}
         usageSnapshot={usageSnapshot}
         userId={userId}

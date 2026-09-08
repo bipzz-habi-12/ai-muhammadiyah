@@ -19,6 +19,12 @@ import {
   type ModelProviderId,
   type PlanModelId,
 } from "@/lib/subscriptions/plans";
+import {
+  modelCatalog,
+  modelOptions,
+  normalizeModelId,
+  type LegacyModelSlot,
+} from "@/lib/ai/model-catalog";
 import type { SubscriptionTier } from "@/lib/usage/limits";
 import {
   MAX_TOOL_ROUNDS,
@@ -107,6 +113,10 @@ type ChatContextOptions = {
    * Gemini dicoba lebih dulu dan OpenAI turun jadi cadangan pertama.
    */
   modelProvider?: ModelProviderId;
+  /** Key BYOK request-scoped. Tidak pernah disimpan atau dicatat oleh modul ini. */
+  apiKeyOverride?: string;
+  /** Mencegah seluruh fallback lintas provider/platform pada mode BYOK. */
+  strictProvider?: boolean;
 };
 type SelectedModel = PlanModelId;
 /**
@@ -407,7 +417,7 @@ const geminiMaxOutputTokens = 8000;
 // Gemini (lalu OpenRouter) tetap jadi cadangan otomatis untuk semua model.
 // ---------------------------------------------------------------------------
 const modelRuntimeConfig: Record<
-  SelectedModel,
+  LegacyModelSlot,
   { route: AiRoute; apiKeyEnv: string; modelEnv: string; defaultModel: string }
 > = {
   aether: {
@@ -472,7 +482,7 @@ const effortMaxOutputTokens: Record<EffortLevel, number> = {
  * plafon token, bukan kedalaman reasoning.
  */
 const modelEffortValues: Record<
-  SelectedModel,
+  LegacyModelSlot,
   Record<EffortLevel, OpenAiEffortValue>
 > = {
   aether: { low: "low", medium: "medium", high: "high", extra: "xhigh", ultra: "max" },
@@ -487,7 +497,7 @@ const modelEffortValues: Record<
  * Nilai saat toggle "Pemikiran" dimatikan: benar-benar tanpa reasoning.
  * Velo tidak mendukung 'none', jadi turun sejauh yang diizinkan ('medium').
  */
-const thinkingOffEffort: Record<SelectedModel, OpenAiEffortValue> = {
+const thinkingOffEffort: Record<LegacyModelSlot, OpenAiEffortValue> = {
   aether: "none",
   cosmos: "none",
   prism: "none",
@@ -504,11 +514,12 @@ function resolveEffortRuntime(
 ) {
   const level = normalizeEffortLevel(options?.effort);
   const isThinkingOff = options?.thinking === false;
+  const slot = modelCatalog[selectedModel].legacySlot;
 
   return {
     openAiEffort: isThinkingOff
-      ? thinkingOffEffort[selectedModel]
-      : modelEffortValues[selectedModel][level],
+      ? thinkingOffEffort[slot]
+      : modelEffortValues[slot][level],
     maxOutputTokens: isThinkingOff
       ? effortMaxOutputTokens.low
       : effortMaxOutputTokens[level],
@@ -518,11 +529,7 @@ function resolveEffortRuntime(
 type EffortRuntime = ReturnType<typeof resolveEffortRuntime>;
 
 function normalizeSelectedModel(selectedModel?: string): SelectedModel {
-  if (selectedModel && selectedModel in modelRuntimeConfig) {
-    return selectedModel as SelectedModel;
-  }
-
-  return defaultModelId;
+  return normalizeModelId(selectedModel);
 }
 
 function resolveOpenRouterModel(route: AiRoute) {
@@ -540,23 +547,16 @@ function hasGeminiProAccess(tier: SubscriptionTier) {
 // Model id GPT untuk model publik terpilih: env per-model dulu, lalu
 // OPENAI_MODEL bersama, lalu default bawaan.
 function resolveOpenAiModel(selectedModel: SelectedModel = defaultModelId) {
-  const config = modelRuntimeConfig[selectedModel];
-  return (
-    process.env[config.modelEnv]?.trim() ||
-    process.env.OPENAI_MODEL?.trim() ||
-    config.defaultModel
-  );
+  return resolveEngineModelId("openai", selectedModel);
 }
 
 // API key GPT untuk model publik terpilih: key per-model dulu (supaya rate
 // limit tidak saling menjatuhkan), lalu OPENAI_API_KEY bersama.
-function resolveOpenAiApiKey(selectedModel: SelectedModel = defaultModelId) {
-  const config = modelRuntimeConfig[selectedModel];
-  return (
-    process.env[config.apiKeyEnv]?.trim() ||
-    process.env.OPENAI_API_KEY?.trim() ||
-    ""
-  );
+function resolveOpenAiApiKey(
+  selectedModel: SelectedModel = defaultModelId,
+  apiKeyOverride?: string,
+) {
+  return resolveEngineApiKey("openai", selectedModel, apiKeyOverride);
 }
 
 // Semua model keluarga GPT-5 (gpt-5-mini, gpt-5.5, gpt-5.6-terra, ...) menolak
@@ -577,9 +577,7 @@ function shouldTryOpenAiFirst(selectedModel: SelectedModel = defaultModelId) {
 // OPENAI_API_KEY bersama (karena sudah pindah ke key per-model) akan membuat
 // chat mengira tidak ada AI dan menjawab mock.
 function hasAnyOpenAiKey() {
-  return (
-    Object.keys(modelRuntimeConfig) as SelectedModel[]
-  ).some((model) => Boolean(resolveOpenAiApiKey(model)));
+  return modelOptions.some((model) => Boolean(resolveOpenAiApiKey(model)));
 }
 
 function createOpenAiResponsesPayload({
@@ -656,7 +654,7 @@ function routeSelectedModel(
   pdfContext: string,
   hasImages = false,
 ): AiRoute {
-  const baseRoute = modelRuntimeConfig[selectedModel].route;
+  const baseRoute = modelCatalog[selectedModel].route;
 
   if (baseRoute === "document") {
     return baseRoute;
@@ -675,7 +673,7 @@ function normalizeRoutingAccess(access?: RoutingAccess) {
     allowedModels:
       access?.allowedModels && access.allowedModels.length
         ? access.allowedModels
-        : Object.keys(modelRuntimeConfig),
+        : modelOptions,
   };
 }
 
@@ -913,14 +911,14 @@ function createModelUnavailableFallback(pdfContext: string) {
     return [
       "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
       "",
-      "Dokumen sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih model yang lebih ringan seperti Aether.",
+      "Dokumen sudah berhasil dibaca, jadi kamu bisa mencoba lagi sebentar lagi atau pilih model yang lebih ringan.",
     ].join("\n");
   }
 
   return [
     "Maaf, model AI pilihan sedang penuh atau belum bisa menjawab saat ini.",
     "",
-    "Silakan coba lagi sebentar lagi, atau pilih model yang lebih ringan seperti Aether.",
+    "Silakan coba lagi sebentar lagi, atau pilih model yang lebih ringan.",
   ].join("\n");
 }
 
@@ -1603,13 +1601,15 @@ async function generateOpenAiGptReply(
   imageContexts: ImageContext[] = [],
   selectedModel: SelectedModel = defaultModelId,
   effortRuntime?: EffortRuntime,
+  apiKeyOverride?: string,
+  modelIdOverride?: string,
 ): Promise<OpenAiReplyResult> {
-  const openAiApiKey = resolveOpenAiApiKey(selectedModel);
-  const openAiModel = resolveOpenAiModel(selectedModel);
+  const openAiApiKey = resolveOpenAiApiKey(selectedModel, apiKeyOverride);
+  const openAiModel = modelIdOverride || resolveOpenAiModel(selectedModel);
 
   if (!openAiApiKey) {
     const error = {
-      errorBody: `API key untuk model ${selectedModel} belum diisi (${modelRuntimeConfig[selectedModel].apiKeyEnv} atau OPENAI_API_KEY)`,
+      errorBody: `API key untuk model ${selectedModel} belum diisi (${modelRuntimeConfig[modelCatalog[selectedModel].legacySlot].apiKeyEnv} atau OPENAI_API_KEY)`,
     };
     logOpenAiRequestEvent("request failure", {
       model: openAiModel,
@@ -2403,9 +2403,16 @@ async function streamAnthropicReply(
   imageContexts: ImageContext[] = [],
   selectedModel: SelectedModel = defaultModelId,
   effortRuntime?: EffortRuntime,
+  apiKeyOverride?: string,
+  modelIdOverride?: string,
 ): Promise<StreamProviderResult | null> {
-  const apiKey = resolveEngineApiKey("anthropic", selectedModel);
-  const model = resolveEngineModelId("anthropic", selectedModel);
+  const apiKey = resolveEngineApiKey(
+    "anthropic",
+    selectedModel,
+    apiKeyOverride,
+  );
+  const model =
+    modelIdOverride || resolveEngineModelId("anthropic", selectedModel);
 
   // Tanpa salah satunya, penyedia ini memang belum terpasang — bukan error.
   if (!apiKey || !model) {
@@ -2528,16 +2535,18 @@ async function streamOpenAiGptReply(
   imageContexts: ImageContext[] = [],
   selectedModel: SelectedModel = defaultModelId,
   effortRuntime?: EffortRuntime,
+  apiKeyOverride?: string,
+  modelIdOverride?: string,
 ): Promise<OpenAiStreamResult | null> {
-  const openAiApiKey = resolveOpenAiApiKey(selectedModel);
-  const openAiModel = resolveOpenAiModel(selectedModel);
+  const openAiApiKey = resolveOpenAiApiKey(selectedModel, apiKeyOverride);
+  const openAiModel = modelIdOverride || resolveOpenAiModel(selectedModel);
   let streamedText = "";
   let streamedFinishReason: string | undefined;
   let streamedError: OpenAiErrorDetails | undefined;
 
   if (!openAiApiKey) {
     const error = {
-      errorBody: `API key untuk model ${selectedModel} belum diisi (${modelRuntimeConfig[selectedModel].apiKeyEnv} atau OPENAI_API_KEY)`,
+      errorBody: `API key untuk model ${selectedModel} belum diisi (${modelRuntimeConfig[modelCatalog[selectedModel].legacySlot].apiKeyEnv} atau OPENAI_API_KEY)`,
     };
     logOpenAiRequestEvent("request failure", {
       model: openAiModel,
@@ -2711,6 +2720,7 @@ async function generateProviderReply(
       options?.imageContexts,
       selectedModel,
       effortRuntime,
+      options?.apiKeyOverride,
     );
 
     if (openAiResult.reply) {
@@ -2935,8 +2945,13 @@ export async function streamChatReply(
   // branch entirely for this one turn and goes straight to Gemini with
   // search enabled — see needsWebSearch() and CLAUDE.md's routing exception
   // note. Every other turn is unaffected.
+  const selectedProvider = modelCatalog[normalizedModel].provider;
+  const isStrictByok = options?.strictProvider === true;
   const shouldSearchWeb =
-    needsWebSearch(latestMessage) && Boolean(process.env.GEMINI_API_KEY);
+    needsWebSearch(latestMessage) &&
+    (isStrictByok
+      ? selectedProvider === "google" && Boolean(options?.apiKeyOverride)
+      : Boolean(process.env.GEMINI_API_KEY));
 
   if (shouldUsePdfContext && isPdfContextTooShort(preparedPdfContext)) {
     const reply = createShortPdfFallback(preparedPdfContext);
@@ -2947,6 +2962,102 @@ export async function streamChatReply(
       model: process.env.OPENROUTER_API_KEY
         ? resolveOpenRouterModel(route)
         : "mock",
+    };
+  }
+
+  if (isStrictByok) {
+    if (!options?.apiKeyOverride) {
+      throw new Error("API key pribadi untuk provider ini belum tersedia.");
+    }
+
+    const effortRuntime = resolveEffortRuntime(options, normalizedModel);
+
+    if (selectedProvider === "openai") {
+      const result = await streamOpenAiGptReply(
+        recentMessages,
+        pdfContext,
+        onChunk,
+        systemPrompt,
+        memory,
+        options.knowledgeContext,
+        options.documentContexts,
+        options.imageContexts,
+        normalizedModel,
+        effortRuntime,
+        options.apiKeyOverride,
+        modelCatalog[normalizedModel].apiModelId,
+      );
+
+      if (!result?.reply) {
+        throw new Error("OpenAI menolak atau gagal memproses API key pribadi.");
+      }
+
+      return {
+        reply: result.reply,
+        provider: "openai" as const,
+        model: modelCatalog[normalizedModel].apiModelId,
+        finishReason: result.finishReason,
+      };
+    }
+
+    if (selectedProvider === "anthropic") {
+      const result = await streamAnthropicReply(
+        recentMessages,
+        pdfContext,
+        onChunk,
+        systemPrompt,
+        memory,
+        options.knowledgeContext,
+        options.documentContexts,
+        options.imageContexts,
+        normalizedModel,
+        effortRuntime,
+        options.apiKeyOverride,
+        modelCatalog[normalizedModel].apiModelId,
+      );
+
+      if (!result?.reply) {
+        throw new Error(
+          "Anthropic menolak atau gagal memproses API key pribadi.",
+        );
+      }
+
+      return {
+        reply: result.reply,
+        provider: "anthropic" as const,
+        model: modelCatalog[normalizedModel].apiModelId,
+        finishReason: result.finishReason,
+      };
+    }
+
+    const geminiModel = modelCatalog[normalizedModel].apiModelId;
+    const result = await streamGeminiReplyWithFallback(
+      recentMessages,
+      pdfContext,
+      onChunk,
+      route,
+      access.tier,
+      systemPrompt,
+      memory,
+      options.knowledgeContext,
+      options.documentContexts,
+      options.imageContexts,
+      shouldSearchWeb,
+      [geminiModel],
+      options.apiKeyOverride,
+    );
+
+    if (!result?.reply) {
+      throw new Error("Google menolak atau gagal memproses API key pribadi.");
+    }
+
+    return {
+      reply: result.reply,
+      provider: "gemini" as const,
+      model: result.model,
+      finishReason: result.finishReason,
+      sources: result.sources,
+      searchQueries: result.searchQueries,
     };
   }
 

@@ -1,17 +1,27 @@
 import { tierLabels, type SubscriptionTier } from "@/lib/usage/limits";
+import {
+  defaultModelId,
+  defaultModelProvider,
+  getEquivalentModel,
+  modelCatalog,
+  modelOptions,
+  modelProviderLabels,
+  modelProviderOrder,
+  normalizeModelProvider,
+  type ModelProviderId,
+  type PlanModelId,
+} from "@/lib/ai/model-catalog";
 
-/**
- * Model yang dipilih pengguna. Empat-empatnya rute GPT (masing-masing punya
- * API key + model id sendiri lewat env, supaya tidak saling menghabiskan rate
- * limit); Gemini tetap jadi cadangan otomatis kalau GPT gagal.
- *
- * Id lama (auto/fast/smart/document) sudah tidak dipakai UI, tapi tetap
- * diizinkan di DB agar baris usage historis tidak melanggar constraint.
- */
-export type PlanModelId = "aether" | "cosmos" | "prism" | "velo";
-
-/** Model default saat pengguna belum memilih apa pun. */
-export const defaultModelId: PlanModelId = "prism";
+export {
+  defaultModelId,
+  defaultModelProvider,
+  modelCatalog,
+  modelOptions,
+  modelProviderLabels,
+  modelProviderOrder,
+  normalizeModelProvider,
+};
+export type { CredentialMode, ModelProviderId, PlanModelId } from "@/lib/ai/model-catalog";
 
 /**
  * Level "Upaya". Makin tinggi levelnya, makin dalam model berpikir dan makin
@@ -106,87 +116,10 @@ export const planOrder: SubscriptionTier[] = [
   "sinergi_ranting",
 ];
 
-export const modelCatalog: Record<
-  PlanModelId,
-  {
-    label: string;
-    shortLabel: string;
-    /** Versi mesin di baliknya — ditampilkan kecil di bawah nama. */
-    engineLabel: string;
-    description: string;
-    premiumLabel: string;
-    minimumTier: SubscriptionTier;
-  }
-> = {
-  // Urutan = urutan tampil di pemilih model: tercanggih lebih dulu.
-  // Deskripsi mengikuti perilaku yang DIUKUR (pada upaya Sedang, pertanyaan
-  // sama): Aether ~3,7s · Cosmos ~2,6s · Prism ~2,5s · Velo ~28,5s.
-  aether: {
-    label: "Aether",
-    shortLabel: "Aether",
-    engineLabel: "GPT-5.6 Sol",
-    description: "Model terbaru dan paling canggih. Tajam sekaligus responsif.",
-    premiumLabel: "Muallim Pro",
-    minimumTier: "muallim_pro",
-  },
-  cosmos: {
-    label: "Cosmos",
-    shortLabel: "Cosmos",
-    engineLabel: "GPT-5.6 Terra",
-    description: "Seimbang dan cepat untuk tugas sehari-hari.",
-    premiumLabel: "Muallim Pro",
-    minimumTier: "muallim_pro",
-  },
-  prism: {
-    label: "Prism",
-    shortLabel: "Prism",
-    engineLabel: "GPT-5.6 Luna",
-    description: "Penalaran tajam untuk analisis dan strategi.",
-    premiumLabel: "Included",
-    minimumTier: "free",
-  },
-  velo: {
-    label: "Velo",
-    shortLabel: "Velo",
-    engineLabel: "GPT-5.5 Pro",
-    description:
-      "Generasi sebelumnya. Menimbang paling lama — cocok untuk soal berat, tapi jawabannya lebih lambat.",
-    premiumLabel: "Included",
-    minimumTier: "free",
-  },
-};
-
-// ---------------------------------------------------------------------------
-// Mesin per model (Langkah 54)
-//
-// Nama produknya tetap empat. Yang bertambah: tiap nama bisa dijalankan oleh
-// mesin dari tiga penyedia, dan PENGGUNA yang memilih. Ini menggantikan asumsi
-// lama "keempat model = rute GPT" — lihat catatan routing di CLAUDE.md.
-//
-// Pemetaannya mengikuti satu aturan: dalam satu penyedia, mesin diurutkan dari
-// yang paling dalam berpikir ke yang paling cepat, lalu dipasangkan ke nama
-// model dengan urutan yang sama (Aether paling canggih → Velo generasi
-// sebelumnya). Gemini hanya punya dua mesin, jadi 3.7 Flash dipakai ulang untuk
-// tiga nama di bawah Aether.
-//
-// Berkas ini client-safe: hanya label dan id, tidak pernah menyentuh API key.
-// Ketersediaan penyedia diputuskan di server (lib/ai/providers.ts) dan dikirim
-// ke klien lewat snapshot pemakaian.
-// ---------------------------------------------------------------------------
-
-export type ModelProviderId = "google" | "openai" | "anthropic";
-
-export const modelProviderOrder: ModelProviderId[] = [
-  "google",
-  "openai",
-  "anthropic",
-];
-
-export const modelProviderLabels: Record<ModelProviderId, string> = {
-  google: "Google",
-  openai: "OpenAI",
-  anthropic: "Anthropic",
-};
+const includedPlatformModels = modelOptions.filter(
+  (model) => modelCatalog[model].minimumTier === "free",
+);
+const allPlatformModels = [...modelOptions];
 
 export type ModelEngine = {
   provider: ModelProviderId;
@@ -194,49 +127,26 @@ export type ModelEngine = {
   engineLabel: string;
 };
 
-export const modelEngines: Record<PlanModelId, ModelEngine[]> = {
-  aether: [
-    { provider: "google", engineLabel: "Gemini 3.1 Pro" },
-    { provider: "openai", engineLabel: "GPT-5.6 Sol" },
-    { provider: "anthropic", engineLabel: "Claude Fable 5" },
-  ],
-  cosmos: [
-    { provider: "google", engineLabel: "Gemini 3.7 Flash" },
-    { provider: "openai", engineLabel: "GPT-5.6 Terra" },
-    { provider: "anthropic", engineLabel: "Claude Opus 5" },
-  ],
-  prism: [
-    { provider: "google", engineLabel: "Gemini 3.7 Flash" },
-    { provider: "openai", engineLabel: "GPT-5.6 Luna" },
-    { provider: "anthropic", engineLabel: "Claude Opus 4.8" },
-  ],
-  velo: [
-    { provider: "google", engineLabel: "Gemini 3.7 Flash" },
-    { provider: "openai", engineLabel: "GPT-5.5 Pro" },
-    { provider: "anthropic", engineLabel: "Claude Sonnet 5" },
-  ],
-};
-
-/**
- * Penyedia bawaan. Tetap OpenAI: itu perilaku yang sudah berjalan di produksi,
- * jadi pengguna yang belum pernah memilih apa pun tidak berubah pengalamannya.
- */
-export const defaultModelProvider: ModelProviderId = "openai";
-
-export function normalizeModelProvider(value: unknown): ModelProviderId {
-  return value === "google" || value === "openai" || value === "anthropic"
-    ? value
-    : defaultModelProvider;
-}
+export const modelEngines = Object.fromEntries(
+  modelOptions.map((model) => [
+    model,
+    modelProviderOrder.flatMap((provider) => {
+      const equivalent = getEquivalentModel(model, provider);
+      return equivalent
+        ? [{ provider, engineLabel: modelCatalog[equivalent].label }]
+        : [];
+    }),
+  ]),
+) as Record<PlanModelId, ModelEngine[]>;
 
 export function getModelEngine(
   model: PlanModelId,
   provider: ModelProviderId,
 ): ModelEngine | null {
-  return (
-    (modelEngines[model] ?? []).find((engine) => engine.provider === provider) ??
-    null
-  );
+  const equivalent = getEquivalentModel(model, provider);
+  return equivalent
+    ? { provider, engineLabel: modelCatalog[equivalent].label }
+    : null;
 }
 
 /**
@@ -248,11 +158,7 @@ export function resolveEngineLabel(
   model: PlanModelId,
   provider: ModelProviderId,
 ) {
-  return (
-    getModelEngine(model, provider)?.engineLabel ??
-    getModelEngine(model, defaultModelProvider)?.engineLabel ??
-    modelCatalog[model].engineLabel
-  );
+  return getModelEngine(model, provider)?.engineLabel ?? modelCatalog[model].label;
 }
 
 /**
@@ -275,12 +181,12 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Mulai belajar dengan M-Agent.",
     sessionTokenLimit: 160_000,
     weeklyTokenLimit: 960_000,
-    modelNames: ["Prism", "Velo"],
-    modelBadges: ["Prism (GPT-5.6 Luna)"],
+    modelNames: ["GPT-5.6 Luna", "GPT-5.5 Pro", "Gemini 2.5 Flash", "Claude cepat"],
+    modelBadges: ["GPT-5.6 Luna", "Pilihan model asli"],
     isGptPowered: true,
-    allowedModels: ["prism", "velo"],
+    allowedModels: includedPlatformModels,
     features: [
-      "Chat AI streaming ditenagai Prism (GPT-5.6 Luna)",
+      "Chat AI streaming dengan model asli dari penyedia",
       "Riwayat obrolan tersimpan",
       "Upload dokumen dasar",
       "Skill bawaan siap pakai lewat perintah /",
@@ -295,12 +201,12 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk kader dan pelajar aktif.",
     sessionTokenLimit: 800_000,
     weeklyTokenLimit: 5_600_000,
-    modelNames: ["Prism", "Velo"],
-    modelBadges: ["Prism (GPT-5.6 Luna)", "Kuota lebih besar"],
+    modelNames: ["GPT-5.6 Luna", "GPT-5.5 Pro", "Gemini 2.5 Flash", "Claude cepat"],
+    modelBadges: ["Model included", "Kuota lebih besar"],
     isGptPowered: true,
-    allowedModels: ["prism", "velo"],
+    allowedModels: includedPlatformModels,
     features: [
-      "Akses Prism & Velo",
+      "Akses model included OpenAI, Google, dan Anthropic",
       "Kuota 5 jam & mingguan lebih besar untuk belajar intensif",
       "Upaya tinggi untuk penalaran mendalam",
       "Skill custom tanpa batas + upaya tinggi",
@@ -315,13 +221,13 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk guru, mentor, dan pembimbing.",
     sessionTokenLimit: 2_400_000,
     weeklyTokenLimit: 16_000_000,
-    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
-    modelBadges: ["Buka Aether & Cosmos", "Semua model"],
+    modelNames: modelOptions.map((model) => modelCatalog[model].label),
+    modelBadges: ["Semua model platform", "Model unggulan"],
     isGptPowered: true,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: allPlatformModels,
     features: [
-      "Buka Aether (GPT-5.6 Sol) dan Cosmos (GPT-5.6 Terra)",
-      "Velo untuk dokumen besar dan riset konteks panjang",
+      "Buka GPT-5.6 Sol, GPT-5.6 Terra, Gemini Pro, dan Claude unggulan",
+      "Pilihan model untuk dokumen besar dan riset konteks panjang",
       "Skill domain untuk guru dan mentor",
     ],
     quotas: ["2,4jt token / 5 jam", "16jt token / minggu"],
@@ -334,14 +240,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk konten, dakwah, dan publikasi.",
     sessionTokenLimit: 4_800_000,
     weeklyTokenLimit: 32_000_000,
-    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
+    modelNames: modelOptions.map((model) => modelCatalog[model].label),
     modelBadges: [
       "Includes GPT-5.6 Terra",
-      "Velo untuk konteks panjang",
+      "Model konteks panjang",
       "Voice routing ready",
     ],
     isGptPowered: true,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: allPlatformModels,
     features: [
       "Routing GPT-5.6 Terra untuk naskah dan ide konten",
       "Rute siap voice untuk fitur suara berikutnya",
@@ -358,14 +264,14 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     tagline: "Untuk ranting, sekolah, dan tim bersama.",
     sessionTokenLimit: 16_000_000,
     weeklyTokenLimit: 112_000_000,
-    modelNames: ["Aether", "Cosmos", "Prism", "Velo"],
+    modelNames: modelOptions.map((model) => modelCatalog[model].label),
     modelBadges: [
       "Includes GPT-5.6 Terra",
-      "Velo untuk konteks panjang",
+      "Model konteks panjang",
       "Full routing access",
     ],
     isGptPowered: true,
-    allowedModels: ["aether", "cosmos", "prism", "velo"],
+    allowedModels: allPlatformModels,
     features: [
       "Semua model bersama untuk tim",
       "Kuota tertinggi untuk aktivitas organisasi",

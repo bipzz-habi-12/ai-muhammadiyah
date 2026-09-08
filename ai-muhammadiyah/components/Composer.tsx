@@ -10,6 +10,12 @@ import {
 } from "react";
 import { Icon } from "@/components/icons";
 import {
+  credentialModeLabels,
+  getModelProvider,
+  modelProviderOrder,
+  type CredentialMode,
+} from "@/lib/ai/model-catalog";
+import {
   getLockedModelRequirement,
   getLockedSkillRequirement,
 } from "@/lib/chat/selection-labels";
@@ -19,7 +25,6 @@ import {
   effortLevels,
   getEffortLabel,
   modelCatalog,
-  modelEngines,
   modelProviderLabels,
   type EffortLevel,
   type ModelProviderId,
@@ -50,13 +55,21 @@ interface ComposerProps {
   selectedModel: PlanModelId;
   // `keepMenuOpen` dipakai pemilih dua kolom: memilih nama model TIDAK menutup
   // menu, supaya pengguna bisa langsung memilih mesinnya di kolom kanan.
-  selectModel: (model: PlanModelId, keepMenuOpen?: boolean) => void;
+  selectModel: (
+    model: PlanModelId,
+    keepMenuOpen?: boolean,
+    mode?: CredentialMode,
+  ) => void;
   allowedModels: string[];
 
   // mesin per model (Langkah 54)
   selectedProvider: ModelProviderId;
   selectProvider: (model: PlanModelId, provider: ModelProviderId) => void;
   availableProviders: ModelProviderId[];
+  byokProviders: ModelProviderId[];
+  credentialMode: CredentialMode;
+  setCredentialMode: (mode: CredentialMode) => void;
+  canUseModel: (model: PlanModelId, mode?: CredentialMode) => boolean;
   selectedEngineLabel: string;
   isModelMenuOpen: boolean;
   setIsModelMenuOpen: Dispatch<SetStateAction<boolean>>;
@@ -104,10 +117,10 @@ export default function Composer({
   selectedModel,
   selectModel,
   allowedModels,
-  selectedProvider,
-  selectProvider,
-  availableProviders,
-  selectedEngineLabel,
+  byokProviders,
+  credentialMode,
+  setCredentialMode,
+  canUseModel,
   isModelMenuOpen,
   setIsModelMenuOpen,
   modelOptions,
@@ -137,10 +150,7 @@ export default function Composer({
   // this flag to dismiss it without wiping the text; typing anything that no
   // longer starts with "/" re-arms it.
   const [isSlashDismissed, setIsSlashDismissed] = useState(false);
-  // Model yang mesinnya sedang ditampilkan di kolom kanan. Tidak sama dengan
-  // model terpilih: pengguna boleh mengintip mesin milik model lain sebelum
-  // memutuskan.
-  const [previewModel, setPreviewModel] = useState<PlanModelId>(selectedModel);
+  const [modelSearch, setModelSearch] = useState("");
 
   const isSlashCommand = input.startsWith("/");
   const isSlashPickerOpen = isSlashCommand && !isSlashDismissed;
@@ -217,8 +227,7 @@ export default function Composer({
 
   function toggleModelMenu() {
     setIsStudyModeMenuOpen(false);
-    // Tiap kali menu dibuka, kolom kanan kembali ke model yang sedang dipakai.
-    setPreviewModel(selectedModel);
+    setModelSearch("");
     setIsModelMenuOpen((isOpen) => !isOpen);
   }
 
@@ -227,136 +236,140 @@ export default function Composer({
     setIsStudyModeMenuOpen((isOpen) => !isOpen);
   }
 
-  // Popover model — DUA KOLOM MENYAMPING (Langkah 54).
-  //
-  // Kiri: nama model. Kanan: mesin yang menjalankan model yang sedang disorot.
-  // Sengaja bukan akordeon yang membuka ke bawah: dengan 4 model x 3 mesin,
-  // versi menurun jadi daftar 12 baris yang harus digulung, dan pengguna
-  // kehilangan konteks "aku sedang melihat mesin milik model yang mana".
-  //
-  // Upaya / Pemikiran / AI Discussion tetap di kaki popover selebar penuh —
-  // ketiganya berlaku lintas model, jadi tidak masuk kolom mana pun.
+  // Picker searchable: nama yang tampil adalah nama model API sebenarnya.
+  // Sumber biaya dipilih eksplisit agar BYOK tidak pernah aktif diam-diam.
   function renderModelMenu() {
     if (!isModelMenuOpen) {
       return null;
     }
 
-    const engines = modelEngines[previewModel];
+    const normalizedSearch = modelSearch.trim().toLowerCase();
+    const matchingModels = modelOptions.filter((model) => {
+      const info = modelCatalog[model];
+      return (
+        !normalizedSearch ||
+        info.label.toLowerCase().includes(normalizedSearch) ||
+        modelProviderLabels[info.provider]
+          .toLowerCase()
+          .includes(normalizedSearch)
+      );
+    });
 
     return (
       <div
         className={`scroll absolute ${menuAnchor} ${menuMaxHeight} left-0 z-30 w-[min(94vw,468px)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] text-sm shadow-xl`}
       >
-        <div className="flex items-stretch">
-          <div className="flex w-[150px] shrink-0 flex-col gap-0.5 border-r border-[var(--hairline)] p-1.5">
-            <div className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--muted-3)]">
-              Model
-            </div>
-            {modelOptions.map((model) => {
-              const modelInfo = modelCatalog[model];
-              const isAllowed = allowedModels.includes(model);
-              const isPreviewed = previewModel === model;
-              const isSelected = selectedModel === model;
-
+        <div className="sticky top-0 z-10 space-y-2 border-b border-[var(--hairline)] bg-[var(--surface)] p-2.5">
+          <div className="grid grid-cols-2 rounded-xl bg-[var(--surface-panel)] p-1">
+            {(["platform", "byok"] as CredentialMode[]).map((mode) => {
+              const isDisabled = mode === "byok" && byokProviders.length === 0;
               return (
                 <button
-                  key={model}
+                  key={mode}
                   type="button"
                   onClick={() => {
-                    setPreviewModel(model);
-                    selectModel(model, true);
-                  }}
-                  onMouseEnter={() => setPreviewModel(model)}
-                  title={
-                    isAllowed
-                      ? modelInfo.description
-                      : getLockedModelRequirement(model)
-                  }
-                  className={
-                    isPreviewed
-                      ? "flex items-center gap-1.5 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-2 text-left"
-                      : "flex items-center gap-1.5 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-[var(--surface-alt)]"
-                  }
-                >
-                  <span
-                    className={
-                      isSelected
-                        ? "min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--brand)]"
-                        : "min-w-0 flex-1 truncate text-[13px] text-[var(--ink-soft)]"
+                    if (isDisabled) {
+                      router.push("/settings/providers");
+                      return;
                     }
-                  >
-                    {modelInfo.label}
-                  </span>
-                  {!isAllowed && (
-                    <Icon
-                      name="lock"
-                      className="h-3 w-3 shrink-0 text-[var(--gold-ink-2)]"
-                    />
-                  )}
-                  {isSelected && (
-                    <Icon
-                      name="check"
-                      className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-1.5">
-            <div className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--muted-3)]">
-              Mesin {modelCatalog[previewModel].label}
-            </div>
-            {engines.map((engine) => {
-              const isReady = availableProviders.includes(engine.provider);
-              const isCurrent =
-                selectedModel === previewModel &&
-                selectedProvider === engine.provider;
-
-              return (
-                <button
-                  key={engine.provider}
-                  type="button"
-                  onClick={() => selectProvider(previewModel, engine.provider)}
-                  disabled={!isReady}
-                  title={
-                    isReady
-                      ? engine.engineLabel
-                      : modelProviderLabels[engine.provider] +
-                        " belum terpasang di server."
-                  }
+                    setCredentialMode(mode);
+                  }}
                   className={
-                    isCurrent
-                      ? "flex items-center gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-2 text-left"
-                      : isReady
-                        ? "flex items-center gap-2 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-[var(--surface-alt)]"
-                        : "flex cursor-not-allowed items-center gap-2 rounded-[10px] px-2.5 py-2 text-left opacity-55"
+                    credentialMode === mode
+                      ? "min-h-9 rounded-[10px] bg-[var(--surface)] px-2 text-[12px] font-semibold text-[var(--brand)]"
+                      : "min-h-9 rounded-[10px] px-2 text-[12px] font-medium text-[var(--muted-2)] transition hover:bg-[var(--surface-alt)]"
                   }
                 >
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate text-[13px] font-medium text-[var(--ink)]">
-                      {engine.engineLabel}
-                    </span>
-                    <span className="truncate text-[10.5px] text-[var(--muted-3)]">
-                      {modelProviderLabels[engine.provider]}
-                    </span>
-                  </span>
-                  {!isReady && (
-                    <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--gold-ink-2)]">
-                      Belum tersedia
-                    </span>
-                  )}
-                  {isCurrent && (
-                    <Icon
-                      name="check"
-                      className="h-4 w-4 shrink-0 text-[var(--brand)]"
-                    />
-                  )}
+                  {credentialModeLabels[mode]}
                 </button>
               );
             })}
           </div>
+          <input
+            type="search"
+            value={modelSearch}
+            onChange={(event) => setModelSearch(event.target.value)}
+            placeholder="Cari model atau provider"
+            className="min-h-10 w-full rounded-xl border border-[var(--hairline)] bg-[var(--surface-alt)] px-3 text-[12.5px] text-[var(--ink)] outline-none focus:border-[var(--brand)]"
+          />
+        </div>
+
+        <div className="space-y-2 p-1.5">
+          {modelProviderOrder.map((provider) => {
+            const providerModels = matchingModels.filter(
+              (model) => getModelProvider(model) === provider,
+            );
+            if (!providerModels.length) return null;
+
+            return (
+              <div key={provider}>
+                <div className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--muted-3)]">
+                  {modelProviderLabels[provider]}
+                </div>
+                {providerModels.map((model) => {
+                  const info = modelCatalog[model];
+                  const isReady = canUseModel(model, credentialMode);
+                  const isSelected = selectedModel === model && isReady;
+                  const isTierLocked =
+                    credentialMode === "platform" &&
+                    !allowedModels.includes(model);
+
+                  return (
+                    <button
+                      key={model}
+                      type="button"
+                      onClick={() => {
+                        if (credentialMode === "byok" && !isReady) {
+                          router.push("/settings/providers");
+                          return;
+                        }
+                        selectModel(model, false, credentialMode);
+                      }}
+                      title={
+                        isReady
+                          ? info.description
+                          : isTierLocked
+                            ? getLockedModelRequirement(model)
+                            : credentialMode === "byok"
+                              ? `Pasang API key ${modelProviderLabels[provider]}`
+                              : "Model belum tersedia melalui kuota M-Agent."
+                      }
+                      className={
+                        isSelected
+                          ? "flex min-h-12 w-full items-center gap-2 rounded-[10px] bg-[var(--brand-soft)] px-2.5 py-2 text-left"
+                          : "flex min-h-12 w-full items-center gap-2 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-[var(--surface-alt)]"
+                      }
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-[13px] font-medium text-[var(--ink)]">
+                          {info.label}
+                        </span>
+                        <span className="truncate text-[10.5px] text-[var(--muted-3)]">
+                          {info.description}
+                        </span>
+                      </span>
+                      {!isReady && (
+                        <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--gold-ink-2)]">
+                          {isTierLocked ? info.premiumLabel : "Pasang key"}
+                        </span>
+                      )}
+                      {isSelected && (
+                        <Icon
+                          name="check"
+                          className="h-4 w-4 shrink-0 text-[var(--brand)]"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          {!matchingModels.length && (
+            <p className="px-3 py-5 text-center text-[12.5px] text-[var(--muted-3)]">
+              Model tidak ditemukan.
+            </p>
+          )}
         </div>
 
         <div className="border-t border-[var(--hairline)] p-1.5">
@@ -570,7 +583,7 @@ export default function Composer({
             {selectedModelInfo.shortLabel}
           </span>
           <span className="hidden max-w-[130px] truncate text-[11px] text-[var(--muted-3)] sm:inline">
-            {selectedEngineLabel}
+            {credentialModeLabels[credentialMode]}
           </span>
           <svg
             viewBox="0 0 24 24"

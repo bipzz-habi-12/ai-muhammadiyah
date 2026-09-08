@@ -1,7 +1,10 @@
-import type {
-  ModelProviderId,
-  PlanModelId,
-} from "@/lib/subscriptions/plans";
+import {
+  getEquivalentModel,
+  modelCatalog,
+  type LegacyModelSlot,
+  type ModelProviderId,
+  type PlanModelId,
+} from "@/lib/ai/model-catalog";
 
 /**
  * Satu tempat untuk SEMUA nama env kunci & id mesin — SERVER-ONLY.
@@ -21,7 +24,7 @@ import type {
  * `ANTHROPIC_API_KEY`) — jadi memasang satu kunci untuk semua model tetap sah.
  */
 
-const modelEnvSuffix: Record<PlanModelId, string> = {
+const modelEnvSuffix: Record<LegacyModelSlot, string> = {
   aether: "AETHER",
   cosmos: "COSMOS",
   prism: "PRISM",
@@ -41,34 +44,6 @@ const providerSharedKeyEnv: Record<ModelProviderId, string> = {
   anthropic: "ANTHROPIC_API_KEY",
 };
 
-/**
- * Id mesin bawaan kalau env-nya belum diisi.
- *
- * Anthropic SENGAJA kosong: id model Claude belum pernah diverifikasi di
- * proyek ini, dan menebaknya berarti mengirim id karangan ke API. Selama
- * `ANTHROPIC_MODEL_<MODEL>` kosong, model itu dianggap belum terpasang.
- */
-const defaultEngineIds: Record<
-  ModelProviderId,
-  Partial<Record<PlanModelId, string>>
-> = {
-  openai: {
-    aether: "gpt-5.6-sol",
-    cosmos: "gpt-5.6-terra",
-    prism: "gpt-5.6-luna",
-    velo: "gpt-5.5-pro",
-  },
-  google: {
-    // Aether memakai jalur Pro, tiga sisanya Flash — sama dengan peta mesin di
-    // lib/subscriptions/plans.ts.
-    aether: "gemini-2.5-pro",
-    cosmos: "gemini-2.5-flash",
-    prism: "gemini-2.5-flash",
-    velo: "gemini-2.5-flash",
-  },
-  anthropic: {},
-};
-
 function readEnv(name: string) {
   return process.env[name]?.trim() ?? "";
 }
@@ -77,21 +52,33 @@ export function engineApiKeyEnvName(
   provider: ModelProviderId,
   model: PlanModelId,
 ) {
-  return `${providerEnvPrefix[provider]}_API_KEY_${modelEnvSuffix[model]}`;
+  return `${providerEnvPrefix[provider]}_API_KEY_${
+    modelEnvSuffix[modelCatalog[model].legacySlot]
+  }`;
 }
 
 export function engineModelEnvName(
   provider: ModelProviderId,
   model: PlanModelId,
 ) {
-  return `${providerEnvPrefix[provider]}_MODEL_${modelEnvSuffix[model]}`;
+  return `${providerEnvPrefix[provider]}_MODEL_${
+    modelEnvSuffix[modelCatalog[model].legacySlot]
+  }`;
 }
 
-/** Kunci per model dulu, lalu kunci bersama penyedia. "" = belum terpasang. */
+/**
+ * Kunci request-scoped pengguna menang hanya bila diberikan secara eksplisit.
+ * Selain itu gunakan kunci platform per model lalu kunci bersama.
+ */
 export function resolveEngineApiKey(
   provider: ModelProviderId,
   model: PlanModelId,
+  userApiKey?: string,
 ) {
+  if (userApiKey?.trim()) {
+    return userApiKey.trim();
+  }
+
   return (
     readEnv(engineApiKeyEnvName(provider, model)) ||
     readEnv(providerSharedKeyEnv[provider])
@@ -114,31 +101,36 @@ export function resolveEngineModelId(
     return perModel.replace(/^models\//, "");
   }
 
+  const equivalentModel = getEquivalentModel(model, provider);
+  const catalogModelId = equivalentModel
+    ? modelCatalog[equivalentModel].apiModelId
+    : "";
+
   if (provider === "openai") {
-    return readEnv("OPENAI_MODEL") || defaultEngineIds.openai[model] || "";
+    return readEnv("OPENAI_MODEL") || catalogModelId;
   }
 
   if (provider === "google") {
+    const slot = modelCatalog[model].legacySlot;
     const legacy =
-      model === "aether"
+      slot === "aether"
         ? readEnv("GEMINI_PRO_MODEL")
         : readEnv("GEMINI_FLASH_MODEL") || readEnv("GEMINI_MODEL");
 
-    return (legacy || defaultEngineIds.google[model] || "").replace(
-      /^models\//,
-      "",
-    );
+    return (legacy || catalogModelId).replace(/^models\//, "");
   }
 
-  return defaultEngineIds.anthropic[model] ?? "";
+  return catalogModelId;
 }
 
 /** Mesin itu bisa dipakai kalau kunci DAN id modelnya sama-sama ada. */
 export function isEngineConfigured(
   provider: ModelProviderId,
   model: PlanModelId,
+  userApiKey?: string,
 ) {
   return Boolean(
-    resolveEngineApiKey(provider, model) && resolveEngineModelId(provider, model),
+    resolveEngineApiKey(provider, model, userApiKey) &&
+      resolveEngineModelId(provider, model),
   );
 }

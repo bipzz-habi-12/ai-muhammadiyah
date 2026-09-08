@@ -1,4 +1,5 @@
 import type { PlanModelId } from "@/lib/subscriptions/plans";
+import type { CredentialMode } from "@/lib/ai/model-catalog";
 
 // Mirrors the local type declarations in app/page.tsx (Message, Conversation,
 // Workspace, and their DB row counterparts). Duplicated here rather than imported
@@ -48,6 +49,7 @@ export type Message = {
   text: string;
   createdAt?: string;
   model?: PlanModelId;
+  credentialMode?: CredentialMode;
   skillId?: string | null;
   documentMetadata?: DocumentMetadata | null;
 };
@@ -58,6 +60,7 @@ export type Conversation = {
   createdAt: string;
   updatedAt: string;
   model: PlanModelId;
+  credentialMode: CredentialMode;
   skillId: string | null;
   documentMetadata: DocumentMetadata | null;
   workspaceId: string | null;
@@ -70,6 +73,7 @@ export type ConversationRow = {
   created_at: string;
   updated_at: string;
   selected_model: string | null;
+  credential_mode?: string | null;
   study_mode: string | null;
   document_metadata: DocumentMetadata | null;
   workspace_id: string | null;
@@ -83,6 +87,7 @@ export type MessageRow = {
   content: string;
   created_at: string;
   selected_model: string | null;
+  credential_mode?: string | null;
   study_mode: string | null;
   document_metadata: DocumentMetadata | null;
 };
@@ -91,6 +96,7 @@ export type SettingsTab =
   | "general"
   | "personalization"
   | "subscription"
+  | "providers"
   | "data"
   | "security"
   | "documents"

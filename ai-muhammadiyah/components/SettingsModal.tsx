@@ -34,6 +34,7 @@ const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: "personalization", label: "Personalization" },
   { id: "skills", label: "Skill saya" },
   { id: "subscription", label: "Subscription" },
+  { id: "providers", label: "API Keys" },
   { id: "data", label: "Data Controls" },
   { id: "security", label: "Security" },
   { id: "documents", label: "Documents" },
@@ -809,6 +810,28 @@ export default function SettingsModal({
                         : "Kelola langganan & invoice"}
                     </button>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeSettingsTab === "providers" && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-5">
+                  <h3 className="font-serif text-[24px] font-normal text-[var(--ink-deep)]">
+                    API key pribadi
+                  </h3>
+                  <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--muted-2)]">
+                    Hubungkan OpenAI, Google, atau Anthropic. Pemakaian melalui
+                    key pribadi ditagih langsung oleh provider dan tidak
+                    memotong kuota M-Agent.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/settings/providers")}
+                    className="mt-5 min-h-11 rounded-xl bg-[var(--brand)] px-5 text-[13.5px] font-semibold text-[var(--on-brand)] transition hover:bg-[var(--brand-hover)]"
+                  >
+                    Kelola API key
+                  </button>
                 </div>
               </div>
             )}

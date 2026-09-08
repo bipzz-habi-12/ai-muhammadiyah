@@ -1,3 +1,7 @@
+import {
+  isModelId,
+  normalizeCredentialMode,
+} from "@/lib/ai/model-catalog";
 import { defaultModelId, type PlanModelId } from "@/lib/subscriptions/plans";
 import type { Skill } from "@/lib/skills";
 import { resolveSkillIdFromLegacyValue } from "./legacy-study-mode";
@@ -7,19 +11,18 @@ import type { Conversation, ConversationRow, Workspace } from "./types";
 // Id itu sudah tidak ada di UI, jadi dipetakan ke model baru yang paling dekat
 // supaya riwayat tetap bisa dibuka tanpa error.
 const legacyModelMap: Record<string, PlanModelId> = {
-  auto: "cosmos",
-  fast: "aether",
-  smart: "cosmos",
-  document: "velo",
+  auto: "openai:gpt-5.6-terra",
+  fast: "openai:gpt-5.6-sol",
+  smart: "openai:gpt-5.6-terra",
+  document: "openai:gpt-5.5-pro",
+  aether: "openai:gpt-5.6-sol",
+  cosmos: "openai:gpt-5.6-terra",
+  prism: "openai:gpt-5.6-luna",
+  velo: "openai:gpt-5.5-pro",
 };
 
 export function normalizeSelectedModel(value?: string | null): PlanModelId {
-  if (
-    value === "aether" ||
-    value === "cosmos" ||
-    value === "prism" ||
-    value === "velo"
-  ) {
+  if (isModelId(value)) {
     return value;
   }
 
@@ -36,6 +39,7 @@ export function mapConversationRow(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     model: normalizeSelectedModel(row.selected_model),
+    credentialMode: normalizeCredentialMode(row.credential_mode),
     skillId: resolveSkillIdFromLegacyValue(row.study_mode, skills),
     documentMetadata: row.document_metadata,
     workspaceId: row.workspace_id,
