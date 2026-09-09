@@ -127,10 +127,7 @@ export default function Home() {
     selectedModel,
     setSelectedModel,
     selectedProvider,
-    selectProvider,
-    selectedEngineLabel,
     credentialMode,
-    setCredentialMode,
     canUseModel,
     isModelMenuOpen,
     setIsModelMenuOpen,
@@ -272,7 +269,6 @@ export default function Home() {
     selectedSkill,
     selectedModel,
     setSelectedModel,
-    setCredentialMode,
     effort,
     isThinkingEnabled,
     uploadedAttachments,
@@ -769,14 +765,8 @@ export default function Home() {
               selectedModel={selectedModel}
               selectModel={selectModel}
               allowedModels={allowedModels}
-              selectedProvider={selectedProvider}
-              selectProvider={selectProvider}
-              availableProviders={availableProviders}
-              byokProviders={byokProviders}
               credentialMode={credentialMode}
-              setCredentialMode={setCredentialMode}
               canUseModel={canUseModel}
-              selectedEngineLabel={selectedEngineLabel}
               isModelMenuOpen={isModelMenuOpen}
               modelOptions={catalogModelOptions}
               selectedModelInfo={selectedModelInfo}
@@ -817,14 +807,8 @@ export default function Home() {
                 selectedModel={selectedModel}
                 selectModel={selectModel}
                 allowedModels={allowedModels}
-                selectedProvider={selectedProvider}
-                selectProvider={selectProvider}
-                availableProviders={availableProviders}
-                byokProviders={byokProviders}
                 credentialMode={credentialMode}
-                setCredentialMode={setCredentialMode}
                 canUseModel={canUseModel}
-                selectedEngineLabel={selectedEngineLabel}
                 isModelMenuOpen={isModelMenuOpen}
                 modelOptions={catalogModelOptions}
                 selectedModelInfo={selectedModelInfo}

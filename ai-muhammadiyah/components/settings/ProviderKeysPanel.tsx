@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+  credentialModeStorageKey,
   modelProviderLabels,
+  normalizeCredentialMode,
+  type CredentialMode,
   type ModelProviderId,
 } from "@/lib/ai/model-catalog";
 
@@ -45,6 +48,32 @@ export default function ProviderKeysPanel() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [credentialMode, setCredentialMode] = useState<CredentialMode>(() =>
+    typeof window === "undefined"
+      ? "platform"
+      : normalizeCredentialMode(
+          window.localStorage.getItem(credentialModeStorageKey),
+        ),
+  );
+
+  function toggleCredentialMode() {
+    const nextMode: CredentialMode =
+      credentialMode === "byok" ? "platform" : "byok";
+
+    if (nextMode === "byok" && credentials.length === 0) {
+      setError("Pasang minimal satu API key sebelum mengaktifkan mode pribadi.");
+      return;
+    }
+
+    setError("");
+    setMessage(
+      nextMode === "byok"
+        ? "Chat sekarang memakai API key pribadi."
+        : "Chat sekarang memakai akses bawaan sesuai paket.",
+    );
+    setCredentialMode(nextMode);
+    window.localStorage.setItem(credentialModeStorageKey, nextMode);
+  }
 
   async function loadCredentials() {
     setIsLoading(true);
@@ -165,6 +194,10 @@ export default function ProviderKeysPanel() {
         throw new Error(data.error ?? "API key belum bisa dihapus.");
       }
 
+      if (credentialMode === "byok" && credentials.length === 1) {
+        setCredentialMode("platform");
+        window.localStorage.setItem(credentialModeStorageKey, "platform");
+      }
       setMessage(`${modelProviderLabels[provider]} dilepas dari akun.`);
       await loadCredentials();
     } catch (deleteError) {
@@ -181,14 +214,40 @@ export default function ProviderKeysPanel() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-4">
-        <h2 className="text-[15px] font-semibold text-[var(--ink)]">
-          Biaya langsung ke provider
-        </h2>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--muted-2)]">
-          Saat memilih “API key saya”, seluruh biaya dan limit ditanggung akun
-          provider kamu. M-Agent tidak memotong kuota platform dan tidak akan
-          memakai key M-Agent sebagai fallback.
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[var(--ink)]">
+              Gunakan API key pribadi
+            </h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--muted-2)]">
+              Jika aktif, biaya dan limit ditanggung akun provider kamu. Jika
+              nonaktif, chat menggunakan akses bawaan sesuai paket.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={credentialMode === "byok"}
+            onClick={toggleCredentialMode}
+            className={
+              credentialMode === "byok"
+                ? "relative h-7 w-12 shrink-0 rounded-full bg-[var(--brand)] transition"
+                : "relative h-7 w-12 shrink-0 rounded-full bg-[var(--surface-border)] transition"
+            }
+          >
+            <span
+              className={
+                credentialMode === "byok"
+                  ? "absolute left-6 top-1 h-5 w-5 rounded-full bg-white transition"
+                  : "absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition"
+              }
+            />
+            <span className="sr-only">
+              {credentialMode === "byok" ? "Nonaktifkan" : "Aktifkan"} API key
+              pribadi
+            </span>
+          </button>
+        </div>
       </div>
 
       {(error || message) && (

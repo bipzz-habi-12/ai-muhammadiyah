@@ -562,8 +562,31 @@ function resolveOpenAiApiKey(
 // Semua model keluarga GPT-5 (gpt-5-mini, gpt-5.5, gpt-5.6-terra, ...) menolak
 // parameter `temperature` di Responses API — jadi dicek per-keluarga,
 // bukan per-nama-model persis.
-function isGpt5FamilyModel(model: string) {
-  return model.toLowerCase().startsWith("gpt-5");
+function isOpenAiReasoningModel(model: string) {
+  const normalized = model.toLowerCase();
+  return (
+    normalized.startsWith("gpt-5") ||
+    normalized.startsWith("gpt-6") ||
+    normalized === "o3" ||
+    normalized === "o3-pro"
+  );
+}
+
+function resolveOpenAiEffortForModel(
+  model: string,
+  effort: OpenAiEffortValue,
+): OpenAiEffortValue {
+  if (model === "o3" || model === "o3-pro") {
+    if (effort === "none") {
+      return "low";
+    }
+
+    if (effort === "xhigh" || effort === "max") {
+      return "high";
+    }
+  }
+
+  return effort;
 }
 
 // OpenAI dicoba lebih dulu untuk SEMUA rute dan SEMUA tier (Gemini &
@@ -619,15 +642,17 @@ function createOpenAiResponsesPayload({
 
   // Keluarga GPT-5 mendukung `reasoning.effort` — ini yang membuat level Upaya
   // benar-benar mengubah kedalaman berpikir (dan pemakaian token), bukan cuma label.
-  if (effortRuntime && isGpt5FamilyModel(model)) {
-    payload.reasoning = { effort: effortRuntime.openAiEffort };
+  if (effortRuntime && isOpenAiReasoningModel(model)) {
+    payload.reasoning = {
+      effort: resolveOpenAiEffortForModel(model, effortRuntime.openAiEffort),
+    };
   }
 
   if (stream) {
     payload.stream = true;
   }
 
-  if (!isGpt5FamilyModel(model)) {
+  if (!isOpenAiReasoningModel(model)) {
     payload.temperature = 0.4;
   }
 
