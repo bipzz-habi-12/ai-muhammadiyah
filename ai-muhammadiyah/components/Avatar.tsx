@@ -1,9 +1,9 @@
+import BrandLogo from "@/components/BrandLogo";
+
 export default function Avatar() {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-950/40 sm:w-12 sm:h-12">
-        M
-      </div>
+      <BrandLogo className="h-11 w-11 sm:h-12 sm:w-12" />
 
       <div>
         <h2 className="font-bold text-lg">

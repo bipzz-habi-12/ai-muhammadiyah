@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import BrandLogo from "@/components/BrandLogo";
 import { getAuthErrorMessage, logAuthError } from "@/lib/auth/errors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -256,9 +257,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
         style={{ backgroundImage: brandPattern, backgroundSize: "96px 96px" }}
       >
         <Link href="/login" className="relative flex items-center gap-3">
-          <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[var(--gold)] text-[17px] font-bold text-[var(--brand-deep)]">
-            م
-          </span>
+          <BrandLogo className="h-[34px] w-[34px]" />
           <span className="text-[16.5px] font-semibold text-[var(--surface-tint)]">
             M-Agent
           </span>
@@ -298,9 +297,7 @@ export default function AuthCardPreview({ mode }: AuthCardPreviewProps) {
         <div className="w-full max-w-[400px] [animation:fade_.5s_ease]">
           {/* Brand row for small screens (brand panel is desktop-only) */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-[var(--brand)] text-[17px] font-bold text-[var(--on-brand)]">
-              م
-            </span>
+            <BrandLogo className="h-[34px] w-[34px]" />
             <span className="text-[16.5px] font-semibold text-[var(--ink-deep)]">
               M-Agent
             </span>

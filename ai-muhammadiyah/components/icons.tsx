@@ -1,24 +1,3 @@
-export function SparkIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 48 48"
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="3.5"
-    >
-      <path d="M29 5l-4.1 13.7L12 23l12.9 4.3L29 41l4.1-13.7L46 23l-12.9-4.3L29 5Z" />
-      <path d="M12 6l-1.8 5.2L5 13l5.2 1.8L12 20l1.8-5.2L19 13l-5.2-1.8L12 6Z" />
-      <path d="M10 35a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-      <path d="M40 8v7" />
-      <path d="M36.5 11.5h7" />
-    </svg>
-  );
-}
-
 export function Icon({
   name,
   className = "",

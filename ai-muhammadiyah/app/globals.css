@@ -297,19 +297,32 @@ body {
   }
 }
 
-/* Animasi jawaban ala Claude: spark berdenyut selagi AI bekerja, dan tiap
-   blok teks baru muncul dengan fade halus selama streaming. */
-@keyframes sparkPulse {
+/* Logo berpikir: hanya rotate (compositor/GPU). Linear + 1.8s supaya
+   hemat dan tidak pusing; will-change hanya hidup saat kelas spinning
+   terpasang. */
+@keyframes brand-logo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes brand-logo-pulse {
   0%,
   100% {
-    transform: scale(1);
     opacity: 1;
   }
 
   50% {
-    transform: scale(0.82);
-    opacity: 0.5;
+    opacity: 0.55;
   }
+}
+
+.brand-logo-spin {
+  transform-origin: 50% 50%;
+  animation: brand-logo-spin 1.8s linear infinite;
+  will-change: transform;
+  contain: layout style;
+  backface-visibility: hidden;
 }
 
 @keyframes blockIn {
@@ -336,7 +349,8 @@ body {
     animation: none;
   }
 
-  .animate-\[sparkPulse_1\.4s_ease-in-out_infinite\] {
-    animation: none;
+  .brand-logo-spin {
+    animation: brand-logo-pulse 1.6s ease-in-out infinite;
+    will-change: opacity;
   }
 }

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { Icon, SparkIcon } from "@/components/icons";
+import BrandLogo from "@/components/BrandLogo";
+import { Icon } from "@/components/icons";
 import { formatRelativeTime } from "@/lib/formatting/text";
 import type { groupConversationsByWorkspace } from "@/lib/mappers/conversation";
 import type { Conversation, SettingsTab, Workspace } from "@/lib/mappers/types";
@@ -277,12 +278,8 @@ export default function Sidebar({
   if (collapsed) {
     return (
       <aside className="relative hidden w-[64px] shrink-0 flex-col items-center border-r border-[var(--hairline)] bg-[var(--surface-panel)] py-3.5 md:flex">
-        <Link
-          href="/"
-          aria-label="Beranda"
-          className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-[var(--brand)] text-[var(--on-brand)]"
-        >
-          <SparkIcon className="h-[17px] w-[17px]" />
+        <Link href="/" aria-label="Beranda" className="shrink-0">
+          <BrandLogo className="h-[30px] w-[30px]" />
         </Link>
 
         <button
@@ -373,12 +370,8 @@ export default function Sidebar({
     <aside className="relative hidden w-[264px] shrink-0 flex-col border-r border-[var(--hairline)] bg-[var(--surface-panel)] md:flex">
       <div className="flex flex-col gap-3 p-3.5 pb-0">
         <div className="flex h-10 items-center gap-2.5">
-          <Link
-            href="/"
-            aria-label="Beranda"
-            className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] bg-[var(--brand)] text-[var(--on-brand)]"
-          >
-            <SparkIcon className="h-[17px] w-[17px]" />
+          <Link href="/" aria-label="Beranda" className="shrink-0">
+            <BrandLogo className="h-[30px] w-[30px]" />
           </Link>
           <span className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-tight text-[var(--ink)]">
             M-Agent

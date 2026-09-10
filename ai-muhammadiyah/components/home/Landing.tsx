@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 // Design v2 landing (Home.dc.html port). Static server component — no props,
 // hooks, or client JS (the design's scroll-reveal is progressive enhancement we
@@ -65,10 +66,10 @@ const audiences = [
 function Logo({ size = 34 }: { size?: number }) {
   return (
     <span
-      className="grid place-items-center rounded-[9px] bg-[var(--brand)] font-bold text-[var(--on-brand)]"
-      style={{ width: size, height: size, fontSize: size * 0.5 }}
+      className="inline-block shrink-0"
+      style={{ width: size, height: size }}
     >
-      م
+      <BrandLogo className="h-full w-full" />
     </span>
   );
 }
