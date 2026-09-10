@@ -424,10 +424,9 @@ export default function ChatArea({
                   M-Agent
                 </span>
               </div>
-              {/* Logo pusaran berputar searah jarum jam selagi AI berpikir,
-                  tanpa kotak "Sedang menjawab…" — label tetap ada untuk
-                  screen reader. */}
-              <BrandLogo spinning className="h-7 w-7" />
+              {/* Logo pusaran berputar terus (gaya Claude), tanpa kotak
+                  "Sedang menjawab…" — label tetap ada untuk screen reader. */}
+              <BrandLogo spinning className="h-8 w-8" />
               <span className="sr-only" role="status">
                 Sedang menjawab…
               </span>

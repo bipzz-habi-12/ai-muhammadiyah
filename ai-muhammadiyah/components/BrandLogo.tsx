@@ -1,9 +1,7 @@
-import Image from "next/image";
-
-// Mark pusaran M-Agent. Satu aset PNG transparan dipakai di setiap
-// kemunculan logo. Animasi "berpikir" hanya memutar transform (compositor /
-// GPU) — tidak ada filter, layout, atau box-shadow, supaya halaman tetap
-// stabil meski logo berputar selama streaming.
+// Mark pusaran M-Agent. Selalu di dalam kotak 1:1 supaya ukuran ikut
+// className (fleksibel) dan object-fit contain — tidak terpotong saat
+// skala atau saat berputar. Animasi berpikir: putaran linear terus-menerus
+// (gaya Claude), hanya transform/compositor.
 
 type BrandLogoProps = {
   className?: string;
@@ -18,24 +16,25 @@ export default function BrandLogo({
   alt = "",
   title,
 }: BrandLogoProps) {
-  const img = (
-    <Image
-      src="/logo-mark.png"
-      alt={alt}
-      title={title}
-      width={256}
-      height={256}
-      draggable={false}
-      sizes="72px"
-      className={spinning ? "block h-full w-full" : `block ${className}`}
-    />
-  );
-
-  if (!spinning) {
-    return img;
-  }
-
   return (
-    <span className={`brand-logo-spin inline-block ${className}`}>{img}</span>
+    <span
+      className={["brand-logo", spinning ? "brand-logo-spin" : "", className]
+        .filter(Boolean)
+        .join(" ")}
+      aria-hidden={alt === "" ? true : undefined}
+    >
+      {/* Raster mark with transparent pad; next/image wrappers can clip
+          rotation. A plain img + object-fit scales in any box. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-mark.png"
+        alt={alt}
+        title={title}
+        width={512}
+        height={512}
+        draggable={false}
+        decoding="async"
+      />
+    </span>
   );
 }
