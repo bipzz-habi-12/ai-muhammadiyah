@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { splitTextIntoKnowledgeChunks } from "@/lib/knowledge";
 import { createEmbeddings } from "./embedding";
-import { maxNoteTitleLength, normalizeNoteTitle, parseWikiLinks } from "./parse";
+import {
+  coerceOptionalUuid,
+  maxNoteTitleLength,
+  normalizeNoteTitle,
+  parseWikiLinks,
+} from "./parse";
 
 // Penulisan catatan "Otak Kedua".
 //
@@ -65,11 +70,8 @@ export function coerceNoteInput(body: unknown): CoerceResult<NoteInput> {
       title,
       content,
       source,
-      workspaceId: typeof raw.workspaceId === "string" ? raw.workspaceId : null,
-      originConversationId:
-        typeof raw.originConversationId === "string"
-          ? raw.originConversationId
-          : null,
+      workspaceId: coerceOptionalUuid(raw.workspaceId),
+      originConversationId: coerceOptionalUuid(raw.originConversationId),
     },
   };
 }
@@ -119,8 +121,8 @@ export async function upsertNoteByTitle(
       title: input.title,
       content: input.content,
       source: input.source ?? "user",
-      workspace_id: input.workspaceId ?? null,
-      origin_conversation_id: input.originConversationId ?? null,
+      workspace_id: coerceOptionalUuid(input.workspaceId),
+      origin_conversation_id: coerceOptionalUuid(input.originConversationId),
     })
     .select("id")
     .single();

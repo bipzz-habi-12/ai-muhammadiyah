@@ -1,10 +1,11 @@
 import {
   getEquivalentModel,
   modelCatalog,
+  modelOptions,
   type LegacyModelSlot,
   type ModelProviderId,
   type PlanModelId,
-} from "@/lib/ai/model-catalog";
+} from "./model-catalog.ts";
 
 /**
  * Satu tempat untuk SEMUA nama env kunci & id mesin — SERVER-ONLY.
@@ -31,18 +32,24 @@ const modelEnvSuffix: Record<LegacyModelSlot, string> = {
   velo: "VELO",
 };
 
-const legacyEnvSlots: Partial<Record<PlanModelId, LegacyModelSlot>> = {
-  "openai:gpt-5.6-sol": "aether",
-  "openai:gpt-5.6-terra": "cosmos",
-  "openai:gpt-5.6-luna": "prism",
-  "openai:gpt-5.5-pro": "velo",
-  "google:gemini-2.5-pro": "aether",
-  "google:gemini-2.5-flash": "prism",
-  "anthropic:claude-fable-5": "aether",
-  "anthropic:claude-opus-5": "cosmos",
-  "anthropic:claude-opus-4-8": "prism",
-  "anthropic:claude-sonnet-5": "velo",
-};
+/**
+ * Empat id model asli yang masih boleh mewarisi `OPENAI_MODEL` /
+ * `GEMINI_PRO_MODEL` / `GEMINI_FLASH_MODEL`. Model native baru memakai
+ * `apiModelId` dari katalog — jangan sampai `OPENAI_MODEL=gpt-5.6-terra`
+ * ikut menimpa GPT-6 Astra.
+ */
+const sharedModelIdFallbacks = new Set<PlanModelId>([
+  "openai:gpt-5.6-sol",
+  "openai:gpt-5.6-terra",
+  "openai:gpt-5.6-luna",
+  "openai:gpt-5.5-pro",
+  "google:gemini-2.5-pro",
+  "google:gemini-2.5-flash",
+  "anthropic:claude-fable-5",
+  "anthropic:claude-opus-5",
+  "anthropic:claude-opus-4-8",
+  "anthropic:claude-sonnet-5",
+]);
 
 const providerEnvPrefix: Record<ModelProviderId, string> = {
   openai: "OPENAI",
@@ -68,15 +75,18 @@ function nativeEnvSuffix(model: PlanModelId) {
     .replace(/^_+|_+$/g, "");
 }
 
-function legacyEnvName(
-  provider: ModelProviderId,
-  model: PlanModelId,
-  kind: "API_KEY" | "MODEL",
-) {
-  const slot = legacyEnvSlots[model];
-  return slot
-    ? `${providerEnvPrefix[provider]}_${kind}_${modelEnvSuffix[slot]}`
-    : "";
+function slotKeyEnvName(provider: ModelProviderId, model: PlanModelId) {
+  const slot = modelCatalog[model].legacySlot;
+  return `${providerEnvPrefix[provider]}_API_KEY_${modelEnvSuffix[slot]}`;
+}
+
+function slotModelIdEnvName(provider: ModelProviderId, model: PlanModelId) {
+  if (!sharedModelIdFallbacks.has(model)) {
+    return "";
+  }
+
+  const slot = modelCatalog[model].legacySlot;
+  return `${providerEnvPrefix[provider]}_MODEL_${modelEnvSuffix[slot]}`;
 }
 
 export function engineApiKeyEnvName(
@@ -110,11 +120,10 @@ export function resolveEngineApiKey(
   if (!equivalentModel) {
     return "";
   }
-  const oldKeyEnv = legacyEnvName(provider, equivalentModel, "API_KEY");
 
   return (
     readEnv(engineApiKeyEnvName(provider, equivalentModel)) ||
-    (oldKeyEnv ? readEnv(oldKeyEnv) : "") ||
+    readEnv(slotKeyEnvName(provider, equivalentModel)) ||
     readEnv(providerSharedKeyEnv[provider])
   );
 }
@@ -133,7 +142,7 @@ export function resolveEngineModelId(
   if (!equivalentModel) {
     return "";
   }
-  const oldModelEnv = legacyEnvName(provider, equivalentModel, "MODEL");
+  const oldModelEnv = slotModelIdEnvName(provider, equivalentModel);
   const perModel =
     readEnv(engineModelEnvName(provider, equivalentModel)) ||
     (oldModelEnv ? readEnv(oldModelEnv) : "");
@@ -143,15 +152,21 @@ export function resolveEngineModelId(
   }
 
   const catalogModelId = modelCatalog[equivalentModel].apiModelId;
-  const legacySlot = legacyEnvSlots[equivalentModel];
 
-  if (provider === "openai" && legacySlot) {
+  if (
+    provider === "openai" &&
+    sharedModelIdFallbacks.has(equivalentModel)
+  ) {
     return readEnv("OPENAI_MODEL") || catalogModelId;
   }
 
-  if (provider === "google" && legacySlot) {
+  if (
+    provider === "google" &&
+    sharedModelIdFallbacks.has(equivalentModel)
+  ) {
+    const slot = modelCatalog[equivalentModel].legacySlot;
     const legacy =
-      legacySlot === "aether"
+      slot === "aether"
         ? readEnv("GEMINI_PRO_MODEL")
         : readEnv("GEMINI_FLASH_MODEL") || readEnv("GEMINI_MODEL");
 
@@ -170,5 +185,20 @@ export function isEngineConfigured(
   return Boolean(
     resolveEngineApiKey(provider, model, userApiKey) &&
       resolveEngineModelId(provider, model),
+  );
+}
+
+/** True kalau penyedia itu punya SETIDAKNYA satu model miliknya yang ber-key. */
+export function isProviderEngineConfigured(provider: ModelProviderId) {
+  return modelOptions.some(
+    (model) =>
+      modelCatalog[model].provider === provider &&
+      isEngineConfigured(provider, model),
+  );
+}
+
+export function listConfiguredEngineModels(): PlanModelId[] {
+  return modelOptions.filter((model) =>
+    isEngineConfigured(modelCatalog[model].provider, model),
   );
 }

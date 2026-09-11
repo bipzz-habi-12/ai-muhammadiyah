@@ -27,6 +27,19 @@ const wikiLinkPattern = /\[\[(?!\/|AI_MU_)([^\]\n]{1,240})\]\]/g;
 
 export const maxNoteTitleLength = 240;
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** UUID opsional: string kosong / "general" / format rusak jadi null, bukan 500. */
+export function coerceOptionalUuid(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return uuidPattern.test(trimmed) ? trimmed : null;
+}
+
 export function normalizeNoteTitle(rawTitle: string) {
   return rawTitle.trim().slice(0, maxNoteTitleLength);
 }

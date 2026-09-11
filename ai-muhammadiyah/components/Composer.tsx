@@ -296,7 +296,7 @@ export default function Composer({
                             ? getLockedModelRequirement(model)
                             : credentialMode === "byok"
                               ? `Pasang API key ${modelProviderLabels[provider]}`
-                              : "Model belum tersedia untuk paket ini."
+                              : "Model ini belum terpasang di server M-Agent."
                       }
                       className={
                         isSelected
@@ -314,7 +314,11 @@ export default function Composer({
                       </span>
                       {!isReady && (
                         <span className="shrink-0 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--gold-ink-2)]">
-                          {isTierLocked ? info.premiumLabel : "Pasang key"}
+                          {isTierLocked
+                            ? info.premiumLabel
+                            : credentialMode === "byok"
+                              ? "Pasang key"
+                              : "Belum tersedia"}
                         </span>
                       )}
                       {isSelected && (

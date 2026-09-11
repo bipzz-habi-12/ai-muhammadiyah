@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { listConfiguredProviders } from "@/lib/ai/providers";
+import {
+  listConfiguredModels,
+  listConfiguredProviders,
+} from "@/lib/ai/providers";
 import { listUserProviderCredentials } from "@/lib/ai/user-credentials";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { normalizeUsageSnapshot } from "@/lib/usage/limits";
@@ -40,6 +43,7 @@ export async function GET() {
       ? {
           ...snapshot,
           availableProviders: listConfiguredProviders(),
+          availableModels: listConfiguredModels(),
           byokProviders: credentials.map((credential) => credential.provider),
         }
       : snapshot,

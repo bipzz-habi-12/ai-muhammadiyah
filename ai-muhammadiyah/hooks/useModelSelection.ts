@@ -28,6 +28,7 @@ export function useModelSelection(
   allowedModels: string[],
   availableProviders: ModelProviderId[] = [defaultModelProvider],
   byokProviders: ModelProviderId[] = [],
+  availableModels: PlanModelId[] = [],
 ) {
   const [selectedModel, setSelectedModel] =
     useState<PlanModelId>(defaultModelId);
@@ -86,9 +87,19 @@ export function useModelSelection(
 
   function canUseModel(model: PlanModelId, mode = credentialMode) {
     const provider = getModelProvider(model);
-    return mode === "byok"
-      ? byokProviders.includes(provider)
-      : allowedModels.includes(model) && availableProviders.includes(provider);
+    if (mode === "byok") {
+      return byokProviders.includes(provider);
+    }
+
+    if (!allowedModels.includes(model)) {
+      return false;
+    }
+
+    if (availableModels.length > 0) {
+      return availableModels.includes(model);
+    }
+
+    return availableProviders.includes(provider);
   }
 
   function selectModel(
