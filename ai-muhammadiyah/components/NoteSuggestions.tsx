@@ -63,8 +63,8 @@ export default function NoteSuggestions({
           title: draft.title,
           content: draft.content,
           source: "ai",
-          workspaceId,
-          originConversationId: conversationId,
+          workspaceId: workspaceId || null,
+          originConversationId: conversationId || null,
         }),
       });
 

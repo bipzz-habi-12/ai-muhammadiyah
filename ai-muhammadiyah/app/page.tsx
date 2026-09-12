@@ -99,6 +99,7 @@ export default function Home() {
     currentTierLabel,
     allowedModels,
     availableProviders,
+    availableModels,
     byokProviders,
     currentPlan,
     hasMessageQuota,
@@ -143,7 +144,12 @@ export default function Home() {
     setEffort,
     isThinkingEnabled,
     toggleThinking,
-  } = useModelSelection(allowedModels, availableProviders, byokProviders);
+  } = useModelSelection(
+    allowedModels,
+    availableProviders,
+    byokProviders,
+    availableModels,
+  );
   const {
     learningProfile,
     profileDraft,
@@ -786,7 +792,7 @@ export default function Home() {
               messageSkillOverrideId={messageSkillOverrideId}
               setMessageSkillOverrideId={setMessageSkillOverrideId}
               activeConversationId={activeConversationId}
-              activeWorkspaceId={selectedWorkspaceId}
+              activeWorkspaceId={selectedWorkspaceId || null}
             />
 
             {messages.length > 1 && (

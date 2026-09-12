@@ -1,8 +1,12 @@
-import { isEngineConfigured } from "@/lib/ai/model-env";
+import {
+  isEngineConfigured,
+  isProviderEngineConfigured,
+  listConfiguredEngineModels,
+} from "@/lib/ai/model-env";
 import {
   defaultModelProvider,
   getModelEngine,
-  modelEngines,
+  modelCatalog,
   modelProviderOrder,
   type ModelProviderId,
   type PlanModelId,
@@ -21,8 +25,6 @@ import {
  * `<PENYEDIA>_API_KEY_<MODEL>` / `<PENYEDIA>_MODEL_<MODEL>` didefinisikan.
  */
 
-const allModelIds = Object.keys(modelEngines) as PlanModelId[];
-
 /**
  * Jalur panggilan Anthropic (`streamAnthropicReply` di `lib/ai/chat.ts`) sudah
  * ditulis, jadi penjaga ini dibuka. Sebelumnya ia sengaja melaporkan Anthropic
@@ -36,23 +38,33 @@ const allModelIds = Object.keys(modelEngines) as PlanModelId[];
 const anthropicStreamingImplemented = true;
 
 /**
- * Satu penyedia ditawarkan hanya kalau ia bisa menjalankan KEEMPAT model.
+ * Satu penyedia ditawarkan kalau ia bisa menjalankan SETIDAKNYA satu model
+ * miliknya sendiri.
  *
- * Sengaja sekaku itu: pemilih model menampilkan baris penyedia yang sama di
- * bawah setiap nama model, jadi penyedia yang cuma terpasang separuh akan
- * menjanjikan mesin yang diam-diam dialihkan ke OpenAI. Memasang kunci bersama
- * (mis. `GEMINI_API_KEY`) sudah memenuhi keempatnya sekaligus.
+ * Aturan lama "keempat model harus terpasang" hanya masuk akal saat picker
+ * masih empat nama (Aether/Cosmos/Prism/Velo). Katalog native sekarang punya
+ * puluhan id; menuntut semuanya ber-key membuat seluruh GPT hilang dari menu
+ * hanya karena `OPENAI_API_KEY_GPT_6_ASTRA` kosong, padahal kunci slot
+ * (`OPENAI_API_KEY_PRISM`) atau kunci bersama sudah ada.
+ *
+ * Ketersediaan per model dicek terpisah lewat `listConfiguredModels()`.
  */
 export function isProviderConfigured(provider: ModelProviderId) {
   if (provider === "anthropic" && !anthropicStreamingImplemented) {
     return false;
   }
 
-  return allModelIds.every((model) => isEngineConfigured(provider, model));
+  return isProviderEngineConfigured(provider);
 }
 
 export function listConfiguredProviders(): ModelProviderId[] {
   return modelProviderOrder.filter(isProviderConfigured);
+}
+
+export function listConfiguredModels(): PlanModelId[] {
+  return listConfiguredEngineModels().filter((model) =>
+    isProviderConfigured(modelCatalog[model].provider),
+  );
 }
 
 /**

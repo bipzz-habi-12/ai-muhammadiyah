@@ -75,29 +75,50 @@ export async function POST(request: Request) {
     const { title, content, source, workspaceId, originConversationId } =
       coerced.value;
 
-    const { data: note, error } = await supabase
-      .from("notes")
-      .insert({
-        user_id: user.id,
-        title,
-        content,
-        source,
-        workspace_id: workspaceId,
-        origin_conversation_id: originConversationId,
-      })
-      .select(NOTE_COLUMNS)
-      .single();
+    const insertNote = (workspace: string | null, conversation: string | null) =>
+      supabase
+        .from("notes")
+        .insert({
+          user_id: user.id,
+          title,
+          content,
+          source,
+          workspace_id: workspace,
+          origin_conversation_id: conversation,
+        })
+        .select(NOTE_COLUMNS)
+        .single();
 
-    if (error) {
-      // notes_user_title_key: judul unik per pengguna (model halaman Logseq).
-      if ((error as { code?: string }).code === "23505") {
+    let { data: note, error } = await insertNote(
+      workspaceId ?? null,
+      originConversationId ?? null,
+    );
+
+    const errorCode = (error as { code?: string } | null)?.code;
+
+    // notes_user_title_key: judul unik per pengguna (model halaman Logseq).
+    if (errorCode === "23505") {
+      return NextResponse.json(
+        { error: "Catatan dengan judul itu sudah ada." },
+        { status: 409 },
+      );
+    }
+
+    // FK workspace/percakapan stale atau UUID tidak valid: simpan catatannya
+    // tetap, tanpa jejak asal. Jangan sampai klik Simpan gagal total.
+    if (error && (errorCode === "23503" || errorCode === "22P02")) {
+      ({ data: note, error } = await insertNote(null, null));
+    }
+
+    if (error || !note) {
+      if ((error as { code?: string } | null)?.code === "42P01") {
         return NextResponse.json(
-          { error: "Catatan dengan judul itu sudah ada." },
-          { status: 409 },
+          { error: "Fitur catatan belum siap di server. Hubungi pengelola." },
+          { status: 503 },
         );
       }
 
-      throw error;
+      throw error ?? new Error("Insert catatan tidak mengembalikan baris.");
     }
 
     // Chunk + embedding + tautan menyusul setelah baris catatannya ada.

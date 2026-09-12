@@ -55,6 +55,7 @@ export function useUsage() {
   // penyedia yang kuncinya kosong.
   const availableProviders: ModelProviderId[] =
     usageSnapshot?.availableProviders ?? [defaultModelProvider];
+  const availableModels = usageSnapshot?.availableModels ?? [];
   const byokProviders: ModelProviderId[] = usageSnapshot?.byokProviders ?? [];
   const currentPlan = usageSnapshot ? getPlanByTier(usageSnapshot.tier) : null;
   // Satu meteran token untuk semuanya: pesan & upload memakai kolam yang sama.
@@ -73,6 +74,7 @@ export function useUsage() {
     currentTierLabel,
     allowedModels,
     availableProviders,
+    availableModels,
     byokProviders,
     currentPlan,
     hasMessageQuota,

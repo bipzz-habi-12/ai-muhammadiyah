@@ -1,8 +1,10 @@
 import { contextWindowTokens } from "@/lib/ai/context-window";
 import {
+  isModelId,
   modelCatalog,
   modelOptions,
   type ModelProviderId,
+  type PlanModelId,
 } from "@/lib/ai/model-catalog";
 
 export type SubscriptionTier =
@@ -42,6 +44,12 @@ export type UsageSnapshot = {
    * baris penyedia di pemilih model, dan server tetap memvalidasi ulang.
    */
   availableProviders: ModelProviderId[];
+  /**
+   * Model native yang kuncinya benar-benar terpasang di server. Dipakai picker
+   * supaya GPT-5.6 Luna tetap bisa dipilih dari kunci slot/prism meskipun
+   * GPT-6 Astra belum punya env sendiri.
+   */
+  availableModels: PlanModelId[];
   /** Provider yang punya key pribadi aktif untuk user ini. */
   byokProviders: ModelProviderId[];
   contextWindowTokens: number;
@@ -254,6 +262,18 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
     (provider): provider is ModelProviderId =>
       provider === "google" || provider === "openai" || provider === "anthropic",
   );
+  const rawAvailableModels = getSnapshotValue(
+    snapshot,
+    "available_models",
+    "availableModels",
+  );
+  const availableModels = Array.isArray(rawAvailableModels)
+    ? rawAvailableModels.filter((model): model is PlanModelId =>
+        isModelId(model),
+      )
+    : modelOptions.filter((model) =>
+        availableProviders.includes(modelCatalog[model].provider),
+      );
   const rawByokProviders = getSnapshotValue(
     snapshot,
     "byok_providers",
@@ -291,6 +311,7 @@ export function normalizeUsageSnapshot(value: unknown): UsageSnapshot | null {
     tier,
     allowedModels: allowedModels.length ? allowedModels : fallback.allowedModels,
     availableProviders,
+    availableModels,
     byokProviders,
     contextWindowTokens: getPositiveNumber(
       getSnapshotValue(snapshot, "context_window_tokens", "contextWindowTokens"),
