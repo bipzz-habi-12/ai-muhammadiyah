@@ -339,4 +339,44 @@ body {
   .animate-\[sparkPulse_1\.4s_ease-in-out_infinite\] {
     animation: none;
   }
+
+  .thinking-mark span {
+    animation: none;
+    opacity: 0.85;
+    transform: none;
+  }
+}
+
+/* Dua titik + label tahapan, gaya status berpikir Cursor. */
+.thinking-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+  color: var(--ink-soft);
+}
+
+.thinking-mark span {
+  display: block;
+  width: 5.5px;
+  height: 5.5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+  animation: thinkingMark 1.05s ease-in-out infinite;
+}
+
+.thinking-mark span:nth-child(2) {
+  animation-delay: 0.22s;
+}
+
+@keyframes thinkingMark {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+
+  45% {
+    opacity: 1;
+  }
 }

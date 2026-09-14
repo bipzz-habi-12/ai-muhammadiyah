@@ -10,6 +10,7 @@ import type {
 import AskUserQuestion from "@/components/AskUserQuestion";
 import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
 import { SparkIcon, Icon } from "@/components/icons";
+import ThinkingIndicator from "@/components/ThinkingIndicator";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import NoteSuggestions from "@/components/NoteSuggestions";
 import WebSources from "@/components/WebSources";
@@ -424,23 +425,7 @@ export default function ChatArea({
 
           {isSending && isAwaitingFirstChunk && (
             <div className="animate-[messageIn_0.25s_ease-out]">
-              <div className="mb-3 flex items-center gap-2.5">
-                <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
-                  <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
-                </span>
-                <span className="text-[13px] font-semibold text-[var(--muted-2)]">
-                  M-Agent
-                </span>
-              </div>
-              {/* Spark berdenyut di area jawaban (gaya Claude), tanpa kotak
-                  "Sedang menjawab…" — label tetap ada untuk screen reader. */}
-              <SparkIcon
-                aria-hidden
-                className="h-6 w-6 text-[var(--brand)] animate-[sparkPulse_1.4s_ease-in-out_infinite]"
-              />
-              <span className="sr-only" role="status">
-                Sedang menjawab…
-              </span>
+              <ThinkingIndicator />
             </div>
           )}
           <div ref={messagesEndRef} />
