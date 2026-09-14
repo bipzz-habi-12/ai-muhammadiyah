@@ -1,5 +1,5 @@
 import Link from "next/link";
-import BrandLogo from "@/components/BrandLogo";
+import { SparkIcon } from "@/components/icons";
 
 // Sidebar desktop untuk halaman non-chat (Library, Hub, Research, Work,
 // Workspaces, Settings). Design premium Langkah 53: dulu ini rail ikon 66px
@@ -106,7 +106,9 @@ export default function AppShellRail({
     <aside className="hidden w-[264px] shrink-0 flex-col border-r border-[var(--hairline)] bg-[var(--surface-panel)] md:flex">
       <div className="flex flex-col gap-3 p-3.5 pb-0">
         <div className="flex h-10 items-center gap-2.5">
-          <BrandLogo className="h-[30px] w-[30px] shrink-0" />
+          <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] bg-[var(--brand)] text-[var(--on-brand)]">
+            <SparkIcon className="h-[17px] w-[17px]" />
+          </span>
           <span className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-tight text-[var(--ink)]">
             M-Agent
           </span>

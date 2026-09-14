@@ -9,8 +9,8 @@ import type {
 } from "react";
 import AskUserQuestion from "@/components/AskUserQuestion";
 import Composer, { CHAT_DISCLAIMER } from "@/components/Composer";
-import BrandLogo from "@/components/BrandLogo";
-import { Icon } from "@/components/icons";
+import { SparkIcon, Icon } from "@/components/icons";
+import ThinkingIndicator from "@/components/ThinkingIndicator";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import NoteSuggestions from "@/components/NoteSuggestions";
 import WebSources from "@/components/WebSources";
@@ -237,7 +237,9 @@ export default function ChatArea({
           model punya ruang dan layar tidak terasa mepet ke header. */}
       {messages.length <= 1 && (
         <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col justify-start gap-6 pb-4 pt-8 sm:pt-10 md:pt-12">
-          <BrandLogo className="h-[42px] w-[42px]" alt="" />
+          <div className="grid h-[42px] w-[42px] place-items-center rounded-xl bg-[var(--brand)] text-[var(--on-brand)]">
+            <SparkIcon className="h-6 w-6" />
+          </div>
 
           <section>
             <WelcomeGreeting key={activeConversationId} />
@@ -336,7 +338,7 @@ export default function ChatArea({
       {messages.length > 1 && (
         <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end space-y-4">
           {messages.map((message, index) => {
-            // Pesan AI yang sedang di-stream: logo header berputar dan
+            // Pesan AI yang sedang di-stream: spark di header berdenyut dan
             // tiap blok teks baru fade-in (gaya Claude, tanpa caret).
             const isStreamingMessage =
               isSending &&
@@ -360,10 +362,15 @@ export default function ChatArea({
                 className="animate-[messageIn_0.25s_ease-out]"
               >
                 <div className="mb-3 flex items-center gap-2.5">
-                  <BrandLogo
-                    spinning={isStreamingMessage}
-                    className="h-[26px] w-[26px] shrink-0"
-                  />
+                  <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
+                    <SparkIcon
+                      className={
+                        isStreamingMessage
+                          ? "h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]"
+                          : "h-4 w-4"
+                      }
+                    />
+                  </span>
                   <span className="text-[13px] font-semibold text-[var(--muted-2)]">
                     M-Agent
                   </span>
@@ -419,17 +426,14 @@ export default function ChatArea({
           {isSending && isAwaitingFirstChunk && (
             <div className="animate-[messageIn_0.25s_ease-out]">
               <div className="mb-3 flex items-center gap-2.5">
-                <BrandLogo spinning className="h-[26px] w-[26px] shrink-0" />
+                <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
+                  <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
+                </span>
                 <span className="text-[13px] font-semibold text-[var(--muted-2)]">
                   M-Agent
                 </span>
               </div>
-              {/* Logo pusaran berputar terus (gaya Claude), tanpa kotak
-                  "Sedang menjawab…" — label tetap ada untuk screen reader. */}
-              <BrandLogo spinning className="h-8 w-8" />
-              <span className="sr-only" role="status">
-                Sedang menjawab…
-              </span>
+              <ThinkingIndicator />
             </div>
           )}
           <div ref={messagesEndRef} />
