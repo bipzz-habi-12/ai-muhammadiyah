@@ -32,9 +32,10 @@ import type { WebSource } from "@/lib/web-search";
 // functionDeclarations. Hasilnya: model bisa memakai web DAN tool internal di
 // giliran yang sama, sesuatu yang mustahil kalau keduanya dipasang bersamaan.
 //
-// Efek sampingnya justru perbaikan: `needsWebSearch()` di lib/ai/chat.ts adalah
-// daftar kata kunci yang rapuh. Sebagai tool, keputusan "perlu cari web atau
-// tidak" pindah ke penilaian model.
+// Efek sampingnya justru perbaikan: `needsWebSearch()` di lib/web-search.ts
+// adalah daftar kata kunci yang rapuh. Sebagai tool, keputusan "perlu cari
+// web atau tidak" pindah ke penilaian model — gerbang itu hanya menentukan
+// kapan Gemini+tools dipakai, bukan apakah model boleh mengaku bisa search.
 
 export type ToolContext = {
   supabase: SupabaseClient;

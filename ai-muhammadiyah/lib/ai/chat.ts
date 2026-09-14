@@ -32,7 +32,7 @@ import {
   toGeminiToolDeclarations,
   type ToolContext,
 } from "@/lib/ai/tools";
-import type { WebSource } from "@/lib/web-search";
+import { needsWebSearch, type WebSource } from "@/lib/web-search";
 
 export type ChatMessage = {
   role: "user" | "ai";
@@ -139,8 +139,9 @@ export const islamicAiIdentitySystemPrompt = [
   "Keep greetings concise, friendly, and polished. Do not repeat long introductions or identity paragraphs.",
   "Focus on education, akhlak, useful knowledge, helpfulness, motivation, productivity, and adab reminders.",
   "Support Islamic study help and school learning with a balanced Muhammadiyah educational tone: thoughtful, evidence-aware, practical, and respectful.",
-  "Avoid generic model disclaimers such as knowledge cutoff statements, 'as an AI language model', or 'I cannot access the internet' unless the user specifically asks about your limitations, live web access, or current events.",
-  "If current or live information is required and no browsing tool is available, answer from stable knowledge when safe and clearly suggest checking an official/current source without turning it into a boilerplate disclaimer.",
+  "Avoid generic model disclaimers such as knowledge cutoff statements, 'as an AI language model', or 'I cannot access the internet'.",
+  "M-Agent CAN search the live web (Google Search) for current events, news, prices, schedules, scores, and explicit look-ups. If the user asks whether you can search the web, browse, or look up live information, answer yes in their language. Never say you cannot access the internet or that web search is unavailable.",
+  "If live facts are needed this turn but search results were not attached, answer from stable knowledge when safe and invite a more specific current-events question — do not deny the capability.",
   "Avoid extreme, sectarian, unsafe, or unsupported religious claims. Do not present uncertain Islamic rulings as absolute.",
   "When a question depends on detailed fiqh, local fatwa, or a sensitive Islamic ruling and you are unsure, encourage the user to consult qualified scholars or trusted Muhammadiyah authorities.",
   "Keep answers concise unless the user asks for detailed explanations.",
@@ -169,7 +170,7 @@ const answerShapeSystemPrompt = [
   "- When you recommend among options, give your recommendation and its reason first, then the alternatives. Do not lay out a neutral survey and leave the user to decide.",
   "- End on the last useful sentence. No 'Semoga membantu', no 'Ada lagi yang bisa saya bantu?', no closing paragraph that repeats the body.",
   "- If you do not know, or the fact is outside what you can verify, say it in one plain sentence and give the best available next step. Do not spread the uncertainty across a whole paragraph.",
-  "- Never claim you performed an action you cannot perform (saving, sending, scheduling, opening a file, browsing). Say what the user needs to do instead.",
+  "- Never claim you performed an action you cannot perform (saving, sending, scheduling, opening a file). Live web search IS available — do not list browsing as something you cannot do. Do not pretend you already searched unless search results were attached this turn.",
 ].join("\n");
 
 // KONTRAK RENDERER — jangan diubah tanpa membuka `components/MarkdownMessage.tsx`
@@ -327,15 +328,23 @@ const clarifyingQuestionSystemPrompt = [
   "- Ask at most one block per reply, and once the user answers, get to work immediately without asking about the same thing again.",
 ].join("\n");
 
-// Only injected into the Gemini system instruction when needsWebSearch()
-// triggered the google_search tool for this turn (see streamChatReply) — the
-// generic "no browsing tool available" line in islamicAiIdentitySystemPrompt
-// already covers every other turn.
+// Injected when this turn actually has live search: either Gemini's built-in
+// google_search, or the cari_web function tool. Identity already says the
+// product CAN search; these blocks tell the model to use the results / tool.
 const webSearchSystemPrompt = [
   "LIVE WEB SEARCH:",
-  "Google Search results for this turn are attached because the question looks time-sensitive (news, prices, schedules, scores, or anything that changes over time).",
+  "Google Search results for this turn are attached because the question looks time-sensitive or the user asked you to look something up online.",
+  "If the user asks whether you can search the web: answer yes. Do not say you cannot access the internet.",
   "Ground your answer in those results instead of relying on stable training-data knowledge for anything that could be outdated.",
   "If the results do not actually answer the question, say so plainly instead of guessing or falling back to possibly-stale knowledge.",
+].join("\n");
+
+const toolCallingSystemPrompt = [
+  "TOOLS THIS TURN:",
+  "You have function tools, including cari_web (live Google Search), cari_catatan (the user's Second Brain notes), and cari_pengetahuan (Muhammadiyah Knowledge Base).",
+  "If the user asks whether you can search the web, browse, or look up live information: answer yes in their language. Do not say you cannot access the internet.",
+  "For current events, news, prices, schedules, scores, and anything that changes over time, you MUST call cari_web before answering.",
+  "If the user only asks about the capability itself, confirm it; calling cari_web is optional unless they also want a live fact.",
 ].join("\n");
 
 const contextPrioritySystemPrompt = [
@@ -829,67 +838,6 @@ function isImageQuestion(question: string) {
   return imageWords.some((word) => normalizedQuestion.includes(word));
 }
 
-// Heuristic like isDocumentQuestion/isImageQuestion above — imperfect by
-// nature (keyword match, not intent classification), tuned toward catching
-// obviously time-sensitive questions rather than triggering on everything
-// that merely mentions a date. False negatives just mean the AI answers from
-// training knowledge as it always did; false positives cost one extra Gemini
-// call with no OpenAI fallback for that turn (see streamChatReply), so this
-// stays conservative rather than firing on every "kapan"/"siapa".
-function needsWebSearch(question: string) {
-  const normalizedQuestion = question.toLowerCase();
-
-  const timeSensitivePhrases = [
-    "hari ini",
-    "saat ini",
-    "sekarang",
-    "terbaru",
-    "terkini",
-    "terupdate",
-    "minggu ini",
-    "bulan ini",
-    "tahun ini",
-    "baru-baru ini",
-    "berita",
-    "kabar terbaru",
-    "kabar terkini",
-    "harga",
-    "kurs",
-    "nilai tukar",
-    "harga saham",
-    "cuaca",
-    "gempa",
-    "jadwal",
-    "skor",
-    "hasil pertandingan",
-    "hasil pemilu",
-    "siapa presiden",
-    "siapa juara",
-    "siapa gubernur",
-    "siapa menteri",
-    "kapan rilis",
-    "kapan tayang",
-    "today",
-    "current",
-    "currently",
-    "this week",
-    "this month",
-    "this year",
-    "latest",
-    "breaking news",
-    "exchange rate",
-    "stock price",
-    "weather in",
-    "who is the current",
-    "release date",
-    "score of",
-  ];
-
-  return timeSensitivePhrases.some((phrase) =>
-    normalizedQuestion.includes(phrase),
-  );
-}
-
 function isPdfContextTooShort(pdfContext: string) {
   return pdfContext.length > 0 && pdfContext.length < minUsefulDocumentContextLength;
 }
@@ -1171,6 +1119,7 @@ function createGeminiSystemInstruction(
   memory?: UserMemory,
   systemPrompt?: string,
   enableWebSearch = false,
+  enableTools = false,
 ) {
   return [
     islamicAiIdentitySystemPrompt,
@@ -1182,7 +1131,11 @@ function createGeminiSystemInstruction(
     artifactSystemPrompt,
     noteSystemPrompt,
     clarifyingQuestionSystemPrompt,
-    enableWebSearch ? webSearchSystemPrompt : "",
+    enableTools
+      ? toolCallingSystemPrompt
+      : enableWebSearch
+        ? webSearchSystemPrompt
+        : "",
     systemPrompt ?? "",
     memory ? createUserMemorySystemPrompt(memory) : "",
   ]
@@ -2044,7 +1997,16 @@ async function streamGeminiReplyWithTools(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: createGeminiSystemInstruction(memory, systemPrompt) }],
+              parts: [
+                {
+                  text: createGeminiSystemInstruction(
+                    memory,
+                    systemPrompt,
+                    true,
+                    true,
+                  ),
+                },
+              ],
             },
             contents,
             generationConfig: {
@@ -2966,10 +2928,11 @@ export async function streamChatReply(
     Boolean(preparedPdfContext) && isDocumentQuestion(latestMessage);
   // Deliberate, narrow exception to the GPT-first routing rule: only OpenAI's
   // Responses API model here has no live-search tool wired up, but Gemini's
-  // google_search grounding does. A time-sensitive question skips the GPT
-  // branch entirely for this one turn and goes straight to Gemini with
-  // search enabled — see needsWebSearch() and CLAUDE.md's routing exception
-  // note. Every other turn is unaffected.
+  // google_search grounding does. A time-sensitive question — or an explicit
+  // "cari di web" / "bisa penelusuran web?" ask — skips the GPT branch for
+  // this one turn and goes straight to Gemini with search enabled. See
+  // needsWebSearch() in lib/web-search.ts and CLAUDE.md's routing exception.
+  // Every other turn is unaffected.
   const selectedProvider = modelCatalog[normalizedModel].provider;
   const isStrictByok = options?.strictProvider === true;
   const shouldSearchWeb =
