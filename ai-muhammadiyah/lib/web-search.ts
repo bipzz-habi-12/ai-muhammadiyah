@@ -120,3 +120,103 @@ export function formatSourcesTextForExport(text: string): string {
     }
   });
 }
+
+/**
+ * Keyword heuristic that decides whether this turn should skip GPT-first
+ * routing and go to Gemini with live web search (`cari_web` / `google_search`).
+ *
+ * Two families of phrases, both conservative on purpose:
+ * - Time-sensitive facts (news, prices, scores). A miss just means the model
+ *   answers from training data as it always did.
+ * - Explicit look-ups AND capability questions ("bisa penelusuran web?").
+ *   Those used to fall through to GPT, whose identity prompt then denied
+ *   having internet access — exactly the false "tidak bisa" the user hit.
+ */
+export function needsWebSearch(question: string) {
+  const normalizedQuestion = question.toLowerCase();
+
+  return webSearchTriggerPhrases.some((phrase) =>
+    normalizedQuestion.includes(phrase),
+  );
+}
+
+const webSearchTriggerPhrases = [
+  "hari ini",
+  "saat ini",
+  "sekarang",
+  "terbaru",
+  "terkini",
+  "terupdate",
+  "minggu ini",
+  "bulan ini",
+  "tahun ini",
+  "baru-baru ini",
+  "berita",
+  "kabar terbaru",
+  "kabar terkini",
+  "harga",
+  "kurs",
+  "nilai tukar",
+  "harga saham",
+  "cuaca",
+  "gempa",
+  "jadwal",
+  "skor",
+  "hasil pertandingan",
+  "hasil pemilu",
+  "siapa presiden",
+  "siapa juara",
+  "siapa gubernur",
+  "siapa menteri",
+  "kapan rilis",
+  "kapan tayang",
+  "today",
+  "current",
+  "currently",
+  "this week",
+  "this month",
+  "this year",
+  "latest",
+  "breaking news",
+  "exchange rate",
+  "stock price",
+  "weather in",
+  "who is the current",
+  "release date",
+  "score of",
+  // Explicit look-up / capability questions. Keep these specific: a bare
+  // "web", "search", or "google" would fire on "website", "cari catatan",
+  // and "Google Drive".
+  "penelusuran web",
+  "penelusuran internet",
+  "pencarian web",
+  "pencarian internet",
+  "cari di web",
+  "cari di internet",
+  "cari di google",
+  "mencari di web",
+  "mencari di internet",
+  "telusuri web",
+  "telusuri di web",
+  "telusuri di internet",
+  "search the web",
+  "search the internet",
+  "search online",
+  "web search",
+  "google search",
+  "look up online",
+  "akses internet",
+  "akses ke internet",
+  "akses ke web",
+  "bisa browsing",
+  "bisa menelusuri",
+  "bisa mencari di web",
+  "bisa cari web",
+  "bisa cari di web",
+  "cek di internet",
+  "cek di web",
+  "cek online",
+  "live web",
+  "browse the web",
+  "browse the internet",
+];

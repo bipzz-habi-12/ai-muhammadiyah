@@ -460,8 +460,8 @@ npm run build
 
 - `20260814000000_user_connections.sql` has not been applied, and the Google OAuth client does not exist yet, so the Drive connector is code-only. The OAuth flow, real Google Docs creation, and Drive file reads are **untested end to end**.
 - Live payments are inactive until Stripe env values are filled; paid CTAs stay disabled by design.
-- Tool calling is **Gemini-only**. The OpenAI Responses API has no tool adapter yet, so most messages (which GPT answers) never use tools. This is why tool wiring is locked to the `needsWebSearch()` trigger.
-- The entry point to tools is still a keyword heuristic. Once an OpenAI adapter exists, the heuristic can be deleted and the decision left to the model.
+- Tool calling is **Gemini-only**. The OpenAI Responses API has no tool adapter yet, so most messages (which GPT answers) never use tools. This is why tool wiring is locked to the `needsWebSearch()` trigger (now in `lib/web-search.ts`, covering time-sensitive facts **and** explicit/capability web-search asks).
+- The entry point to tools is still a keyword heuristic. Once an OpenAI adapter exists, the heuristic can be deleted and the decision left to the model. Identity prompt now forbids denying web search; capability questions like "bisa penelusuran web?" must route to Gemini so the answer is yes.
 - `cari_catatan` / `cari_pengetahuan` have not been tested with a logged-in session returning non-empty results; only the path and empty-result handling are proven.
 - Knowledge Base RAG is full-text only — no embeddings, no semantic search. Second Brain notes are the only semantic retrieval in the product.
 - Scanned PDFs and image-only documents may extract little or nothing; OCR is not implemented.
