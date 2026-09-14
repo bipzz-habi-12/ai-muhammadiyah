@@ -14,29 +14,24 @@ export default function ThinkingIndicator() {
   useEffect(() => {
     const id = window.setInterval(() => {
       setStage((current) => Math.min(current + 1, stages.length - 1));
-    }, 1600);
+    }, 1800);
 
     return () => window.clearInterval(id);
   }, []);
 
-  const progressPct = Math.min(((stage + 1) / (stages.length + 0.4)) * 100, 88);
-
   return (
-    <div className="max-w-[260px]" role="status" aria-live="polite">
-      <p className="flex items-baseline text-[14px] leading-none text-[var(--muted-2)]">
-        <span>{stages[stage]}</span>
-        <span className="thinking-dots" aria-hidden="true">
-          <span>.</span>
-          <span>.</span>
-          <span>.</span>
-        </span>
-      </p>
-      <div className="thinking-progress mt-2.5" aria-hidden="true">
-        <span
-          className="thinking-progress-fill"
-          style={{ transform: `scaleX(${progressPct / 100})` }}
-        />
-      </div>
+    <div
+      className="flex items-center gap-2.5"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="thinking-mark" aria-hidden="true">
+        <span />
+        <span />
+      </span>
+      <span className="text-[14.5px] font-medium text-[var(--ink-soft)]">
+        {stages[stage]}
+      </span>
     </div>
   );
 }

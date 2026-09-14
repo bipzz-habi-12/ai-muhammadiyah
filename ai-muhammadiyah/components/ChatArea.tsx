@@ -425,14 +425,6 @@ export default function ChatArea({
 
           {isSending && isAwaitingFirstChunk && (
             <div className="animate-[messageIn_0.25s_ease-out]">
-              <div className="mb-3 flex items-center gap-2.5">
-                <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[7px] bg-[var(--brand)] text-[var(--on-brand)]">
-                  <SparkIcon className="h-4 w-4 animate-[sparkPulse_1.4s_ease-in-out_infinite]" />
-                </span>
-                <span className="text-[13px] font-semibold text-[var(--muted-2)]">
-                  M-Agent
-                </span>
-              </div>
               <ThinkingIndicator />
             </div>
           )}
